@@ -7,7 +7,7 @@ import { AlertModal } from './components/AlertModal';
 import { getGroundingUsage, getStoredApiKey, getStoredModel } from './services/geminiApi';
 import { executeEvaluationPipeline } from './services/evaluationPipeline';
 
-import sampleEvaluation from './data/evaluations/eval-ihc-001.json';
+import sampleEvaluation from './data/evaluations/eval-graph-latest.json';
 
 export default function App() {
   const [activeSubject, setActiveSubject] = useState('Islamic History & Culture');
