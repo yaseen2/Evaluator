@@ -1,55 +1,56 @@
 {
-  "id": "eval-ihc-001",
-  "type": "antigravity_offline",
+  "id": "eval-graph-7page-001",
+  "type": "graph_dag_evaluation",
   "subject": "Islamic History & Culture",
   "topic": "Economic Conditions of Pre-Islamic Arabia",
-  "examQuestion": "Critically analyze the socio-economic structure of Pre-Islamic Arabia and discuss how geography dictated pastoralism and trade dynamics.",
-  "candidateName": "Antigravity Offline Submission",
+  "examQuestion": "Critically analyze the socio-economic structure of Pre-Islamic Arabia, distinguishing between Bedouin pastoralism and Meccan urban trade dynamics.",
+  "candidateName": "Islamic History 7-Page Submission",
   "date": "2026-08-11",
-  "evaluatedModelName": "Antigravity AI Pro Engine",
-  "fullTranscribedText": "Economic Conditions of Pre-Islamic Arabia\n\nIntroduction:\nEconomic conditions of pre-islamic Arabia were fundamentally determined by its geography. The harsh environment, scarcity of water and limited agriculture forced the people to move in search of food, water and pastures. The strategic location of the Arabian Peninsula allowed it to benefit from the international trade. Overall, the economic conditions were characterized by pastoralism, trade, usury and inroads (Ghazw).\n\nA- The Bedouins' Economy:\nThe following were the different aspects of the Bedouins economy.\n\n1. Pastoralism:\nPastoralism was the chief occupation of the Bedouins. They kept camels, sheep and goats. Camels were the main wealth of the Bedouins. It provided milk, meat, clothing and transportation.\n\n2. Camel: The ship of the desert:\nWithout camel, life in the harsh environment of Arabia would have been almost physically impossible. The camel proved an indispensable asset, rendering life in the unforgiving Arabian environment otherwise virtually untenable. It was a source of milk, meat, travelling and tent-hairs. The one-humped camel (Dromedary) was used for riding and transport.",
-  "wordCount": 164,
-  "introWordCount": 68,
-  "examinerSummary": "Candidate demonstrates good foundational knowledge of nomadic pastoralism and trade routes. However, the introduction falls short of the 100-word target, and the script relies on elementary narrative rather than deep structural causality.",
+  "evaluatedModelName": "Antigravity DAG Graph Engine",
+  "fullTranscribedText": "Economic Structure & Conditions of Pre-Islamic Arabia\n\nIntroduction:\nEconomic conditions of pre-islamic Arabia were fundamentally determined by its geography. The harsh environment, scarcity of water and limited agriculture forced the people to move in search of food, water and pastures. The strategic location of the Arabian Peninsula allowed it to benefit from the international trade. Overall, the economic conditions were characterized by pastoralism, trade, usury and inroads (Ghazw).\n\nA- The Bedouins' Economy:\nThe following were the different aspects of the Bedouin's economy.\n\n1- Pastoralism:\nDue to limited water and agriculture, the Bedouins were constantly moving their livestock in search of food and water.\n\n2- Camel: The ship of the desert:\nWithout camel, life in the harsh environment of Arabia would have been almost physically impossible. The camel was a source of milk, meat, travelling and tent-hairs. The one-humped camel could travel for 17 days in desert without water. This is why camel has been called \"The ship of the desert\" by many historians.\n\n3- Raid (Ghazw):\nNot everyone in Arabia possessed large livestock and camels. And also, sometimes there used to be limited rainfall and lack of food. Due to these reasons, for their survival, the Bedouins were raiding on each other's properties. They used to take livestock, camels and sometimes unfortunately women from another tribe. This practice was so common, especially among the Bedouins, that it was considered a norm and a legitimate source of food and survival.\n\nB- The Urban Economy:\nUnlike Yathrib (Madina), Makkah possessed no agricultural land. Its economy was running on trans-Arabian trade and the annual pilgrimage. The following were the aspects of the urban economy.\n\n1- The Bi-annual Trade Caravans:\nHashim, the great-grandfather of Prophet Muhammad (SAW) formed this Bi-annual trade caravans system. As the name indicates, it happened twice a year:\ni- The Summer Trade Caravan\nii- The Winter Caravan\n\ni- Summer Trade Caravans:\nIn the summer, the trade caravan used to move towards Yemen to buy Byzantine weapons and grains.\n\nii- Winter Trade Caravans:\nIn the winter, the caravans used to go to Yemen to buy Indian and African spices and silks.\n\nThese caravans were safe from the impoverished Bedouins' raid/inroads, because they respected four sacred months of the year:\n- Muharram\n- Rajab\n- Dhul Qidda\n- Dhul Hijja\n\n2- Pilgrimage Economy:\nAnnual pilgrimage brought diverse Arabian tribes to Makkah. This generated immense revenue which was then redistributed among the poor segments of society.\n\n3- Fair of Ukaz:\nThe Fair of Ukaz used to happen near Taif in Dhul Qidda. It was like the \"Olympia of Arabia\". Different tribes from different and distant locations of Arabian Peninsula used to come here for poetry competition, horse racing, and buying and selling of goods and services. Also, the Fair of Ukaz acted as a sole and powerful cultural unifying force.\n\n4- Economic Exploitation (Usury):\nThe trans-Arabian trade turned Mecca into a booming commercial trade center. However, this wealth was not distributed equally. It was monopolized by few elite clans of the Quraysh (such as Banu Umayya and Banu Makhzum). Because the Bedouins were starving while their neighbours grew rich, they resorted to making inroads upon their wealthy neighbours. While they respected the sacred months of the year but due to intense economic pressure they often manipulated their calendar (a practice known as Nasi') to swap months around just so they could resume raiding and survive.\n\nFurthermore, the Meccan elites developed a complex system of borrowing and lending which later become exploitative (usury/interest) due to the absence of any moral framework. This practice of Riba (excess) resulted in the rich becoming richer while the poor becoming further poorer.\n\nConclusion:\nThe pre-islamic economic structure of Arabia was characterized by pastoralism, trade, raids, economic exploitation, income inequality and Riba. It is therefore, no coincidence that with the dawn of Islam poor-tax (zakat) was made mandatory, and the practice of usury was considered a major sin.",
+  "wordCount": 512,
+  "introWordCount": 78,
+  "examinerSummary": "The candidate presents a remarkably structured, multi-page paper covering both Bedouin pastoralism and Meccan urban mercantile economy. Excellent structural awareness regarding Nasi' (calendar swapping), Hashim's Ilaf system, and the Fair of Ukaz. However, the paper contains a major geographical inversion (reversing Syria and Yemen caravan directions) and lacks citation of key agreements like Hilf al-Fudul.",
   "directiveAnalysis": {
-    "directiveWord": "Critically Analyze & Discuss",
+    "directiveWord": "Critically Analyze & Distinguish",
     "targetTimeframe": "Pre-610 CE (Jahiliyyah Period)",
-    "requiredDimensions": "Geographical, Pastoral & Trade Dynamics",
+    "requiredDimensions": "Bedouin Pastoralism vs Meccan Urban Mercantile Trade",
     "alignmentStatus": "Aligned",
-    "feedback": "Candidate directly addresses the requested geographical and economic dimensions of Pre-Islamic Arabia."
+    "feedback": "Candidate directly addresses both Bedouin nomadic economy and Meccan urban trade dynamics with clear headings."
   },
   "scoreBreakdown": {
     "introduction": {
       "status": "Needs Improvement",
-      "feedback": "Introduction contains 68 words. Target is at least 100 words defining the analytical thesis and scope."
+      "feedback": "Introduction contains 78 words. Target is at least 100 words setting up the full analytical framework."
     },
     "headings": {
       "status": "Satisfactory",
-      "feedback": "Headings are clearly separated, though 'A- The Bedouins' Economy' could be styled more academically."
+      "feedback": "Strong structural categorization using 'A- The Bedouins' Economy' and 'B- The Urban Economy'."
     },
     "diagrams": {
       "status": "Satisfactory",
-      "feedback": "See suggested administrative and economic flowchart embedded inline."
+      "feedback": "See suggested dual-economy flowchart embedded right after 'B- The Urban Economy'."
     },
     "critical_analysis": {
-      "status": "Needs Improvement",
-      "feedback": "Relies on descriptive storytelling rather than analyzing structural cause-and-effect institutional drivers."
+      "status": "Satisfactory",
+      "feedback": "Excellent structural causality explaining Ghazw (raids) as a survival mechanism and Nasi' (calendar swapping)."
     },
     "grammar_syntax": {
       "status": "Needs Improvement",
-      "feedback": "Identified capitalization errors ('pre-islamic'), possessive syntax mistakes ('Bedouins economy'), and imprecise diction ('tent-hairs')."
+      "feedback": "Minor tense errors ('later become exploitative') and capitalization mistakes ('pre-islamic')."
     }
   },
   "thingsToInclude": [
-    "Analyze the structural role of Hilf al-Fudul (Pact of Virtues) in protecting foreign traders against predatory tribal cartels in Mecca.",
-    "Discuss how the absence of a centralized state apparatus made pastoral raiding (Ghazw) an institutionalized economic survival mechanism.",
-    "Highlight the role of annual trade sanctuaries (Ukaz, Dhul-Majaz, and Majanna) as economic and inter-tribal dispute resolution hubs."
+    "Correct the geographical direction of Ilaf trade caravans: Summer caravan went NORTH to Syria/Levant (Byzantium); Winter caravan went SOUTH to Yemen.",
+    "Discuss Hilf al-Fudul (Pact of Virtues) — the historic Meccan agreement protecting foreign merchants against economic exploitation by powerful Quraysh clans.",
+    "Analyze Asabiyyah (Tribal Solidarity) as explained by Ibn Khaldun — how tribal cohesion served as the sole legal and security system in the desert.",
+    "Detail the administrative offices of Rifadah (feeding pilgrims) and Siqayah (water provision) managed by the Hashimite clan."
   ],
   "suggestedVisual": {
-    "title": "Suggested Visual: Pre-Islamic Socio-Economic Survival Matrix",
-    "description": "FPSC examiners award top marks when structural cause-and-effect relationships are mapped visually.",
-    "insertAfterHeading": "A- The Bedouins' Economy:",
-    "diagramText": "Pre-Islamic Arabian Economic Matrix\n  ├── Arid Geography & Water Scarcity\n  │     ├── Pastoralism (Camels/Goats as Primary Capital)\n  │     └── Inroads & Raids (Ghazw as Survival Resource Redistribution)\n  └── Strategic Peninsula Crossroads\n        ├── Caravan Trade (Incense Route: Yemen ➔ Syro-Palestine)\n        └── Commercial Institutions (Riba / Usury & Ukaz Trade Fairs)"
+    "title": "Suggested Visual: Pre-Islamic Arabian Dual Economy & Trade Network",
+    "description": "FPSC examiners award top marks when structural cause-and-effect relationships are mapped visually in a flowchart.",
+    "insertAfterHeading": "B- The Urban Economy:",
+    "diagramText": "Pre-Islamic Arabian Economy\n  ├── 🐪 Bedouin Nomadic Sector (Desert Interior)\n  │     ├── Pastoralism (Camels/Goats = Primary Capital)\n  │     └── Inroads & Raids (Ghazw as Survival Resource Redistribution)\n  └── 🏛️ Urban Mercantile Sector (Mecca & Trade Hubs)\n        ├── Ilaf Caravan System (Hashim)\n        │     ├── ☀️ Summer: North to Syria/Levant (Byzantine Realm)\n        │     └── ❄️ Winter: South to Yemen (Abyssinian/Indian Imports)\n        ├── Sanctuary Markets & Culture (Ukaz, Dhul-Majaz, Sacred Months)\n        └── Financial Exploitation (Riba / Usury & Calendar Swapping / Nasi')"
   },
   "annotations": [
     {
@@ -62,49 +63,101 @@
     },
     {
       "id": "ann-2",
-      "targetPhrase": "Ghazw",
+      "targetPhrase": "Bedouins' Economy",
       "type": "green",
-      "category": "Technical Terminology",
-      "comment": "Excellent inclusion of authentic Arabic historical terminology (Ghazw / inter-tribal raids).",
-      "suggestion": "Good use of subject terminology."
+      "category": "Technical Register",
+      "comment": "Good use of possessive plural apostrophe in section header.",
+      "suggestion": "Well-formatted heading."
     },
     {
       "id": "ann-3",
-      "targetPhrase": "Bedouins economy",
-      "type": "red",
-      "category": "Possessive Noun Syntax",
-      "comment": "Grammatical syntax error: Missing possessive apostrophe in 'Bedouins economy'.",
-      "suggestion": "Correct to 'Bedouins' economy'."
-    },
-    {
-      "id": "ann-4",
       "targetPhrase": "tent-hairs",
       "type": "amber",
       "category": "Diction & Register",
-      "comment": "Imprecise translation: 'tent-hairs' should be written as 'camel-hair cloth for tents'.",
+      "comment": "Imprecise phrasing. 'tent-hairs' should be written as 'woven camel-hair textiles for tents'.",
       "suggestion": "Replace with 'woven camel-hair textiles'."
     },
     {
-      "id": "ann-5",
-      "targetPhrase": "Pastoralism was the chief occupation of the Bedouins",
+      "id": "ann-4",
+      "targetPhrase": "The ship of the desert",
       "type": "green",
-      "category": "Strong Argumentation",
-      "comment": "Accurate socio-economic generalization linking Arabian geography to nomadic pastoralism.",
-      "suggestion": "Well-substantiated thesis argument."
+      "category": "Literary Metaphor",
+      "comment": "Effective inclusion of classical historiographical idiom.",
+      "suggestion": null
+    },
+    {
+      "id": "ann-5",
+      "targetPhrase": "legitimate source of food and survival",
+      "type": "green",
+      "category": "Structural Causality",
+      "comment": "Strong socio-economic insight linking resource aridity to the normalization of Ghazw (raids).",
+      "suggestion": "Excellent cause-effect analysis."
+    },
+    {
+      "id": "ann-6",
+      "targetPhrase": "towards Yemen to buy Byzantine weapons",
+      "type": "red",
+      "category": "Factual / Geographical Blunder",
+      "comment": "Factual Inaccuracy! The Summer Caravan went NORTH to Syria/Levant (Byzantium), while the Winter Caravan went SOUTH to Yemen.",
+      "suggestion": "Correct route: Summer ➔ Syria/Levant; Winter ➔ Yemen."
+    },
+    {
+      "id": "ann-7",
+      "targetPhrase": "Fair of Ukaz",
+      "type": "green",
+      "category": "Subject Terminology",
+      "comment": "Excellent reference to the primary commercial and literary hub of Jahiliyyah Arabia.",
+      "suggestion": null
+    },
+    {
+      "id": "ann-8",
+      "targetPhrase": "Olympia of Arabia",
+      "type": "green",
+      "category": "Comparative Historiography",
+      "comment": "Great comparative analogy with classical Greek Panhellenic games.",
+      "suggestion": null
+    },
+    {
+      "id": "ann-9",
+      "targetPhrase": "Nasi'",
+      "type": "green",
+      "category": "Advanced Terminology",
+      "comment": "Outstanding inclusion of the pre-Islamic calendar intercalation practice (calendar swapping for raids).",
+      "suggestion": null
+    },
+    {
+      "id": "ann-10",
+      "targetPhrase": "later become exploitative",
+      "type": "red",
+      "category": "Grammar & Syntax",
+      "comment": "Grammatical tense error: Should be written in past tense as 'later became exploitative'.",
+      "suggestion": "Change 'become' to 'became'."
     }
   ],
   "factCheck": [
     {
-      "claim": "Pastoralism was the chief occupation of the Bedouins.",
+      "claim": "Hashim formed the bi-annual trade caravan system (Ilaf).",
       "verified": true,
       "correctedFact": null,
-      "source": "Historical Consensus (Ibn Khaldun / Philip Hitti)"
+      "source": "Historical Consensus / Ibn Hisham"
     },
     {
-      "claim": "The one-humped camel (Dromedary) was used for riding and transport in Pre-Islamic Arabia.",
+      "claim": "Summer trade caravan went towards Yemen to buy Byzantine weapons.",
+      "verified": false,
+      "correctedFact": "The Summer Caravan went NORTH to Syria/Levant (Byzantium); the Winter Caravan went SOUTH to Yemen.",
+      "source": "Surah Quraysh (106:2) & Philip Hitti, History of the Arabs"
+    },
+    {
+      "claim": "Annual pilgrimage revenue was redistributed among the poor segments of society.",
+      "verified": false,
+      "correctedFact": "Pre-Islamic pilgrimage revenue was largely monopolized by Quraysh clan elites (Rifadah & Siqayah offices), rather than public welfare.",
+      "source": "W. Montgomery Watt, Muhammad at Mecca"
+    },
+    {
+      "claim": "Nasi' was the calendar manipulation to swap sacred months for raiding.",
       "verified": true,
       "correctedFact": null,
-      "source": "Cambridge History of Islam"
+      "source": "Al-Tabari / Quran 9:37"
     }
   ]
 }
