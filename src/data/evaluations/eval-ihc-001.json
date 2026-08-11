@@ -1,0 +1,110 @@
+{
+  "id": "eval-ihc-001",
+  "type": "antigravity_offline",
+  "subject": "Islamic History & Culture",
+  "topic": "Economic Conditions of Pre-Islamic Arabia",
+  "examQuestion": "Critically analyze the socio-economic structure of Pre-Islamic Arabia and discuss how geography dictated pastoralism and trade dynamics.",
+  "candidateName": "Antigravity Offline Submission",
+  "date": "2026-08-11",
+  "evaluatedModelName": "Antigravity AI Pro Engine",
+  "fullTranscribedText": "Economic Conditions of Pre-Islamic Arabia\n\nIntroduction:\nEconomic conditions of pre-islamic Arabia were fundamentally determined by its geography. The harsh environment, scarcity of water and limited agriculture forced the people to move in search of food, water and pastures. The strategic location of the Arabian Peninsula allowed it to benefit from the international trade. Overall, the economic conditions were characterized by pastoralism, trade, usury and inroads (Ghazw).\n\nA- The Bedouins' Economy:\nThe following were the different aspects of the Bedouins economy.\n\n1. Pastoralism:\nPastoralism was the chief occupation of the Bedouins. They kept camels, sheep and goats. Camels were the main wealth of the Bedouins. It provided milk, meat, clothing and transportation.\n\n2. Camel: The ship of the desert:\nWithout camel, life in the harsh environment of Arabia would have been almost physically impossible. The camel proved an indispensable asset, rendering life in the unforgiving Arabian environment otherwise virtually untenable. It was a source of milk, meat, travelling and tent-hairs. The one-humped camel (Dromedary) was used for riding and transport.",
+  "wordCount": 164,
+  "introWordCount": 68,
+  "examinerSummary": "Candidate demonstrates good foundational knowledge of nomadic pastoralism and trade routes. However, the introduction falls short of the 100-word target, and the script relies on elementary narrative rather than deep structural causality.",
+  "directiveAnalysis": {
+    "directiveWord": "Critically Analyze & Discuss",
+    "targetTimeframe": "Pre-610 CE (Jahiliyyah Period)",
+    "requiredDimensions": "Geographical, Pastoral & Trade Dynamics",
+    "alignmentStatus": "Aligned",
+    "feedback": "Candidate directly addresses the requested geographical and economic dimensions of Pre-Islamic Arabia."
+  },
+  "scoreBreakdown": {
+    "introduction": {
+      "status": "Needs Improvement",
+      "feedback": "Introduction contains 68 words. Target is at least 100 words defining the analytical thesis and scope."
+    },
+    "headings": {
+      "status": "Satisfactory",
+      "feedback": "Headings are clearly separated, though 'A- The Bedouins' Economy' could be styled more academically."
+    },
+    "diagrams": {
+      "status": "Satisfactory",
+      "feedback": "See suggested administrative and economic flowchart embedded inline."
+    },
+    "critical_analysis": {
+      "status": "Needs Improvement",
+      "feedback": "Relies on descriptive storytelling rather than analyzing structural cause-and-effect institutional drivers."
+    },
+    "grammar_syntax": {
+      "status": "Needs Improvement",
+      "feedback": "Identified capitalization errors ('pre-islamic'), possessive syntax mistakes ('Bedouins economy'), and imprecise diction ('tent-hairs')."
+    }
+  },
+  "thingsToInclude": [
+    "Analyze the structural role of Hilf al-Fudul (Pact of Virtues) in protecting foreign traders against predatory tribal cartels in Mecca.",
+    "Discuss how the absence of a centralized state apparatus made pastoral raiding (Ghazw) an institutionalized economic survival mechanism.",
+    "Highlight the role of annual trade sanctuaries (Ukaz, Dhul-Majaz, and Majanna) as economic and inter-tribal dispute resolution hubs."
+  ],
+  "suggestedVisual": {
+    "title": "Suggested Visual: Pre-Islamic Socio-Economic Survival Matrix",
+    "description": "FPSC examiners award top marks when structural cause-and-effect relationships are mapped visually.",
+    "insertAfterHeading": "A- The Bedouins' Economy:",
+    "diagramText": "Pre-Islamic Arabian Economic Matrix\n  ├── Arid Geography & Water Scarcity\n  │     ├── Pastoralism (Camels/Goats as Primary Capital)\n  │     └── Inroads & Raids (Ghazw as Survival Resource Redistribution)\n  └── Strategic Peninsula Crossroads\n        ├── Caravan Trade (Incense Route: Yemen ➔ Syro-Palestine)\n        └── Commercial Institutions (Riba / Usury & Ukaz Trade Fairs)"
+  },
+  "annotations": [
+    {
+      "id": "ann-1",
+      "targetPhrase": "pre-islamic",
+      "type": "red",
+      "category": "Capitalization & Spelling",
+      "comment": "Capitalization error: 'Pre-Islamic' must be capitalized as a proper adjective.",
+      "suggestion": "Change 'pre-islamic' to 'Pre-Islamic'."
+    },
+    {
+      "id": "ann-2",
+      "targetPhrase": "Ghazw",
+      "type": "green",
+      "category": "Technical Terminology",
+      "comment": "Excellent inclusion of authentic Arabic historical terminology (Ghazw / inter-tribal raids).",
+      "suggestion": "Good use of subject terminology."
+    },
+    {
+      "id": "ann-3",
+      "targetPhrase": "Bedouins economy",
+      "type": "red",
+      "category": "Possessive Noun Syntax",
+      "comment": "Grammatical syntax error: Missing possessive apostrophe in 'Bedouins economy'.",
+      "suggestion": "Correct to 'Bedouins' economy'."
+    },
+    {
+      "id": "ann-4",
+      "targetPhrase": "tent-hairs",
+      "type": "amber",
+      "category": "Diction & Register",
+      "comment": "Imprecise translation: 'tent-hairs' should be written as 'camel-hair cloth for tents'.",
+      "suggestion": "Replace with 'woven camel-hair textiles'."
+    },
+    {
+      "id": "ann-5",
+      "targetPhrase": "Pastoralism was the chief occupation of the Bedouins",
+      "type": "green",
+      "category": "Strong Argumentation",
+      "comment": "Accurate socio-economic generalization linking Arabian geography to nomadic pastoralism.",
+      "suggestion": "Well-substantiated thesis argument."
+    }
+  ],
+  "factCheck": [
+    {
+      "claim": "Pastoralism was the chief occupation of the Bedouins.",
+      "verified": true,
+      "correctedFact": null,
+      "source": "Historical Consensus (Ibn Khaldun / Philip Hitti)"
+    },
+    {
+      "claim": "The one-humped camel (Dromedary) was used for riding and transport in Pre-Islamic Arabia.",
+      "verified": true,
+      "correctedFact": null,
+      "source": "Cambridge History of Islam"
+    }
+  ]
+}

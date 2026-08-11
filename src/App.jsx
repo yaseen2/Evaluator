@@ -7,10 +7,12 @@ import { AlertModal } from './components/AlertModal';
 import { getGroundingUsage, getStoredApiKey, getStoredModel } from './services/geminiApi';
 import { executeEvaluationPipeline } from './services/evaluationPipeline';
 
+import sampleEvaluation from './data/evaluations/eval-ihc-001.json';
+
 export default function App() {
   const [activeSubject, setActiveSubject] = useState('Islamic History & Culture');
   const [mode, setMode] = useState('digital'); // 'digital' | 'handwritten'
-  const [evaluation, setEvaluation] = useState(null);
+  const [evaluation, setEvaluation] = useState(sampleEvaluation);
   const [currentSubmissionImages, setCurrentSubmissionImages] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
