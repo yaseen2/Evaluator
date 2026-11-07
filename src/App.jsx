@@ -4,8 +4,21 @@ import { EvaluationStudio } from './components/EvaluationStudio';
 import { SettingsModal } from './components/SettingsModal';
 import { UploadModal } from './components/UploadModal';
 import { AlertModal } from './components/AlertModal';
+import { AuthModal } from './components/AuthModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
+import { AdminModal } from './components/AdminModal';
 import { getGroundingUsage, getStoredApiKey, getStoredModel } from './services/geminiApi';
 import { executeEvaluationPipeline } from './services/evaluationPipeline';
+import {
+  subscribeToAuthChanges,
+  ensureUserProfile,
+  logoutUser,
+  deductUserCredits,
+  saveEvaluationToFirestore,
+  fetchUserEvaluationsFromFirestore,
+  deleteEvaluationFromFirestore,
+  getPlatformGeminiConfig
+} from './services/firebase';
 
 import sampleEvaluation from './data/evaluations/eval-graph-latest.json';
 
@@ -31,7 +44,6 @@ const persistHistorySafely = (historyList) => {
   try {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
   } catch (_) {
-    // If base64 images exceed localStorage quota, store lightweight copies without raw base64 arrays
     try {
       const lightweight = trimmed.map((item, idx) =>
         idx === 0 ? item : { ...item, imagePages: [] }
@@ -48,10 +60,20 @@ export default function App() {
   const [evaluationHistory, setEvaluationHistory] = useState(loadSavedHistory);
   const [evaluation, setEvaluation] = useState(() => loadSavedHistory()[0] || sampleEvaluation);
   const [activeSubject, setActiveSubject] = useState(() => loadSavedHistory()[0]?.subject || 'Islamic History & Culture');
-  const [mode, setMode] = useState('digital'); // 'digital' | 'handwritten'
+  const [mode, setMode] = useState('digital');
   const [currentSubmissionImages, setCurrentSubmissionImages] = useState([]);
+
+  // Modals State
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  // Firebase User & Profile State
+  const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+
   const [groundingUsage, setGroundingUsage] = useState(getGroundingUsage());
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [pipelineProgress, setPipelineProgress] = useState(null);
@@ -68,6 +90,33 @@ export default function App() {
   const [themeMode, setThemeMode] = useState(() => {
     return localStorage.getItem('css_eval_theme') || 'dark';
   });
+
+  // Listen to Firebase Auth & Sync Cloud History
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges(async (fbUser) => {
+      setUser(fbUser);
+      if (fbUser) {
+        const profile = await ensureUserProfile(fbUser);
+        setUserProfile(profile);
+
+        // Load Cloud Evaluations from Firestore
+        const cloudEvals = await fetchUserEvaluationsFromFirestore(fbUser.uid);
+        if (cloudEvals.length > 0) {
+          setEvaluationHistory((prev) => {
+            const existingIds = new Set(cloudEvals.map((c) => c.id));
+            const merged = [...cloudEvals, ...prev.filter((p) => !existingIds.has(p.id))];
+            persistHistorySafely(merged);
+            return merged;
+          });
+          setEvaluation(cloudEvals[0]);
+          if (cloudEvals[0].subject) setActiveSubject(cloudEvals[0].subject);
+        }
+      } else {
+        setUserProfile(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('css_eval_theme', themeMode);
@@ -114,7 +163,10 @@ export default function App() {
     }
   };
 
-  const handleDeleteHistoryItem = (idToDelete) => {
+  const handleDeleteHistoryItem = async (idToDelete) => {
+    if (user) {
+      await deleteEvaluationFromFirestore(idToDelete);
+    }
     setEvaluationHistory((prev) => {
       const updated = prev.filter((item) => item.id !== idToDelete);
       const nextList = updated.length > 0 ? updated : [sampleEvaluation];
@@ -126,18 +178,59 @@ export default function App() {
     });
   };
 
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(null);
+    setUserProfile(null);
+  };
+
   const handleRunEvaluation = async (submissionData) => {
-    const apiKey = getStoredApiKey();
-    if (!apiKey) {
-      setUploadOpen(false);
-      showAlert({
-        title: 'Gemini API Key Required',
-        message: 'Please configure your Google AI Studio Gemini API Key in Platform Settings before running a live 6-agent evaluation.',
-        type: 'warning',
-        actionLabel: 'Open Settings',
-        onAction: () => setSettingsOpen(true)
-      });
-      return;
+    const effectiveSubject = submissionData?.subject || activeSubject;
+    const creditCost = effectiveSubject.toLowerCase().includes('essay') ? 2 : 1;
+
+    // 1. Check if user has a personal BYOK key configured in local Settings
+    let activeApiKey = getStoredApiKey();
+    let activeModel = getStoredModel();
+    let usingPlatformCredits = false;
+
+    if (!activeApiKey) {
+      // 2. If no personal BYOK key, check if user is signed in to use Platform Credits
+      if (!user) {
+        setUploadOpen(false);
+        setAuthOpen(true);
+        return;
+      }
+
+      const isAdmin = userProfile?.role === 'admin';
+      const availableCredits = Number(userProfile?.credits ?? 0);
+
+      if (!isAdmin && availableCredits < creditCost) {
+        setUploadOpen(false);
+        setSubscriptionOpen(true);
+        return;
+      }
+
+      // Fetch central Platform Gemini Key configured by Admin in Firestore
+      const platformCfg = await getPlatformGeminiConfig();
+      if (platformCfg?.apiKey) {
+        activeApiKey = platformCfg.apiKey;
+        if (platformCfg.defaultModel && activeModel === 'auto') {
+          activeModel = platformCfg.defaultModel;
+        }
+        usingPlatformCredits = true;
+      } else {
+        setUploadOpen(false);
+        showAlert({
+          title: 'API Key Setup Required',
+          message: isAdmin
+            ? 'Please set your Platform Master Gemini API Key in the Admin Portal (or in Settings ⚙️) to activate evaluations.'
+            : 'Please add your Gemini API Key in Settings (⚙️) or contact the platform administrator.',
+          type: 'warning',
+          actionLabel: isAdmin ? 'Open Admin Portal' : 'Open Settings',
+          onAction: () => (isAdmin ? setAdminOpen(true) : setSettingsOpen(true))
+        });
+        return;
+      }
     }
 
     setIsEvaluating(true);
@@ -150,7 +243,6 @@ export default function App() {
 
     try {
       const selectedMode = submissionData?.mode || mode;
-      const effectiveSubject = submissionData?.subject || activeSubject;
       const examQuestion = submissionData?.examQuestion || '';
 
       const result = await executeEvaluationPipeline({
@@ -159,8 +251,8 @@ export default function App() {
         subject: effectiveSubject,
         examQuestion,
         mode: selectedMode,
-        apiKey,
-        selectedModel: getStoredModel(),
+        apiKey: activeApiKey,
+        selectedModel: activeModel,
         onProgress: (progress) => setPipelineProgress(progress)
       });
 
@@ -170,6 +262,18 @@ export default function App() {
         persistHistorySafely(nextHistory);
         return nextHistory;
       });
+
+      // Cloud Sync & Atomic Credit Deduction
+      if (user) {
+        await saveEvaluationToFirestore(user.uid, result);
+        if (usingPlatformCredits || userProfile?.role !== 'admin') {
+          const updatedProfile = await deductUserCredits(user.uid, creditCost);
+          if (updatedProfile) {
+            setUserProfile(updatedProfile);
+          }
+        }
+      }
+
       setGroundingUsage({ ...getGroundingUsage() });
     } catch (err) {
       showAlert({
@@ -190,6 +294,12 @@ export default function App() {
         setActiveSubject={setActiveSubject}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenUpload={() => setUploadOpen(true)}
+        onOpenAuth={() => setAuthOpen(true)}
+        onOpenSubscription={() => setSubscriptionOpen(true)}
+        onOpenAdmin={() => setAdminOpen(true)}
+        onLogout={handleLogout}
+        user={user}
+        userProfile={userProfile}
         isEvaluating={isEvaluating}
         evaluationHistory={evaluationHistory}
         activeEvaluationId={evaluation?.id}
@@ -223,6 +333,29 @@ export default function App() {
         isEvaluating={isEvaluating}
         activeSubject={activeSubject}
         setActiveSubject={setActiveSubject}
+      />
+
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onAuthSuccess={({ user: fbUser, profile }) => {
+          setUser(fbUser);
+          setUserProfile(profile);
+        }}
+      />
+
+      <SubscriptionModal
+        isOpen={subscriptionOpen}
+        onClose={() => setSubscriptionOpen(false)}
+        user={user}
+        userProfile={userProfile}
+        onProfileUpdated={(nextProfile) => setUserProfile(nextProfile)}
+        onOpenAuth={() => setAuthOpen(true)}
+      />
+
+      <AdminModal
+        isOpen={adminOpen}
+        onClose={() => setAdminOpen(false)}
       />
 
       <AlertModal

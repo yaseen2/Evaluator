@@ -1,9 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, Upload, RefreshCw, History, Trash2, ChevronDown, BookOpen } from 'lucide-react';
+import {
+  Settings,
+  Upload,
+  RefreshCw,
+  History,
+  Trash2,
+  ChevronDown,
+  BookOpen,
+  Zap,
+  User,
+  LogOut,
+  Shield
+} from 'lucide-react';
 
 export const Navbar = ({
   onOpenSettings,
   onOpenUpload,
+  onOpenAuth,
+  onOpenSubscription,
+  onOpenAdmin,
+  onLogout,
+  user,
+  userProfile,
   isEvaluating,
   evaluationHistory = [],
   activeEvaluationId,
@@ -11,17 +29,25 @@ export const Navbar = ({
   onDeleteEvaluation
 }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setHistoryOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const isAdmin = userProfile?.role === 'admin';
+  const credits = userProfile?.credits ?? 0;
 
   return (
     <nav className="navbar">
@@ -29,6 +55,7 @@ export const Navbar = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span className="brand-title">FPSC Evaluator</span>
         <span
+          className="desktop-only-btn"
           style={{
             fontSize: '0.65rem',
             fontFamily: 'var(--font-mono)',
@@ -40,11 +67,43 @@ export const Navbar = ({
             borderRadius: '10px'
           }}
         >
-          CSS Studio v2.0
+          CSS/PMS Cloud v3.0
         </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Admin Portal Button (Visible ONLY to Admin yaseenwazir953@gmail.com) */}
+        {isAdmin && (
+          <button
+            className="btn-minimal"
+            onClick={onOpenAdmin}
+            style={{
+              borderColor: 'rgba(56, 189, 248, 0.45)',
+              color: 'var(--accent-blue)'
+            }}
+            title="Open SaaS Owner & Voucher Admin Portal"
+          >
+            <Shield size={13} color="var(--accent-blue)" />
+            <span>Admin</span>
+          </button>
+        )}
+
+        {/* Credits & Subscription Plans Pill */}
+        <button
+          className="btn-minimal"
+          onClick={onOpenSubscription}
+          style={{
+            borderColor: user && credits === 0 && !isAdmin ? 'rgba(248, 113, 113, 0.45)' : 'rgba(56, 189, 248, 0.35)',
+            background: 'rgba(56, 189, 248, 0.08)'
+          }}
+          title="View Subscription Plans or Redeem Activation Voucher"
+        >
+          <Zap size={13} color="var(--accent-blue)" />
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+            {user ? (isAdmin ? '∞ Pro Admin' : `${credits} ${credits === 1 ? 'Credit' : 'Credits'}`) : 'Plans & Pricing'}
+          </span>
+        </button>
+
         {/* Saved Evaluations History Dropdown */}
         {evaluationHistory.length > 0 && (
           <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -54,7 +113,7 @@ export const Navbar = ({
               title="Switch between saved paper evaluations"
             >
               <History size={14} color="var(--accent-blue)" />
-              <span>History ({evaluationHistory.length})</span>
+              <span className="desktop-only-btn">History ({evaluationHistory.length})</span>
               <ChevronDown size={12} color="var(--text-muted)" />
             </button>
 
@@ -76,8 +135,9 @@ export const Navbar = ({
                   overflow: 'hidden'
                 }}
               >
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Saved Evaluations ({evaluationHistory.length})
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{user ? 'Cloud & Local History' : 'Saved Evaluations'}</span>
+                  <span>{evaluationHistory.length} Papers</span>
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
@@ -141,7 +201,7 @@ export const Navbar = ({
                                 onDeleteEvaluation?.(item.id);
                               }}
                               style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
-                              title="Delete from history"
+                              title="Delete evaluation"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -160,11 +220,133 @@ export const Navbar = ({
         <button
           className="btn-minimal"
           onClick={onOpenSettings}
-          title="Platform Settings (API Keys, Models, Themes, Quotas)"
+          title="Platform Settings (Themes, Personal BYOK API Key)"
         >
           <Settings size={14} color="var(--accent-gold)" />
-          <span>Settings</span>
+          <span className="desktop-only-btn">Settings</span>
         </button>
+
+        {/* User Auth Button / Profile Dropdown */}
+        {user ? (
+          <div ref={userMenuRef} style={{ position: 'relative' }}>
+            <button
+              className="btn-minimal"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              title={user.email}
+            >
+              <User size={13} color="var(--pass-green)" />
+              <span className="desktop-only-btn" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {userProfile?.displayName || user.displayName || user.email?.split('@')[0]}
+              </span>
+              <ChevronDown size={11} color="var(--text-muted)" />
+            </button>
+
+            {userMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  width: '230px',
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 15px 35px rgba(0,0,0,0.45)',
+                  zIndex: 9999,
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+              >
+                <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border)', marginBottom: '2px' }}>
+                  <div style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {userProfile?.displayName || user.displayName || 'CSS Candidate'}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.email}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onOpenSubscription?.();
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.75rem',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    textAlign: 'left'
+                  }}
+                >
+                  <Zap size={13} color="var(--accent-blue)" />
+                  <span>Top Up / Redeem Code</span>
+                </button>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onOpenAdmin?.();
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--accent-blue)',
+                      fontSize: '0.75rem',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <Shield size={13} color="var(--accent-blue)" />
+                    <span>SaaS Owner Admin</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onLogout?.();
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--fail-red)',
+                    fontSize: '0.75rem',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    textAlign: 'left'
+                  }}
+                >
+                  <LogOut size={13} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button className="btn-minimal" onClick={onOpenAuth}>
+            <User size={13} color="var(--accent-blue)" />
+            <span>Sign In</span>
+          </button>
+        )}
 
         {/* Primary Evaluation CTA */}
         <button className="btn-accent" onClick={onOpenUpload} disabled={isEvaluating}>
