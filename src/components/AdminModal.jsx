@@ -1,37 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Copy, Check, Shield, Key, RefreshCw } from 'lucide-react';
+import { X, Plus, Copy, Check, Shield, Key, RefreshCw, Users, CreditCard } from 'lucide-react';
 import {
   createSubscriptionVoucher,
   fetchAllVouchers,
+  fetchAllCandidates,
+  adminGrantCreditsToUser,
   savePlatformGeminiConfig,
-  getPlatformGeminiConfig
+  getPlatformGeminiConfig,
+  savePaymentConfig,
+  getPaymentConfig
 } from '../services/firebase';
 import { AVAILABLE_MODELS, getStoredApiKey } from '../services/geminiApi';
 
 export const AdminModal = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState('vouchers'); // 'vouchers' | 'platform_key'
+  const [activeTab, setActiveTab] = useState('vouchers'); // 'vouchers' | 'candidates' | 'settings'
   const [vouchers, setVouchers] = useState([]);
+  const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
+  const [toppedUpUid, setToppedUpUid] = useState(null);
 
   // Platform Gemini Config State
   const [platformKey, setPlatformKey] = useState('');
   const [platformModel, setPlatformModel] = useState('auto');
-  const [keySaved, setKeySaved] = useState(false);
+
+  // Payment & WhatsApp Checkout Config State
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [bankOrWalletName, setBankOrWalletName] = useState('JazzCash / EasyPaisa / RAAST');
+  const [paymentAccountTitle, setPaymentAccountTitle] = useState('');
+  const [paymentAccountNumber, setPaymentAccountNumber] = useState('');
+  const [configSaved, setConfigSaved] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [voucherList, geminiCfg] = await Promise.all([
+      const [voucherList, candidateList, geminiCfg, payCfg] = await Promise.all([
         fetchAllVouchers(),
-        getPlatformGeminiConfig()
+        fetchAllCandidates(),
+        getPlatformGeminiConfig(),
+        getPaymentConfig()
       ]);
       setVouchers(voucherList);
+      setCandidates(candidateList);
+
       if (geminiCfg?.apiKey) {
         setPlatformKey(geminiCfg.apiKey);
         setPlatformModel(geminiCfg.defaultModel || 'auto');
       } else if (getStoredApiKey()) {
         setPlatformKey(getStoredApiKey());
+      }
+
+      if (payCfg) {
+        setWhatsappNumber(payCfg.whatsappNumber || '');
+        setBankOrWalletName(payCfg.bankOrWalletName || 'JazzCash / EasyPaisa / RAAST');
+        setPaymentAccountTitle(payCfg.paymentAccountTitle || '');
+        setPaymentAccountNumber(payCfg.paymentAccountNumber || '');
       }
     } finally {
       setLoading(false);
@@ -62,10 +85,30 @@ export const AdminModal = ({ isOpen, onClose }) => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const handleSavePlatformKey = async () => {
-    await savePlatformGeminiConfig({ apiKey: platformKey, defaultModel: platformModel });
-    setKeySaved(true);
-    setTimeout(() => setKeySaved(false), 2000);
+  const handleDirectGrant = async (uid, addedCredits, tier) => {
+    setLoading(true);
+    try {
+      const updated = await adminGrantCreditsToUser(uid, addedCredits, tier);
+      setCandidates((prev) => prev.map((c) => (c.uid === uid ? updated : c)));
+      setToppedUpUid(uid);
+      setTimeout(() => setToppedUpUid(null), 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    await Promise.all([
+      savePlatformGeminiConfig({ apiKey: platformKey, defaultModel: platformModel }),
+      savePaymentConfig({
+        whatsappNumber,
+        bankOrWalletName,
+        paymentAccountTitle,
+        paymentAccountNumber
+      })
+    ]);
+    setConfigSaved(true);
+    setTimeout(() => setConfigSaved(false), 2000);
   };
 
   return (
@@ -75,7 +118,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '94%',
-          maxWidth: '680px',
+          maxWidth: '720px',
           maxHeight: '88vh',
           padding: '1.25rem',
           display: 'flex',
@@ -88,7 +131,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Shield size={18} color="var(--accent-blue)" />
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              SaaS Owner & Voucher Admin Portal
+              SaaS Owner & Subscription Admin Portal
             </h3>
           </div>
           <button
@@ -105,25 +148,31 @@ export const AdminModal = ({ isOpen, onClose }) => {
             className={`tab-item ${activeTab === 'vouchers' ? 'active' : ''}`}
             onClick={() => setActiveTab('vouchers')}
           >
-            Subscription Vouchers ({vouchers.length})
+            Vouchers ({vouchers.length})
           </button>
           <button
-            className={`tab-item ${activeTab === 'platform_key' ? 'active' : ''}`}
-            onClick={() => setActiveTab('platform_key')}
+            className={`tab-item ${activeTab === 'candidates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('candidates')}
           >
-            Subscriber Master AI Key
+            Registered Candidates ({candidates.length})
+          </button>
+          <button
+            className={`tab-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            Payment & AI Engine Settings
           </button>
         </div>
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.25rem 2px' }}>
-          {activeTab === 'vouchers' ? (
+          {/* TAB 1: VOUCHERS */}
+          {activeTab === 'vouchers' && (
             <div>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
                 Generate 1-time activation codes to send to candidates who pay via JazzCash, EasyPaisa, RAAST, or Bank Transfer:
               </p>
 
-              {/* Quick Generate Buttons */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem' }}>
                 <button
                   className="btn-minimal"
@@ -131,7 +180,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                   onClick={() => handleGenerateVoucher(10, 'aspirant', 'Starter Pack (10 Credits)')}
                 >
                   <Plus size={13} color="var(--accent-blue)" />
-                  <span>Generate +10 Credits Code</span>
+                  <span>+10 Credits Code</span>
                 </button>
                 <button
                   className="btn-accent"
@@ -139,7 +188,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                   onClick={() => handleGenerateVoucher(30, 'aspirant', 'CSS Aspirant Monthly (30 Credits)')}
                 >
                   <Plus size={13} />
-                  <span>Generate +30 Credits (PKR 1,500)</span>
+                  <span>+30 Credits (PKR 1,500)</span>
                 </button>
                 <button
                   className="btn-accent"
@@ -147,22 +196,17 @@ export const AdminModal = ({ isOpen, onClose }) => {
                   onClick={() => handleGenerateVoucher(100, 'pro', 'CSS/PMS Pro Pass (100 Credits)')}
                 >
                   <Plus size={13} />
-                  <span>Generate +100 Credits (PKR 3,500)</span>
+                  <span>+100 Credits (PKR 3,500)</span>
                 </button>
-                <button
-                  className="btn-minimal"
-                  onClick={loadData}
-                  title="Refresh Vouchers"
-                >
+                <button className="btn-minimal" onClick={loadData} title="Refresh">
                   <RefreshCw size={13} />
                 </button>
               </div>
 
-              {/* Vouchers List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {vouchers.length === 0 ? (
                   <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                    No voucher codes generated yet. Click one of the buttons above to create an instant activation code.
+                    No voucher codes generated yet. Click a button above to create an instant activation code.
                   </div>
                 ) : (
                   vouchers.map((v) => (
@@ -180,7 +224,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                       }}
                     >
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: v.isRedeemed ? 'var(--text-muted)' : 'var(--accent-blue)' }}>
                             {v.code}
                           </span>
@@ -217,64 +261,211 @@ export const AdminModal = ({ isOpen, onClose }) => {
                 )}
               </div>
             </div>
-          ) : (
-            /* Tab 2: Central Subscriber Gemini API Key */
-            <div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
-                Configure the <strong>Platform Master Gemini API Key</strong> stored in Cloud Firestore. Active subscribers with evaluation credits will automatically use this engine without needing their own key.
-              </p>
+          )}
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  Default Subscriber Model Engine
-                </label>
-                <select
-                  value={platformModel}
-                  onChange={(e) => setPlatformModel(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.82rem'
-                  }}
-                >
-                  {AVAILABLE_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+          {/* TAB 2: REGISTERED CANDIDATES & DIRECT TOP-UP */}
+          {activeTab === 'candidates' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  View all registered CSS/PMS candidates and directly top up their evaluation credits:
+                </span>
+                <button className="btn-minimal" onClick={loadData} style={{ padding: '4px 8px' }}>
+                  <RefreshCw size={12} />
+                </button>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  Platform Master Gemini API Key
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', padding: '7px 10px' }}>
-                  <Key size={14} color="var(--accent-blue)" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {candidates.length === 0 ? (
+                  <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    No registered candidates found yet.
+                  </div>
+                ) : (
+                  candidates.map((c) => (
+                    <div
+                      key={c.uid}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '9px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Users size={13} color="var(--accent-blue)" />
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {c.displayName || 'CSS Candidate'}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent-blue)', fontWeight: 700, textTransform: 'uppercase' }}>
+                            {c.tier || 'free'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {c.email} • Papers Evaluated: <strong>{c.evaluationsCount || 0}</strong> • Balance: <strong style={{ color: 'var(--pass-green)' }}>{c.role === 'admin' ? '∞' : c.credits} Credits</strong>
+                        </div>
+                      </div>
+
+                      {c.role !== 'admin' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {toppedUpUid === c.uid && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--pass-green)', fontWeight: 600 }}>
+                              ✓ Added!
+                            </span>
+                          )}
+                          <button
+                            className="btn-minimal"
+                            disabled={loading}
+                            onClick={() => handleDirectGrant(c.uid, 30, 'aspirant')}
+                            style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                          >
+                            +30 Credits
+                          </button>
+                          <button
+                            className="btn-accent"
+                            disabled={loading}
+                            onClick={() => handleDirectGrant(c.uid, 100, 'pro')}
+                            style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                          >
+                            +100 Pro
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: PAYMENT & AI ENGINE SETTINGS */}
+          {activeTab === 'settings' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Payment & WhatsApp Checkout Block */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.85rem', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.65rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-blue)' }}>
+                  <CreditCard size={15} />
+                  <span>Subscription Payment & WhatsApp Checkout Details</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      WhatsApp Number (with country code, e.g. 923001234567)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="923..."
+                      value={whatsappNumber}
+                      onChange={(e) => setWhatsappNumber(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      Bank / Wallet Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. EasyPaisa / JazzCash / Meezan Bank RAAST"
+                      value={bankOrWalletName}
+                      onChange={(e) => setBankOrWalletName(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      Account Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Muhammad Yaseen"
+                      value={paymentAccountTitle}
+                      onChange={(e) => setPaymentAccountTitle(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      Account / RAAST / IBAN Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 0300-XXXXXXX or PK..."
+                      value={paymentAccountNumber}
+                      onChange={(e) => setPaymentAccountNumber(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Subscriber Master Gemini Key Block */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.85rem', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.65rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-blue)' }}>
+                  <Key size={15} />
+                  <span>Subscriber Master Gemini AI Engine</span>
+                </div>
+
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Default Subscriber Model Engine
+                  </label>
+                  <select
+                    value={platformModel}
+                    onChange={(e) => setPlatformModel(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-strong)',
+                      background: 'var(--bg-panel)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    {AVAILABLE_MODELS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Platform Master Gemini API Key (For Active Subscribers)
+                  </label>
                   <input
                     type="password"
                     placeholder="AIzaSy..."
                     value={platformKey}
                     onChange={(e) => setPlatformKey(e.target.value)}
-                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
                   />
                 </div>
               </div>
 
-              <button className="btn-accent" onClick={handleSavePlatformKey}>
-                {keySaved ? (
-                  <>
-                    <Check size={14} />
-                    <span>Saved to Cloud Firestore!</span>
-                  </>
-                ) : (
-                  <span>Save Platform Configuration</span>
-                )}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn-accent" onClick={handleSaveSettings} style={{ padding: '8px 18px' }}>
+                  {configSaved ? (
+                    <>
+                      <Check size={14} />
+                      <span>Saved All Settings to Cloud!</span>
+                    </>
+                  ) : (
+                    <span>Save Payment & AI Settings</span>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -282,4 +473,3 @@ export const AdminModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
-

@@ -70,7 +70,7 @@ export const SUBSCRIPTION_PLANS = [
     badge: 'Most Popular',
     highlight: true,
     features: [
-      '30 Paper Evaluation Credits (All 45+ CSS Subjects)',
+      '30 Paper Evaluation Credits (All 50+ CSS & PMS Subjects)',
       '3-Tier Topper Paragraph Rewrites',
       'Suggested Visual Flowcharts & Schematics',
       'Cloud Evaluation History & PDF Report Export'
@@ -139,7 +139,6 @@ export const ensureUserProfile = async (firebaseUser, customName = '') => {
     const snap = await getDoc(userRef);
     if (snap.exists()) {
       const existing = snap.data();
-      // Ensure admin always retains admin role
       if (isAdmin && existing.role !== 'admin') {
         await updateDoc(userRef, { role: 'admin', tier: 'pro', credits: 9999 });
         return { ...existing, role: 'admin', tier: 'pro', credits: 9999 };
@@ -154,7 +153,7 @@ export const ensureUserProfile = async (firebaseUser, customName = '') => {
       photoURL: firebaseUser.photoURL || '',
       role: isAdmin ? 'admin' : 'candidate',
       tier: isAdmin ? 'pro' : 'free',
-      credits: isAdmin ? 9999 : 2, // 2 complimentary credits on sign-up
+      credits: isAdmin ? 9999 : 2,
       evaluationsCount: 0,
       createdAt: new Date().toISOString()
     };
@@ -205,7 +204,6 @@ export const saveEvaluationToFirestore = async (uid, evaluation) => {
 
   try {
     const evalRef = doc(db, 'evaluations', String(evaluation.id));
-    // Keep document under Firestore 1MB limit by omitting heavy multi-page base64 arrays in cloud doc
     const { imagePages, ...cloudSafeEvaluation } = evaluation;
     await setDoc(evalRef, {
       ...cloudSafeEvaluation,
@@ -226,7 +224,6 @@ export const fetchUserEvaluationsFromFirestore = async (uid) => {
     snap.forEach((docSnap) => {
       items.push(docSnap.data());
     });
-    // Sort newest first
     items.sort((a, b) => (b.createdAt || b.date || '').localeCompare(a.createdAt || a.date || ''));
     return items;
   } catch (err) {
@@ -245,7 +242,7 @@ export const deleteEvaluationFromFirestore = async (evalId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// VOUCHER REDEMPTION & ADMIN MANAGEMENT
+// VOUCHER REDEMPTION, CANDIDATE MANAGEMENT & ADMIN CONFIG
 // ─────────────────────────────────────────────────────────────
 
 export const redeemSubscriptionVoucher = async (uid, userEmail, rawCode) => {
@@ -323,6 +320,28 @@ export const fetchAllVouchers = async () => {
   return list;
 };
 
+export const fetchAllCandidates = async () => {
+  const snap = await getDocs(collection(db, 'users'));
+  const list = [];
+  snap.forEach((d) => list.push(d.data()));
+  list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return list;
+};
+
+export const adminGrantCreditsToUser = async (targetUid, addedCredits = 30, tier = 'aspirant') => {
+  const userRef = doc(db, 'users', targetUid);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) throw new Error('User not found');
+  const current = Number(snap.data().credits || 0);
+  const updatedCredits = current + Number(addedCredits);
+  await updateDoc(userRef, {
+    credits: updatedCredits,
+    tier,
+    updatedAt: new Date().toISOString()
+  });
+  return { ...snap.data(), credits: updatedCredits, tier };
+};
+
 export const savePlatformGeminiConfig = async ({ apiKey, defaultModel = 'auto' }) => {
   await setDoc(doc(db, 'platform_config', 'gemini'), {
     apiKey: (apiKey || '').trim(),
@@ -338,8 +357,29 @@ export const getPlatformGeminiConfig = async () => {
       return snap.data();
     }
   } catch (_) {
-    // ignore if not configured yet
+    // ignore
   }
   return null;
 };
 
+export const savePaymentConfig = async ({ whatsappNumber, paymentAccountTitle, paymentAccountNumber, bankOrWalletName }) => {
+  await setDoc(doc(db, 'platform_config', 'payment'), {
+    whatsappNumber: (whatsappNumber || '').trim(),
+    paymentAccountTitle: (paymentAccountTitle || '').trim(),
+    paymentAccountNumber: (paymentAccountNumber || '').trim(),
+    bankOrWalletName: (bankOrWalletName || 'JazzCash / EasyPaisa / RAAST').trim(),
+    updatedAt: new Date().toISOString()
+  });
+};
+
+export const getPaymentConfig = async () => {
+  try {
+    const snap = await getDoc(doc(db, 'platform_config', 'payment'));
+    if (snap.exists()) {
+      return snap.data();
+    }
+  } catch (_) {
+    // ignore
+  }
+  return null;
+};

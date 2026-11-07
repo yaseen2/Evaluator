@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { X, Check, Zap, KeyRound, Sparkles, AlertCircle, CheckCircle2, CreditCard } from 'lucide-react';
-import { SUBSCRIPTION_PLANS, redeemSubscriptionVoucher } from '../services/firebase';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Zap, KeyRound, Sparkles, AlertCircle, CheckCircle2, CreditCard, MessageCircle } from 'lucide-react';
+import { SUBSCRIPTION_PLANS, redeemSubscriptionVoucher, getPaymentConfig } from '../services/firebase';
 
 export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfileUpdated, onOpenAuth }) => {
   const [voucherCode, setVoucherCode] = useState('');
   const [redeeming, setRedeeming] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: string }
+  const [statusMessage, setStatusMessage] = useState(null);
   const [selectedPlanForPayment, setSelectedPlanForPayment] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      getPaymentConfig().then((cfg) => {
+        if (cfg) setPaymentConfig(cfg);
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -48,6 +57,15 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
     } finally {
       setRedeeming(false);
     }
+  };
+
+  const buildWhatsAppCheckoutUrl = (plan) => {
+    const cleanPhone = (paymentConfig?.whatsappNumber || '').replace(/[^0-9]/g, '');
+    const userEmailText = user?.email ? `for my account (${user.email})` : '';
+    const msg = encodeURIComponent(
+      `Assalam-o-Alaikum! I want to subscribe to the *${plan.name}* (${plan.pricePKR} — ${plan.credits} Evaluation Credits) on FPSC CSS Evaluator ${userEmailText}. Please share payment confirmation & activation code.`
+    );
+    return cleanPhone ? `https://wa.me/${cleanPhone}?text=${msg}` : null;
   };
 
   return (
@@ -201,13 +219,48 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
                   Hide
                 </button>
               </div>
-              <p style={{ margin: '0 0 6px 0', fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                To activate <strong>+{selectedPlanForPayment.credits} Evaluation Credits</strong> immediately via <strong>JazzCash, EasyPaisa, RAAST, or Bank Transfer</strong>:
-              </p>
-              <ol style={{ margin: '0 0 0 1.2rem', padding: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                <li>Complete your transfer of <strong>{selectedPlanForPayment.pricePKR}</strong> and receive your instant <strong>Activation Voucher Code</strong> (e.g., <code>CSS-{selectedPlanForPayment.id.toUpperCase()}-XXXX</code>).</li>
-                <li>Paste your Activation Code in the box below to credit your account in 1 click!</li>
-              </ol>
+
+              {paymentConfig?.paymentAccountNumber ? (
+                <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', marginBottom: '8px', fontSize: '0.75rem' }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-secondary)' }}>Method:</strong>{' '}
+                    <span style={{ color: 'var(--accent-blue)', fontWeight: 600 }}>{paymentConfig.bankOrWalletName || 'JazzCash / EasyPaisa / RAAST'}</span>
+                  </div>
+                  {paymentConfig.paymentAccountTitle && (
+                    <div>
+                      <strong style={{ color: 'var(--text-secondary)' }}>Account Title:</strong>{' '}
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{paymentConfig.paymentAccountTitle}</span>
+                    </div>
+                  )}
+                  <div>
+                    <strong style={{ color: 'var(--text-secondary)' }}>Account / IBAN:</strong>{' '}
+                    <span style={{ color: 'var(--pass-green)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{paymentConfig.paymentAccountNumber}</span>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ margin: '0 0 6px 0', fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                  To activate <strong>+{selectedPlanForPayment.credits} Evaluation Credits</strong> immediately via <strong>JazzCash, EasyPaisa, RAAST, or Bank Transfer</strong>:
+                </p>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
+                  Transfer <strong>{selectedPlanForPayment.pricePKR}</strong> and enter your activation code below, or request instant activation on WhatsApp.
+                </span>
+
+                {buildWhatsAppCheckoutUrl(selectedPlanForPayment) && (
+                  <a
+                    href={buildWhatsAppCheckoutUrl(selectedPlanForPayment)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-accent"
+                    style={{ textDecoration: 'none', background: '#059669', borderColor: '#10b981' }}
+                  >
+                    <MessageCircle size={13} />
+                    <span>Get Code on WhatsApp</span>
+                  </a>
+                )}
+              </div>
             </div>
           )}
 
@@ -282,4 +335,3 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
     </div>
   );
 };
-
