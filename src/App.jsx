@@ -186,7 +186,9 @@ export default function App() {
 
   const handleRunEvaluation = async (submissionData) => {
     const effectiveSubject = submissionData?.subject || activeSubject;
-    const creditCost = effectiveSubject.toLowerCase().includes('essay') ? 2 : 1;
+    const essayMode = submissionData?.essayMode || 'full';
+    const isEssay = effectiveSubject.toLowerCase().includes('essay');
+    const creditCost = isEssay && essayMode !== 'outline_only' ? 2 : 1;
 
     // 1. Check if user has a personal BYOK key configured in local Settings
     let activeApiKey = getStoredApiKey();
@@ -249,6 +251,7 @@ export default function App() {
         text: submissionData?.text,
         imageArray: submissionData?.imageArray,
         subject: effectiveSubject,
+        essayMode,
         examQuestion,
         mode: selectedMode,
         apiKey: activeApiKey,

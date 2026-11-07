@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Compass, FileText, CheckCircle2, MessageSquare, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Compass, FileText, CheckCircle2, MessageSquare, ShieldAlert, BookOpen } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
 
@@ -10,13 +10,18 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
 
   if (!evaluation) return null;
 
-  const profile = resolveSubjectProfile(evaluation.subject);
+  const profile = resolveSubjectProfile(evaluation.subject, {
+    essayMode: evaluation.essayMode,
+    archetypeId: evaluation.archetypeId
+  });
   const dealBreakers = profile.dealBreakers || [];
   const factChecks = evaluation.factCheck || [];
   const breakdown = evaluation.scoreBreakdown || {};
   const directiveAnalysis = evaluation.directiveAnalysis || {};
   const allAnnotations = evaluation.annotations || [];
   const rewrites = evaluation.rewrites || [];
+  const headerUpgrades = evaluation.headerUpgrades || [];
+  const totalUpgradesCount = rewrites.length + headerUpgrades.length;
 
   const redCount = allAnnotations.filter((a) => a.type === 'red').length;
   const amberCount = allAnnotations.filter((a) => a.type === 'amber').length;
@@ -61,14 +66,18 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           className={`tab-item ${activeTab === 'rewrites' ? 'active' : ''}`}
           onClick={() => setActiveTab('rewrites')}
         >
-          Topper Rewrites ({rewrites.length})
+          {profile.archetypeId === 'essay_outline'
+            ? `Header Upgrades (${totalUpgradesCount})`
+            : `Topper Rewrites (${totalUpgradesCount})`}
         </button>
-        <button
-          className={`tab-item ${activeTab === 'accuracy' ? 'active' : ''}`}
-          onClick={() => setActiveTab('accuracy')}
-        >
-          Fact Audit ({factChecks.length})
-        </button>
+        {profile.archetypeId !== 'essay_outline' && (
+          <button
+            className={`tab-item ${activeTab === 'accuracy' ? 'active' : ''}`}
+            onClick={() => setActiveTab('accuracy')}
+          >
+            Fact Audit ({factChecks.length})
+          </button>
+        )}
         <button
           className={`tab-item ${activeTab === 'directive' ? 'active' : ''}`}
           onClick={() => setActiveTab('directive')}
@@ -77,14 +86,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         </button>
       </div>
 
-      {/* TAB 1: LINE-BY-LINE CALLOUT ANNOTATIONS FEED */}
+      {/* TAB 1: LINE-BY-LINE PEDAGOGICAL CALLOUT ANNOTATIONS FEED ("BEYOND RED CIRCLES") */}
       {activeTab === 'callouts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* Quick Filter Pills */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <MessageSquare size={12} color="var(--accent-blue)" />
-              <span>Click any card to locate on paper:</span>
+              <span>Click any card to locate on script:</span>
             </div>
 
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -163,13 +172,46 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   </span>
                 </div>
 
+                {/* Why Flagged */}
                 <p style={{ margin: '4px 0', fontSize: '0.78rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
                   {ann.comment}
                 </p>
 
+                {/* Exact Rewritten Fix */}
                 {ann.suggestion && (
-                  <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '5px 8px', borderRadius: '4px', fontSize: '0.72rem', color: 'var(--accent-blue)', marginTop: '4px' }}>
+                  <div
+                    style={{
+                      background: 'var(--bg-panel)',
+                      border: '1px solid var(--border)',
+                      padding: '5px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.72rem',
+                      color: 'var(--accent-blue)',
+                      marginTop: '5px',
+                      lineHeight: 1.4
+                    }}
+                  >
                     💡 <strong>Fix:</strong> {ann.suggestion}
+                  </div>
+                )}
+
+                {/* 1-Line Pedagogical Micro-Lesson ("Rule to Remember") */}
+                {ann.microLesson && (
+                  <div
+                    style={{
+                      marginTop: '5px',
+                      fontSize: '0.69rem',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '5px',
+                      lineHeight: 1.38
+                    }}
+                  >
+                    <BookOpen size={12} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>
+                      <strong>Rule:</strong> {ann.microLesson}
+                    </span>
                   </div>
                 )}
               </div>
@@ -178,8 +220,10 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         </div>
       )}
 
-      {/* TAB 2: 3-TIER TOPPER PARAGRAPH REWRITES */}
-      {activeTab === 'rewrites' && <ParagraphRewriter rewrites={rewrites} />}
+      {/* TAB 2: 3-TIER TOPPER PARAGRAPH REWRITES & OUTLINE HEADER UPGRADES */}
+      {activeTab === 'rewrites' && (
+        <ParagraphRewriter rewrites={rewrites} headerUpgrades={headerUpgrades} />
+      )}
 
       {/* TAB 3: DYNAMIC FACTUAL & CITATION AUDIT */}
       {activeTab === 'accuracy' && (
@@ -230,28 +274,30 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <Compass size={16} color="var(--accent-blue)" />
               <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Examiner Directive Word Audit
+                Examiner Directive & Prompt Audit
               </span>
             </div>
             <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-              The question directive is <strong>"{directiveAnalysis.directiveWord || 'Discuss'}"</strong>
+              The prompt focus is <strong>"{directiveAnalysis.directiveWord || 'Analytical'}"</strong>
               {directiveAnalysis.targetTimeframe ? <> targeting <strong>"{directiveAnalysis.targetTimeframe}"</strong></> : null}.{' '}
               {directiveAnalysis.feedback}
             </p>
           </div>
 
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <FileText size={16} color="var(--accent-blue)" />
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Substantive Introduction Audit (~{profile.targetIntroWords}+ Words Target)
-              </span>
+          {profile.archetypeId !== 'essay_outline' && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <FileText size={16} color="var(--accent-blue)" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Substantive Introduction Audit (~{profile.targetIntroWords}+ Words Target)
+                </span>
+              </div>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                {breakdown.introduction?.feedback ||
+                  `Ensure your introduction defines analytical scope, thesis statement, and primary themes in at least ${profile.targetIntroWords} words.`}
+              </p>
             </div>
-            <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-              {breakdown.introduction?.feedback ||
-                `Ensure your introduction defines analytical scope, thesis statement, and primary themes in at least ${profile.targetIntroWords} words.`}
-            </p>
-          </div>
+          )}
 
           {dealBreakers.length > 0 && (
             <div style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '12px', borderRadius: 'var(--radius-md)' }}>

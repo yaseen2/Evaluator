@@ -66,6 +66,7 @@ const compressImageFile = (file, maxDimension = 1600, quality = 0.84) => {
 export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSubject, setActiveSubject }) => {
   const [activeTab, setActiveTab] = useState('image'); // 'image' | 'text'
   const [selectedSubject, setSelectedSubject] = useState(activeSubject || 'English Essay');
+  const [essayMode, setEssayMode] = useState('full'); // 'full' | 'outline_only'
   const [examQuestion, setExamQuestion] = useState('');
   const [essayText, setEssayText] = useState('');
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -214,6 +215,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
     onSubmit({
       mode: activeTab === 'text' ? 'digital' : 'handwritten',
       subject: selectedSubject,
+      essayMode: isEssay ? essayMode : 'full',
       examQuestion: examQuestion.trim(),
       text: activeTab === 'text' ? essayText : '',
       imageArray: activeTab === 'image' ? imagePreviews : []
@@ -300,6 +302,72 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                 onChange={(newSubject) => setSelectedSubject(newSubject)}
               />
             </div>
+
+            {/* ESSAY SCOPE SELECTOR (Full Essay vs Outline Only) */}
+            {isEssay && (
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '5px'
+                  }}
+                >
+                  Essay Evaluation Scope
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    background: 'var(--bg-card)',
+                    padding: '3px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setEssayMode('full')}
+                    style={{
+                      flex: 1,
+                      background: essayMode === 'full' ? 'var(--bg-panel)' : 'transparent',
+                      color: essayMode === 'full' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                      border: essayMode === 'full' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid transparent',
+                      boxShadow: essayMode === 'full' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.12s ease'
+                    }}
+                  >
+                    Full Essay (2 Credits)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEssayMode('outline_only')}
+                    style={{
+                      flex: 1,
+                      background: essayMode === 'outline_only' ? 'var(--bg-panel)' : 'transparent',
+                      color: essayMode === 'outline_only' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                      border: essayMode === 'outline_only' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid transparent',
+                      boxShadow: essayMode === 'outline_only' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.12s ease'
+                    }}
+                  >
+                    Outline & Thesis Only (1 Credit)
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* TOPIC / QUESTION */}
             <div>
@@ -709,7 +777,11 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
             }}
           >
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {isEssay ? '100-Mark Essay (2 Credits)' : '20-Mark Question (1 Credit)'}
+              {isEssay
+                ? essayMode === 'outline_only'
+                  ? 'Essay Outline Audit (1 Credit)'
+                  : 'Full Essay Diagnostic (2 Credits)'
+                : '20-Mark Question (1 Credit)'}
             </span>
 
             <div style={{ display: 'flex', gap: '0.5rem' }}>

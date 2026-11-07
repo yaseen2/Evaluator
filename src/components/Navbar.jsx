@@ -178,7 +178,7 @@ export const Navbar = ({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          {hasScore && (
+                          {hasScore ? (
                             <span
                               style={{
                                 fontSize: '0.68rem',
@@ -191,6 +191,20 @@ export const Navbar = ({
                               }}
                             >
                               {item.overallScore}/{item.maxScore || 20}
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: '0.64rem',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 600,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: 'rgba(2, 132, 199, 0.12)',
+                                color: 'var(--accent-blue)'
+                              }}
+                            >
+                              {item.essayMode === 'outline_only' ? 'Outline' : 'Essay'}
                             </span>
                           )}
 

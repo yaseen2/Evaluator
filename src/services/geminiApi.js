@@ -1,52 +1,50 @@
 /**
- * Sequential & Parallel Multi-Agent FPSC Evaluation Engine (v2.0)
+ * FPSC Multi-Agent Evaluation Engine (Subject-Adaptive, Pedagogical & Token-Optimized)
  *
- * Architecture:
- *   Phase 1 (Single Vision Pass):
- *     - Agent 2 (Vision OCR & Question Detector) digitizes images ONCE -> produces verbatim text + extracted question.
- *     - Agent 1 (Directive & Scope Auditor) analyzes the question & transcribed text (0 image token duplication).
- *   Phase 2 (Parallel Text-Only Specialists via Promise.allSettled):
- *     - Agent 3: Subject-Specific Factual, Citation & Empirical Verifier
- *     - Agent 4: Structural Causality, Analytical Depth & Quantitative Marks Scorer
- *     - Agent 5: Headings/Outline Architect, Visual Designer & 3-Tier Topper Paragraph Rewriter
- *     - Agent 6: Line-by-Line Verbatim Highlighter (Red / Amber / Green)
- *   Final:
- *     - Programmatic Target-Phrase Validator, Deterministic Word Counter & Calibrated FPSC Marks Reducer
+ * Supports 3 Specialized Execution Modes:
+ *   1. FPSC Essay Outline & Thesis Only Mode (Fast 1–2 Call DAG, Score-Free Qualitative Diagnostics)
+ *   2. FPSC Full English Essay Mode (Token-Optimized Anatomical 4-Call DAG, Score-Free Qualitative Diagnostics,
+ *      Outline-to-Body Alignment Audit, Thesis Critique, & 4-Part Pedagogical Micro-Lesson Callouts)
+ *   3. FPSC 20-Mark Subjective & Precis Mode (Quantitative Marks + 4-Part Pedagogical Callouts)
  */
 
 import { resolveSubjectProfile } from './fpscRubrics';
 
-const API_KEY_STORAGE_KEY = 'css_evaluator_gemini_api_key';
-const MODEL_STORAGE_KEY = 'css_evaluator_gemini_model';
+// ─────────────────────────────────────────────────────────────
+// CONFIGURATION & LOCAL STORAGE HELPERS
+// ─────────────────────────────────────────────────────────────
+
+const API_KEY_STORAGE = 'css_eval_gemini_api_key';
+const MODEL_STORAGE = 'css_eval_gemini_model';
 
 export const AVAILABLE_MODELS = [
-  { id: 'auto', name: '⚡ Auto (Fastest & Smartest Failover)' },
-  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Ultra-Fast Flagship)' },
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash (High-Speed Analytical)' },
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Next-Gen Balanced)' },
-  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite (Low-Latency Lite)' },
-  { id: 'gemini-3.5-pro', name: 'Gemini 3.5 Pro (Deep Multimodal Reasoning)' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Standard Fallback)' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Fallback)' }
+  { id: 'auto', name: 'Auto (Recommended — Smart Failover)' },
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Ultra-Fast Latest)' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash (High-Speed Reasoning)' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Balanced FPSC Standard)' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite (Low Latency)' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Legacy Fallback)' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Analytical)' }
 ];
-
-export const getStoredApiKey = () => localStorage.getItem(API_KEY_STORAGE_KEY) || '';
-export const setStoredApiKey = (key) => localStorage.setItem(API_KEY_STORAGE_KEY, (key || '').trim());
-export const getStoredModel = () => localStorage.getItem(MODEL_STORAGE_KEY) || 'auto';
-export const setStoredModel = (modelId) => localStorage.setItem(MODEL_STORAGE_KEY, modelId);
 
 const MODEL_CANDIDATES = [
   'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.5-pro',
   'gemini-2.5-flash',
-  'gemini-2.5-pro'
+  'gemini-2.0-flash'
 ];
 
-let monthlyGroundingUsage = {
-  count: Number(localStorage.getItem('css_eval_api_usage_count') || 0),
+export const getStoredApiKey = () => localStorage.getItem(API_KEY_STORAGE) || '';
+export const setStoredApiKey = (key) => localStorage.setItem(API_KEY_STORAGE, (key || '').trim());
+
+export const getStoredModel = () => localStorage.getItem(MODEL_STORAGE) || 'auto';
+export const setStoredModel = (model) => localStorage.setItem(MODEL_STORAGE, model || 'auto');
+
+// Monthly usage counter persisted in localStorage
+const monthlyGroundingUsage = {
+  count: parseInt(localStorage.getItem('css_eval_api_usage_count') || '0', 10),
   limit: 5000,
   lastReset: new Date().toISOString()
 };
@@ -71,21 +69,124 @@ export const countWords = (text) => {
 };
 
 /**
- * Accurately extracts the introduction paragraph word count, skipping short title or heading lines.
+ * Programmatic Essay Anatomy Segmenter:
+ * Separates an FPSC English Essay into:
+ *   - outlineText (Formal Outline headers & Thesis Statement at top)
+ *   - introParagraph (First true continuous prose paragraph after the Outline)
+ *   - bodyParagraphs (Subsequent prose paragraphs)
+ *   - bodyTopicSentences (First sentence of each body paragraph for low-token Outline-to-Body alignment check)
+ *   - conclusionParagraph (Final substantive prose paragraph)
+ *   - bodyHeadingViolations (Any inline headings mistakenly inserted inside the essay prose body)
  */
-export const countIntroWords = (fullText) => {
+export const segmentEssayAnatomy = (fullText) => {
+  if (!fullText || typeof fullText !== 'string') {
+    return {
+      outlineText: '',
+      introParagraph: '',
+      bodyParagraphs: [],
+      bodyTopicSentences: [],
+      conclusionParagraph: '',
+      bodyHeadingViolations: []
+    };
+  }
+
+  const rawBlocks = fullText
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  const isOutlineLikeBlock = (block) => {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    const words = countWords(block);
+    const startsWithOutlineMarker = /^(?:outline|thesis\s*statement|[ivxlcdm]+\.|[0-9]+\.|[a-z]\)|[a-z]\.|[-•*])/i.test(lines[0] || '');
+    // Multi-line short list or explicit outline marker or short heading before prose begins
+    if (lines.length >= 2 && words / lines.length < 18) return true;
+    if (startsWithOutlineMarker && words < 55) return true;
+    if (words < 32 && !/[.!?].*[.!?]/.test(block)) return true;
+    return false;
+  };
+
+  const outlineBlocks = [];
+  const proseBlocks = [];
+  const bodyHeadingViolations = [];
+  let proseStarted = false;
+
+  for (const block of rawBlocks) {
+    const words = countWords(block);
+    if (!proseStarted) {
+      if (isOutlineLikeBlock(block)) {
+        outlineBlocks.push(block);
+      } else if (words >= 35) {
+        proseStarted = true;
+        proseBlocks.push(block);
+      } else {
+        outlineBlocks.push(block);
+      }
+    } else {
+      // Once continuous essay prose has started, short standalone header lines are FPSC Essay violations!
+      const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 1 && words <= 14 && !/[.!?]$/.test(lines[0])) {
+        bodyHeadingViolations.push(lines[0]);
+      } else {
+        // Check if a prose block starts with a short single-line heading followed by a newline
+        if (lines.length >= 2 && countWords(lines[0]) <= 12 && !/[.!?]$/.test(lines[0])) {
+          bodyHeadingViolations.push(lines[0]);
+          proseBlocks.push(lines.slice(1).join(' '));
+        } else {
+          proseBlocks.push(block);
+        }
+      }
+    }
+  }
+
+  const introParagraph = proseBlocks[0] || '';
+  const conclusionParagraph = proseBlocks.length > 2 ? proseBlocks[proseBlocks.length - 1] : '';
+  const bodyParagraphs =
+    proseBlocks.length > 2
+      ? proseBlocks.slice(1, -1)
+      : proseBlocks.length > 1
+      ? proseBlocks.slice(1)
+      : [];
+
+  const bodyTopicSentences = bodyParagraphs.map((para, idx) => {
+    const cleaned = para.replace(/\s+/g, ' ').trim();
+    const firstSentenceMatch = cleaned.match(/^[^.!?]+[.!?]/);
+    const topicSentence = firstSentenceMatch ? firstSentenceMatch[0].trim() : cleaned.slice(0, 140);
+    return `P${idx + 1}: ${topicSentence}`;
+  });
+
+  return {
+    outlineText: outlineBlocks.join('\n\n'),
+    introParagraph,
+    bodyParagraphs,
+    bodyTopicSentences,
+    conclusionParagraph,
+    bodyHeadingViolations
+  };
+};
+
+/**
+ * Accurately extracts the introduction paragraph word count, skipping formal outlines or short title lines.
+ */
+export const countIntroWords = (fullText, isEssay = false) => {
   if (!fullText || typeof fullText !== 'string') return 0;
+
+  if (isEssay) {
+    const anatomy = segmentEssayAnatomy(fullText);
+    if (anatomy.introParagraph) {
+      return countWords(anatomy.introParagraph);
+    }
+  }
+
   const blocks = fullText
     .split(/\n\s*\n/)
-    .map(b => b.trim())
+    .map((b) => b.trim())
     .filter(Boolean);
 
   for (const block of blocks) {
-    // Strip leading "Introduction:" or "1. Introduction:" label if present on the same block
     const cleaned = block.replace(/^(?:[0-9A-Za-z]+[.-]\s*)?introduction\s*[:\-–—]?\s*/i, '').trim();
     const words = countWords(cleaned);
-    // First substantive prose paragraph (>= 20 words) is the introduction
-    if (words >= 20) {
+    if (words >= 25) {
       return words;
     }
   }
@@ -140,53 +241,51 @@ const safeParseJSON = (rawText) => {
   try {
     return JSON.parse(cleaned);
   } catch (_) {
-    // Extract outermost JSON object if extra prose surrounds it
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      const candidate = cleaned
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const sub = cleaned
         .slice(firstBrace, lastBrace + 1)
         .replace(/,\s*([}\]])/g, '$1');
-      return JSON.parse(candidate);
+      return JSON.parse(sub);
     }
-    throw new Error('Failed to parse structured JSON from AI agent');
+    throw new Error('Failed to parse structured JSON from AI agent response');
   }
 };
 
 // ─────────────────────────────────────────────────────────────
-// GENERIC AGENT CALLER — One focused API call per agent
+// CORE LLM CALLER WITH AUTOMATIC MODEL FAILOVER
 // ─────────────────────────────────────────────────────────────
 
 const callSingleAgent = async ({ prompt, apiKey, modelName, imageArray, text, maxTokens = 4096, temperature = 0.2 }) => {
-  const parts = [];
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  const parts = [{ text: prompt }];
 
   if (imageArray && imageArray.length > 0) {
     imageArray.forEach((imgData) => {
       const { mimeType, base64Data } = parseDataUrl(imgData);
       if (base64Data) {
         parts.push({
-          inlineData: { mimeType, data: base64Data }
+          inline_data: {
+            mime_type: mimeType,
+            data: base64Data
+          }
         });
       }
     });
+  } else if (text) {
+    parts.push({ text: `\n\nCANDIDATE SUBMISSION TEXT:\n${text}` });
   }
-
-  if (text) {
-    parts.push({ text: `Candidate Answer Script Text:\n${text}` });
-  }
-
-  parts.push({ text: prompt });
 
   const payload = {
     contents: [{ parts }],
     generationConfig: {
       temperature,
-      maxOutputTokens: maxTokens,
-      responseMimeType: 'application/json'
+      response_mime_type: 'application/json',
+      maxOutputTokens: maxTokens
     }
   };
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -195,8 +294,14 @@ const callSingleAgent = async ({ prompt, apiKey, modelName, imageArray, text, ma
   });
 
   if (!response.ok) {
-    const errJson = await response.json().catch(() => ({}));
-    throw new Error(errJson.error?.message || `HTTP ${response.status}`);
+    let errText = '';
+    try {
+      const errJson = await response.json();
+      errText = errJson.error?.message || response.statusText;
+    } catch (_) {
+      errText = response.statusText;
+    }
+    throw new Error(`HTTP ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
@@ -209,9 +314,6 @@ const callSingleAgent = async ({ prompt, apiKey, modelName, imageArray, text, ma
   return safeParseJSON(rawText);
 };
 
-/**
- * Tries calling an agent across multiple model candidates with automatic failover.
- */
 const callAgentWithFailover = async ({ prompt, apiKey, candidateList, imageArray, text, maxTokens, temperature }) => {
   let lastError = null;
   for (const modelName of candidateList) {
@@ -227,27 +329,344 @@ const callAgentWithFailover = async ({ prompt, apiKey, candidateList, imageArray
 };
 
 // ─────────────────────────────────────────────────────────────
-// SUBJECT-ADAPTIVE AGENT PROMPT BUILDERS
+// SHARED DIGITIZER PROMPT (SINGLE-VISION PASS)
 // ─────────────────────────────────────────────────────────────
 
 const buildAgent2TranscriberPrompt = (subject, userExamQuestion) => `
-You are Agent 2: DIGITIZER, OCR TRANSCRIPTION & QUESTION EXTRACTOR for FPSC CSS (${subject || 'Competitive Examination'}).
+You are Agent 1: DIGITIZER, OCR TRANSCRIPTION & QUESTION EXTRACTOR for FPSC CSS (${subject || 'Competitive Examination'}).
 
 YOUR TASK:
-1. Transcribe the FULL candidate answer script verbatim from the provided pages/text.
-   - Preserve all paragraphs, headings, sub-headings, numbering, and outline structures using double newlines (\\n\\n) between paragraphs/headings.
-   - Do NOT fix grammar or rewrite anything during transcription — transcribe 100% faithfully.
+1. Transcribe the FULL candidate submission verbatim from the provided pages/text.
+   - Preserve all paragraphs, outline hierarchies (Roman numerals I, II, III, A, B, 1, 2), headings, and line breaks using double newlines (\\n\\n) between sections/paragraphs.
+   - Do NOT fix grammar or rewrite anything during transcription — transcribe 100% faithfully so the student's real mistakes can be taught.
 2. Identify the main topic/title of the script ("topic").
-3. Detect if an explicit exam question or prompt is written at the top of the script ("extractedQuestion").
-   ${userExamQuestion ? `Note: The candidate already provided this question prompt: "${userExamQuestion}".` : ''}
+3. Detect if an explicit exam question or essay prompt is written at the top of the script ("extractedQuestion").
+   ${userExamQuestion ? `Note: The candidate provided this prompt: "${userExamQuestion}".` : ''}
 
 Return ONLY this JSON:
 {
-  "topic": "string (main title or topic of the answer script)",
-  "extractedQuestion": "string or null (explicit exam question written on the script, if any)",
-  "fullTranscribedText": "string (the ENTIRE verbatim transcribed text with \\n\\n paragraph breaks)"
+  "topic": "string (main title or essay topic)",
+  "extractedQuestion": "string or null (explicit exam prompt written on the script, if any)",
+  "fullTranscribedText": "string (the ENTIRE verbatim transcribed text with \\n\\n section breaks)"
 }
 `;
+
+// ═════════════════════════════════════════════════════════════
+// MODE 1: FPSC ESSAY OUTLINE & THESIS ONLY MENTOR PROMPT
+// ═════════════════════════════════════════════════════════════
+
+const buildOutlineOnlyMentorPrompt = (examQuestion, outlineText) => `
+You are a Senior FPSC CSS English Essay Mentor (trained on official FPSC Examiner Reports, NOA, KIPS, and World Times evaluation standards).
+The candidate has submitted an **ESSAY OUTLINE & THESIS STATEMENT** for diagnostic review.
+
+Essay Topic / Prompt: "${examQuestion}"
+
+CANDIDATE'S SUBMITTED OUTLINE & THESIS:
+---
+${outlineText}
+---
+
+EVALUATION PHILOSOPHY (BALANCED & PEDAGOGICAL — BEYOND ACADEMY RED CIRCLES):
+- Be balanced, constructive, and encouraging—neither harshly dismissive nor overly lenient.
+- Do NOT assign numeric scores. Use qualitative readiness ratings: "Strong", "Balanced", "Needs Polish", or "Critical Gap".
+- In traditional academies, teachers merely circle outline headers in red ink without explaining WHY. Your job is to teach the student the exact rule behind every flaw and show them how to fix it.
+
+YOUR TASK:
+1. Overall Readiness & Mentor Summary:
+   - "overallReadiness": Choose one: "Well-Structured FPSC Blueprint" | "Balanced Blueprint — Needs Reframing" | "Foundational Outline — Needs Structural Revision"
+   - "examinerSummary": 3–4 encouraging, specific sentences summarizing what works well in this outline and the #1 priority to fix.
+2. Prompt Decoding ("directiveAnalysis"):
+   - Decode the core keyword/qualifier of the essay topic, required dimensions, and whether the outline is "Aligned", "Partially Aligned", or "Off-Topic".
+3. Thesis Statement Audit ("thesisAudit"):
+   - "candidateThesis": Extract the candidate's thesis statement verbatim (or "Not explicitly stated in outline" if missing).
+   - "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap"
+   - "critique": Explain clearly whether the thesis takes a debatable stance and signposts the essay's trajectory, or if it is tautological/vague.
+   - "modelTopperThesis": Write a 1–2 sentence FPSC Topper-level Thesis Statement for this exact topic so the student can compare.
+4. Header-by-Header Parallelism & Phrasing Upgrades ("headerUpgrades"):
+   - Pick 3 to 5 weak, vague, non-parallel, or overly wordy headers from the candidate's outline.
+   - For each, provide:
+     - "originalHeader": Exact header written by the candidate.
+     - "issue": Specific diagnosis (e.g., "Single-Word Noun Dump", "Non-Parallel Grammar", "Full Sentence Instead of Phrase", "Tangent / Off-Prompt").
+     - "upgradedHeader": Rewritten FPSC Topper header using crisp, parallel phrasing.
+     - "rule": A 1-sentence takeaway rule (e.g., "All sub-headers under a major section should share the same grammatical form, such as gerund phrases or analytical noun phrases.").
+5. 5-Pillar Qualitative Outline Rubric:
+   - Evaluate each pillar with "status" ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") and actionable "feedback":
+     - "scoreBreakdown_topic_decoding"
+     - "scoreBreakdown_thesis"
+     - "scoreBreakdown_outline_structure"
+     - "scoreBreakdown_parallelism"
+     - "scoreBreakdown_coverage_originality"
+6. Missing Dimensions ("thingsToInclude"):
+   - 4 to 5 specific analytical angles, counter-arguments, or empirical case studies the student should add to make this outline comprehensive.
+7. Model Topper Outline Blueprint ("suggestedVisual"):
+   - Design a complete, parallel "Model FPSC Essay Outline Blueprint" for "${examQuestion}" using clean Unicode tree characters (├──, └──, │).
+8. Inline Pedagogical Callouts ("annotations"):
+   - Generate 6 to 12 inline callouts ("red" for structural/grammar errors, "amber" for phrasing/parallelism improvements, "green" for strong headers).
+   - CRITICAL VERBATIM RULE: Every "targetPhrase" MUST be an EXACT 2 to 10 word substring copied VERBATIM from the candidate's outline text above.
+   - Every callout MUST include "category", "comment" (why the examiner flagged it), "suggestion" (exact rewritten header/phrase), and "microLesson" (1-line rule to remember).
+
+Return ONLY this JSON:
+{
+  "overallReadiness": "Well-Structured FPSC Blueprint" | "Balanced Blueprint — Needs Reframing" | "Foundational Outline — Needs Structural Revision",
+  "examinerSummary": "string",
+  "directiveAnalysis": {
+    "directiveWord": "string (e.g. Expository / Argumentative / Reflective Essay)",
+    "targetTimeframe": "string or null",
+    "requiredDimensions": "string",
+    "alignmentStatus": "Aligned" | "Partially Aligned" | "Off-Topic",
+    "feedback": "string"
+  },
+  "thesisAudit": {
+    "candidateThesis": "string",
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "critique": "string",
+    "modelTopperThesis": "string"
+  },
+  "headerUpgrades": [
+    {
+      "originalHeader": "string",
+      "issue": "string",
+      "upgradedHeader": "string",
+      "rule": "string"
+    }
+  ],
+  "thingsToInclude": ["string"],
+  "suggestedVisual": {
+    "title": "string",
+    "description": "string",
+    "insertAfterHeading": "string",
+    "diagramText": "string (Unicode tree blueprint using ├──, └──, │)"
+  },
+  "annotations": [
+    {
+      "id": "ann-1",
+      "targetPhrase": "string (EXACT verbatim substring from candidate text)",
+      "type": "red" | "amber" | "green",
+      "category": "string",
+      "comment": "string (Why the examiner circled this)",
+      "suggestion": "string (Exact rewritten replacement)",
+      "microLesson": "string (1-line rule to remember)"
+    }
+  ],
+  "scoreBreakdown_topic_decoding": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_thesis": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_outline_structure": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_parallelism": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_coverage_originality": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" }
+}
+`;
+
+// ═════════════════════════════════════════════════════════════
+// MODE 2: FULL ENGLISH ESSAY — 3 SPECIALIZED PARALLEL AGENTS
+// (Token-Optimized via Anatomical Slicing, Zero Numeric Score)
+// ═════════════════════════════════════════════════════════════
+
+/**
+ * Essay Agent A: Macro-Structure, Thesis, Intro Funnel & Outline-to-Body Alignment
+ * Token-optimized: Receives ONLY the anatomical skeleton (~600 words instead of 3,000 words!)
+ */
+const buildEssayAgentAMacroPrompt = (examQuestion, anatomy, introWordCount, totalWords) => `
+You are Essay Agent A: FPSC MACRO-STRUCTURE, THESIS & OUTLINE-TO-BODY ALIGNMENT MENTOR (trained on FPSC Examiner Reports, NOA, KIPS, and World Times rubrics).
+
+Essay Topic: "${examQuestion}"
+Total Essay Length: ${totalWords} words | Detected Introduction Length: ${introWordCount} words (Balanced Target: ~180–250 words)
+${
+  anatomy.bodyHeadingViolations.length > 0
+    ? `⚠️ DETECTED INLINE BODY HEADINGS (FPSC Essay Violation): ${JSON.stringify(anatomy.bodyHeadingViolations)}`
+    : 'Inline Body Headings Check: Clean (no forbidden headings detected inside prose body).'
+}
+
+1. CANDIDATE'S EXTRACTED OUTLINE SECTION:
+---
+${anatomy.outlineText || '(No separate formal outline detected at the start of the script)'}
+---
+
+2. CANDIDATE'S OPENING INTRODUCTION PARAGRAPH:
+---
+${anatomy.introParagraph || '(No introduction paragraph detected)'}
+---
+
+3. SEQUENCE OF BODY PARAGRAPH TOPIC SENTENCES (P1 to P${anatomy.bodyTopicSentences.length}):
+---
+${anatomy.bodyTopicSentences.join('\n') || '(No body paragraphs detected)'}
+---
+
+4. CANDIDATE'S CONCLUSION PARAGRAPH:
+---
+${anatomy.conclusionParagraph || '(No separate conclusion paragraph detected)'}
+---
+
+EVALUATION PHILOSOPHY:
+- Be balanced, constructive, and pedagogical. Do NOT output numeric marks.
+- Use qualitative statuses: "Strong", "Balanced", "Needs Polish", or "Critical Gap".
+- Check the #1 FPSC Examiner complaint: **Outline-to-Body Alignment** — do the body paragraph topic sentences (P1..Pn) actually follow the candidate's Outline headers, or were outline headers skipped/ignored in the essay body?
+
+Return ONLY this JSON:
+{
+  "overallReadiness": "Strong Competitive Essay" | "Balanced Draft — Needs Structural Polish" | "Foundational Draft — Needs Revision",
+  "examinerSummary": "string (3–4 sentences of balanced, constructive mentorship highlighting key strengths and top priorities)",
+  "directiveAnalysis": {
+    "directiveWord": "string (e.g. Argumentative / Expository / Analytical Essay)",
+    "targetTimeframe": "string or null",
+    "requiredDimensions": "string (key dimensions required by this topic)",
+    "alignmentStatus": "Aligned" | "Partially Aligned" | "Off-Topic",
+    "feedback": "string (how well the candidate decoded the prompt nuances)"
+  },
+  "thesisAudit": {
+    "candidateThesis": "string (exact thesis statement extracted from Outline or end of Introduction, or 'Not clearly stated')",
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "critique": "string (why the thesis works or how it falls short)",
+    "modelTopperThesis": "string (a 1–2 sentence FPSC Topper-level thesis statement for this topic)"
+  },
+  "outlineAlignment": {
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "summary": "string (assessment of how well the body paragraphs match the outline roadmap)",
+    "missingFromBody": ["string (outline points that were skipped or under-developed in the body, if any)"],
+    "bodyHeadingWarning": "string or null (warning if the student mistakenly put headings inside the essay prose body)"
+  },
+  "headerUpgrades": [
+    {
+      "originalHeader": "string (a weak or non-parallel header from the candidate's outline, or a weak topic focus)",
+      "issue": "string (e.g. Non-Parallel Phrasing / Single-Word Label / Vague)",
+      "upgradedHeader": "string (rewritten parallel FPSC Topper header)",
+      "rule": "string (1-line rule to remember)"
+    }
+  ],
+  "scoreBreakdown_topic_relevance": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_outline": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_thesis": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_introduction": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+  "scoreBreakdown_coherence": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" }
+}
+`;
+
+/**
+ * Essay Agent B: Body Paragraph PEEL Coach, Empirical Evidence Verifier & 3-Tier Rewriter
+ */
+const buildEssayAgentBBodyPrompt = (examQuestion, transcribedText) => `
+You are Essay Agent B: FPSC BODY PARAGRAPH (PEEL) COACH, EMPIRICAL EVIDENCE AUDITOR & TOPPER REWRITER.
+Essay Topic: "${examQuestion}"
+
+CANDIDATE'S ESSAY SCRIPT:
+---
+${transcribedText}
+---
+
+YOUR TASK:
+1. Audit Body Paragraph Architecture (PEEL: Point/Topic Sentence → Explanation → Empirical Evidence/Case Study → Link back to Thesis):
+   - Evaluate "scoreBreakdown_body_paragraphs" with qualitative status ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") and constructive feedback.
+2. Verify Factual & Empirical Claims ("factCheck"):
+   - Check 4 to 7 notable statistics, reports, historical references, constitutional articles, or scholarly claims in the essay.
+   - If inaccurate or overly vague, provide the exact correction and authoritative source.
+3. High-Impact Evidence & Perspectives to Add ("thingsToInclude"):
+   - Provide 4 to 6 specific, authentic data points, global indices (e.g., UNDP, World Bank, IMF, WEF, Economic Survey of Pakistan), philosophical quotes, or counter-arguments the candidate can use to elevate this essay.
+4. Custom Mentor Observations ("customObservations"):
+   - 3 to 4 balanced observations on "Topic Sentences & PEEL", "Empirical Backing", "Counter-Argumentation", and "Concluding Way Forward".
+5. Model Topper Outline Blueprint ("suggestedVisual"):
+   - Design a clean "Ideal FPSC Essay Outline Blueprint" for "${examQuestion}" using Unicode tree characters (├──, └──, │).
+6. 3-Tier Level-Up Paragraph Rewrites ("rewrites"):
+   - Select 2 to 3 weak or average paragraphs from the candidate's essay.
+   - Provide:
+     - "original": Exact original paragraph from the script.
+     - "basic": Corrected version fixing grammar while keeping the student's simple phrasing.
+     - "cssStandard": Upgraded paragraph with a clear assertive Topic Sentence and formal academic register.
+     - "highScorer": FPSC Topper version demonstrating complete PEEL structure (Topic Sentence + Analytical Depth + Empirical Citation + Link back to Thesis) in natural, lucid English (no artificial dictionary bombast).
+     - "whatChanged": 1–2 sentences explaining *why* the Topper version is stronger so the student learns the technique.
+
+Return ONLY this JSON:
+{
+  "scoreBreakdown_body_paragraphs": {
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "feedback": "string"
+  },
+  "factCheck": [
+    {
+      "claim": "string (exact claim from the essay)",
+      "verified": true,
+      "correctedFact": "string or null",
+      "source": "string (authoritative report, book, or institution)"
+    }
+  ],
+  "thingsToInclude": ["string"],
+  "customObservations": [
+    {
+      "category": "string",
+      "observation": "string",
+      "type": "strength" | "concern" | "recommendation"
+    }
+  ],
+  "suggestedVisual": {
+    "title": "string",
+    "description": "string",
+    "insertAfterHeading": "string",
+    "diagramText": "string (Unicode tree blueprint using ├──, └──, │)"
+  },
+  "rewrites": [
+    {
+      "original": "string",
+      "basic": "string",
+      "cssStandard": "string",
+      "highScorer": "string",
+      "whatChanged": "string"
+    }
+  ]
+}
+`;
+
+/**
+ * Essay Agent C: Pedagogical Language Mentor & 4-Part Micro-Lesson Highlighter
+ * ("Beyond Academy Red Circles" — Explains WHY + Exact Fix + Rule to Remember)
+ */
+const buildEssayAgentCPedagogicalPrompt = (transcribedText) => `
+You are Essay Agent C: FPSC PEDAGOGICAL LANGUAGE MENTOR & LINE-BY-LINE DIAGNOSTIC HIGHLIGHTER.
+
+CANDIDATE'S ESSAY SCRIPT:
+---
+${transcribedText}
+---
+
+FPSC LANGUAGE & PEDAGOGY STANDARD:
+- Official FPSC Examiner Reports repeatedly state: "Simple, correct, natural English with intellectual clarity scores far higher than forced, bombastic vocabulary riddled with grammatical errors."
+- In traditional CSS academies, teachers only circle mistakes in red ink with no explanation. Your mission is to turn every highlight into a **4-Part Micro-Lesson** so the student learns from every mistake.
+
+YOUR TASK:
+1. Scan the essay from start to finish and generate 12 to 18 inline annotations across:
+   - "red" (Grammar, Syntax, Factual, or FPSC Rule Errors): Subject-verb disagreement, sentence fragments, run-ons, wrong prepositions/articles, tense shifts, tautological thesis, or forbidden inline body headings.
+   - "amber" (Style, Coherence & PEEL Improvements): Weak/missing topic sentence, abrupt transition, unsupported generalization, repetitive phrasing, or unnatural/forced vocabulary.
+   - "green" (Strong Elements to Keep Doing): Lucid topic sentence, effective transitional signpost, well-integrated empirical evidence, or balanced analytical synthesis.
+2. CRITICAL VERBATIM RULE:
+   - Every "targetPhrase" MUST be an EXACT 3 to 10 word substring copied VERBATIM from the candidate's text above (exact spelling, punctuation, and case).
+3. 4-PART MICRO-LESSON STRUCTURE FOR EVERY CALLOUT:
+   - "category": Specific diagnostic badge (e.g., "Subject-Verb Agreement", "Weak Topic Sentence", "Missing Transition", "Unnatural Diction", "Unsupported Claim", "Strong PEEL Link").
+   - "comment": Clear, encouraging explanation of WHY the examiner flagged (or praised) this phrase.
+   - "suggestion": Exact drop-in rewritten phrase or sentence (for red and amber items; null or optional reinforcement for green).
+   - "microLesson": A concise 1-sentence grammar or essay-writing rule so the student never repeats the mistake.
+4. Evaluate "scoreBreakdown_grammar_syntax":
+   - Qualitative status ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") and balanced feedback on the candidate's grammar, sentence variety, and clarity of expression.
+
+Return ONLY this JSON:
+{
+  "annotations": [
+    {
+      "id": "ann-1",
+      "targetPhrase": "string (EXACT 3-10 word verbatim substring from text)",
+      "type": "red" | "amber" | "green",
+      "category": "string",
+      "comment": "string (Why the examiner flagged this)",
+      "suggestion": "string or null (Exact rewritten fix)",
+      "microLesson": "string (1-sentence rule to remember)"
+    }
+  ],
+  "scoreBreakdown_grammar_syntax": {
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "feedback": "string"
+  }
+}
+`;
+
+// ═════════════════════════════════════════════════════════════
+// MODE 3: 20-MARK SUBJECTIVE & PRECIS AGENT PROMPTS
+// ═════════════════════════════════════════════════════════════
 
 const buildAgent1DirectivePrompt = (profile, examQuestion, transcribedText) => `
 You are Agent 1: QUESTION DIRECTIVE & SCOPE AUDITOR for the FPSC CSS Competitive Examination.
@@ -262,9 +681,9 @@ ${transcribedText.slice(0, 3500)}
 ---
 
 YOUR TASK:
-1. Identify the primary directive word (e.g., Discuss, Critically Examine, Analyze, Evaluate, Compare, Elucidate, Essay Prompt, Precis).
+1. Identify the primary directive word (e.g., Discuss, Critically Examine, Analyze, Evaluate, Compare, Elucidate, Precis).
 2. Identify the target timeframe, geographical scope, or conceptual boundary if applicable.
-3. Identify the required analytical dimensions (e.g., Political, Economic, Institutional, Geopolitical, Legal, Social).
+3. Identify the required analytical dimensions.
 4. Determine whether the candidate's answer is "Aligned", "Partially Aligned", or "Off-Topic".
 5. Provide concise, actionable FPSC examiner feedback on how well the candidate addressed the question's scope.
 
@@ -319,7 +738,6 @@ Return ONLY this JSON:
 `;
 
 const buildAgent4CausalityPrompt = (profile, examQuestion, directiveAnalysis, transcribedText) => {
-  const isEssay = profile.archetypeId === 'essay';
   const isPrecis = profile.archetypeId === 'precis';
 
   return `
@@ -342,13 +760,9 @@ YOUR TASK:
 2. Generate 4 to 6 specific, high-scoring "thingsToInclude" — exact scholarly references, theoretical arguments, empirical indicators, or structural cause-effect points the candidate should add.
 3. Write a cohesive "examinerSummary" (3–4 sentences) synthesizing the paper's core strengths, primary flaws, and FPSC allocation potential.
 4. Provide 3 to 4 "customObservations" across categories like "${profile.lens.domainLabel}", "Argumentative Coherence", "Concluding Synthesis", or "Empirical Rigor".
-5. Score the analytical rubric components realistically according to strict FPSC marking standards:
+5. Score the analytical rubric components realistically according to FPSC marking standards:
    ${
-     isEssay
-       ? `- "scoreBreakdown_thesis": score out of 10
-   - "scoreBreakdown_critical_analysis": score out of 30
-   - "scoreBreakdown_conclusion": score out of 10`
-       : isPrecis
+     isPrecis
        ? `- "scoreBreakdown_precis_rules": score out of 30
    - "scoreBreakdown_comprehension": score out of 25`
        : `- "scoreBreakdown_critical_analysis": score out of 6`
@@ -372,16 +786,6 @@ Return ONLY this JSON:
     "score": number,
     "feedback": "string"
   },
-  "scoreBreakdown_thesis": {
-    "status": "Satisfactory" | "Needs Improvement" | "Missing",
-    "score": number,
-    "feedback": "string"
-  },
-  "scoreBreakdown_conclusion": {
-    "status": "Satisfactory" | "Needs Improvement" | "Missing",
-    "score": number,
-    "feedback": "string"
-  },
   "scoreBreakdown_precis_rules": {
     "status": "Satisfactory" | "Needs Improvement" | "Missing",
     "score": number,
@@ -397,7 +801,6 @@ Return ONLY this JSON:
 };
 
 const buildAgent5VisualsAndRewritesPrompt = (profile, examQuestion, transcribedText) => {
-  const isEssay = profile.archetypeId === 'essay';
   const isPrecis = profile.archetypeId === 'precis';
 
   return `
@@ -411,35 +814,26 @@ ${transcribedText}
 ---
 
 YOUR TASK:
-1. STRUCTURAL & HEADINGS / OUTLINE AUDIT:
+1. STRUCTURAL & HEADINGS AUDIT:
    ${
-     isEssay
-       ? `- Audit the candidate's Essay Outline ("scoreBreakdown_outline", score out of 15).
-   - IMPORTANT FPSC ESSAY RULE: Headings and diagrams are STRICTLY FORBIDDEN inside the Essay body prose (only allowed in the initial Outline). If the candidate put headings inside the essay body, flag it in feedback!`
-       : isPrecis
+     isPrecis
        ? `- Audit the candidate's Precis Title ("scoreBreakdown_title", score out of 10).`
-       : `- Audit the candidate's headings ("scoreBreakdown_headings", score out of 3): Are they self-explanatory academic headings (e.g., "1. Resource Scarcity & Pastoral Nomadism: Economic Drivers of Ghazw") or weak single-word labels?
+       : `- Audit the candidate's headings ("scoreBreakdown_headings", score out of 3): Are they self-explanatory academic headings or weak single-word labels?
    - Audit visual schematic usage ("scoreBreakdown_diagrams", score out of 2).`
    }
 
 2. DESIGN ONE "suggestedVisual":
    - ${
-     isEssay
-       ? 'Design a clean "Ideal FPSC Essay Outline Blueprint" using Unicode box-drawing characters (├──, └──, │).'
-       : isPrecis
+     isPrecis
        ? 'Design a "Core Arguments Compression Map & Model Title" using Unicode box-drawing characters (├──, └──, │).'
        : 'Design a high-scoring schematic flowchart, causal matrix, or hierarchy tree using clean Unicode box-drawing characters (├──, └──, │, ──►) that the candidate should draw in their answer booklet.'
    }
-   - Do NOT output raw Mermaid code (like "graph TD"); always use clean, human-readable Unicode tree/flowchart formatting.
+   - Do NOT output raw Mermaid code; always use clean, human-readable Unicode tree/flowchart formatting.
    - Set "insertAfterHeading" to an exact heading or paragraph phrase from the candidate's text where this visual fits best.
 
 3. GENERATE 2 TO 3 "rewrites" (3-TIER LEVEL-UP PARAGRAPH REWRITER):
-   - Select 2 or 3 weak/average paragraphs or passages from the candidate's script.
-   - Provide:
-     - "original": The exact original paragraph/sentences from the candidate's text.
-     - "basic": Grammatically corrected version of the candidate's paragraph.
-     - "cssStandard": Upgraded version using formal FPSC academic register and clear topic framing.
-     - "highScorer": Topper-level (15+/20 or 65+/100) rewrite incorporating structural causality, scholarly terminology, and authoritative synthesis.
+   - Select 2 or 3 weak/average paragraphs from the candidate's script.
+   - Provide "original", "basic", "cssStandard", "highScorer", and "whatChanged" (1–2 sentences explaining why the topper rewrite scores higher).
 
 Return ONLY this JSON:
 {
@@ -454,7 +848,8 @@ Return ONLY this JSON:
       "original": "string",
       "basic": "string",
       "cssStandard": "string",
-      "highScorer": "string"
+      "highScorer": "string",
+      "whatChanged": "string"
     }
   ],
   "scoreBreakdown_headings": {
@@ -463,11 +858,6 @@ Return ONLY this JSON:
     "feedback": "string"
   },
   "scoreBreakdown_diagrams": {
-    "status": "Satisfactory" | "Needs Improvement" | "Missing",
-    "score": number,
-    "feedback": "string"
-  },
-  "scoreBreakdown_outline": {
     "status": "Satisfactory" | "Needs Improvement" | "Missing",
     "score": number,
     "feedback": "string"
@@ -482,11 +872,11 @@ Return ONLY this JSON:
 };
 
 const buildAgent6AnnotationsPrompt = (profile, transcribedText, introWordCount) => {
-  const introMax = profile.archetypeId === 'essay' ? 15 : 3;
-  const grammarMax = profile.archetypeId === 'essay' ? 20 : profile.archetypeId === 'precis' ? 35 : 3;
+  const introMax = 3;
+  const grammarMax = profile.archetypeId === 'precis' ? 35 : 3;
 
   return `
-You are Agent 6: UNIVERSAL ERROR & STRENGTH HIGHLIGHTER — a meticulous line-by-line FPSC proofreader and analytical auditor for ${profile.subjectName}.
+You are Agent 6: UNIVERSAL ERROR & STRENGTH HIGHLIGHTER — a meticulous line-by-line FPSC proofreader and pedagogical mentor for ${profile.subjectName}.
 
 CANDIDATE'S TRANSCRIBED ANSWER:
 ---
@@ -494,18 +884,19 @@ ${transcribedText}
 ---
 
 YOUR SINGLE TASK:
-1. Scan EVERY sentence from beginning to end and generate 10 to 18 annotations across these categories:
-   - "red" (Critical Errors): Factual/historical/statutory blunders, English grammar/tense/agreement errors, spelling mistakes, punctuation/possessive errors, or FPSC rule violations.
+1. Scan EVERY sentence from beginning to end and generate 10 to 16 annotations across these categories:
+   - "red" (Critical Errors): Factual/historical/statutory blunders, English grammar/tense/agreement errors, spelling mistakes, or FPSC rule violations.
    - "amber" (Improvement Notes): Weak chronological storytelling lacking "Why & How" causality, informal diction/register, generic headings, or unsupported assertions.
    - "green" (Strong Elements): Strong analytical causality, apt scholarly/technical terminology, comparative insights, or effective synthesis.
 
 CRITICAL VERBATIM RULE:
-- Every "targetPhrase" MUST be an EXACT 3 to 10 word substring copy-pasted VERBATIM from the transcribed text above (exact spelling, punctuation, and case). Never paraphrase "targetPhrase".
+- Every "targetPhrase" MUST be an EXACT 3 to 10 word substring copy-pasted VERBATIM from the transcribed text above.
 
-2. Evaluate Introduction & English Expression for the scoreBreakdown:
+2. Include a 1-sentence "microLesson" ("Rule to Remember") for every red or amber annotation so the student learns the underlying grammar or analytical principle.
+3. Evaluate Introduction & English Expression for the scoreBreakdown:
    - Detected Introduction Word Count: ${introWordCount} words (Target: ≥ ${profile.targetIntroWords} words).
    - "scoreBreakdown_introduction": status ("Satisfactory" | "Needs Improvement" | "Missing"), numeric score out of ${introMax}, and specific feedback.
-   - "scoreBreakdown_grammar_syntax": status ("Satisfactory" | "Needs Improvement" | "Missing"), numeric score out of ${grammarMax}, and specific feedback summarizing the grammar/register audit.
+   - "scoreBreakdown_grammar_syntax": status ("Satisfactory" | "Needs Improvement" | "Missing"), numeric score out of ${grammarMax}, and specific feedback.
 
 Return ONLY this JSON:
 {
@@ -516,7 +907,8 @@ Return ONLY this JSON:
       "type": "red" | "amber" | "green",
       "category": "string",
       "comment": "string",
-      "suggestion": "string or null"
+      "suggestion": "string or null",
+      "microLesson": "string"
     }
   ],
   "scoreBreakdown_introduction": {
@@ -534,7 +926,7 @@ Return ONLY this JSON:
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST-PROCESSING: Validate annotations & compute calibrated FPSC scores
+// POST-PROCESSING: Validate annotations & normalize statuses
 // ─────────────────────────────────────────────────────────────
 
 const validateAnnotations = (annotations, fullText) => {
@@ -565,23 +957,31 @@ const validateAnnotations = (annotations, fullText) => {
     }));
 };
 
-/**
- * Computes a deterministic numeric score from status if the LLM omitted a numeric score,
- * and clamps it to [0, maxMarks].
- */
+const resolveQualitativeCriterion = (rawObj, defaultFeedback = '') => {
+  const rawStatus = (rawObj?.status || '').trim();
+  const validStatuses = ['Strong', 'Balanced', 'Needs Polish', 'Critical Gap', 'Satisfactory', 'Needs Improvement', 'Missing'];
+  const status = validStatuses.includes(rawStatus) ? rawStatus : 'Balanced';
+  return {
+    status,
+    scored: false,
+    feedback: rawObj?.feedback || defaultFeedback
+  };
+};
+
 const resolveCriterionScore = (rawObj, maxMarks, fallbackStatus = 'Needs Improvement') => {
   const status = rawObj?.status || fallbackStatus;
   let numeric = Number(rawObj?.score);
 
   if (Number.isNaN(numeric) || numeric < 0) {
-    if (status === 'Satisfactory') numeric = Math.round(maxMarks * 0.72 * 2) / 2;
-    else if (status === 'Needs Improvement') numeric = Math.round(maxMarks * 0.48 * 2) / 2;
+    if (status === 'Satisfactory' || status === 'Strong') numeric = Math.round(maxMarks * 0.72 * 2) / 2;
+    else if (status === 'Needs Improvement' || status === 'Balanced' || status === 'Needs Polish') numeric = Math.round(maxMarks * 0.48 * 2) / 2;
     else numeric = Math.round(maxMarks * 0.2 * 2) / 2;
   }
 
   const clamped = Math.min(maxMarks, Math.max(0, Math.round(numeric * 2) / 2));
   return {
     status,
+    scored: true,
     score: clamped,
     maxMarks,
     feedback: rawObj?.feedback || ''
@@ -596,6 +996,7 @@ export const executeMultiAgentPipeline = async ({
   text,
   imageArray,
   subject,
+  essayMode = 'full',
   examQuestion,
   apiKey,
   selectedModel,
@@ -604,7 +1005,7 @@ export const executeMultiAgentPipeline = async ({
   const effectiveKey = apiKey || getStoredApiKey();
   if (!effectiveKey) throw new Error('NO_API_KEY');
 
-  const profile = resolveSubjectProfile(subject);
+  const profile = resolveSubjectProfile(subject, { essayMode });
 
   const userModelChoice = selectedModel || getStoredModel();
   const candidateList =
@@ -616,14 +1017,19 @@ export const executeMultiAgentPipeline = async ({
   let apiCallsCount = 0;
 
   // ═══════════════════════════════════════════════════════════
-  // PHASE 1A: Agent 2 — Single-Pass Vision OCR & Question Extraction
+  // STEP 1: Single-Pass Vision OCR / Script Ingestion
   // ═══════════════════════════════════════════════════════════
 
   onAgentComplete?.({
     agentId: 'agent2',
-    agentName: 'Agent 1/6: Vision OCR & Script Digitizer',
-    detail: 'Digitizing answer pages and detecting FPSC question header...',
-    percent: 12,
+    agentName:
+      profile.archetypeId === 'essay_outline'
+        ? 'Step 1/2: Digitizing Essay Outline & Thesis'
+        : profile.archetypeId === 'essay'
+        ? 'Node 1/4: Vision OCR & Essay Anatomy Segmenter'
+        : 'Agent 1/6: Vision OCR & Script Digitizer',
+    detail: 'Digitizing pages and extracting FPSC topic header...',
+    percent: 15,
     phase: 'starting'
   });
 
@@ -647,27 +1053,272 @@ export const executeMultiAgentPipeline = async ({
     topic = agent2Result.topic || '';
     extractedQuestion = agent2Result.extractedQuestion || '';
   } else if (transcribedText) {
-    // Text-only submission: extract clean topic & header question without vision tokens
     const firstLine = transcribedText.split('\n')[0]?.trim() || '';
-    topic = firstLine.length < 110 ? firstLine : `${subject} Answer Script`;
+    topic = firstLine.length < 110 ? firstLine : `${subject} Submission`;
   }
 
-  if (!transcribedText || transcribedText.length < 15) {
-    throw new Error('Could not extract readable text from the submitted answer script. Please upload clearer page photos or paste your text.');
+  if (!transcribedText || transcribedText.length < 10) {
+    throw new Error('Could not extract readable text from the submitted script. Please upload clearer page photos or paste your text.');
   }
 
-  const resolvedQuestion = (examQuestion || '').trim() || (extractedQuestion || '').trim() || topic || `${subject} FPSC Question`;
+  const resolvedQuestion =
+    (examQuestion || '').trim() ||
+    (extractedQuestion || '').trim() ||
+    topic ||
+    `${subject} FPSC Topic`;
 
-  onAgentComplete?.({
-    agentId: 'agent2',
-    agentName: 'Agent 1/6: Vision OCR & Script Digitizer',
-    detail: `Digitized ${countWords(transcribedText)} words across script.`,
-    percent: 30,
-    phase: 'complete'
-  });
+  const totalWords = countWords(transcribedText);
 
   // ═══════════════════════════════════════════════════════════
-  // PHASE 1B: Agent 1 — Question Directive & Scope Audit (Text-Only, Fast)
+  // BRANCH A: ESSAY OUTLINE & THESIS ONLY MODE (Fast 1–2 Call DAG!)
+  // ═══════════════════════════════════════════════════════════
+
+  if (profile.archetypeId === 'essay_outline') {
+    onAgentComplete?.({
+      agentId: 'agent4',
+      agentName: 'Step 2/2: FPSC Outline & Thesis Mentor Audit',
+      detail: 'Auditing thesis stance, grammatical parallelism, and outline structure...',
+      percent: 55,
+      phase: 'starting'
+    });
+
+    const { result: outlineResult, modelName } = await callAgentWithFailover({
+      prompt: buildOutlineOnlyMentorPrompt(resolvedQuestion, transcribedText),
+      apiKey: effectiveKey,
+      candidateList,
+      maxTokens: 6144,
+      temperature: 0.2
+    });
+    apiCallsCount++;
+    resolvedModelName = modelName;
+    incrementUsage(apiCallsCount);
+
+    const validatedAnnotations = validateAnnotations(outlineResult.annotations || [], transcribedText);
+
+    const rawBreakdownPool = {
+      topic_decoding: outlineResult.scoreBreakdown_topic_decoding,
+      thesis: outlineResult.scoreBreakdown_thesis,
+      outline_structure: outlineResult.scoreBreakdown_outline_structure,
+      parallelism: outlineResult.scoreBreakdown_parallelism,
+      coverage_originality: outlineResult.scoreBreakdown_coverage_originality
+    };
+
+    const scoreBreakdown = {};
+    for (const comp of profile.breakdown) {
+      const resolved = resolveQualitativeCriterion(rawBreakdownPool[comp.id], comp.defaultFeedback);
+      scoreBreakdown[comp.id] = {
+        name: comp.name,
+        status: resolved.status,
+        scored: false,
+        feedback: resolved.feedback
+      };
+    }
+
+    const modelDisplayName = getModelDisplayName(resolvedModelName);
+
+    onAgentComplete?.({
+      agentId: 'merge',
+      agentName: 'Outline Diagnostic Complete',
+      detail: outlineResult.overallReadiness || 'FPSC Outline Audit Ready',
+      percent: 100,
+      phase: 'complete'
+    });
+
+    return {
+      topic: topic || resolvedQuestion,
+      examQuestion: resolvedQuestion,
+      essayMode: 'outline_only',
+      scored: false,
+      archetypeId: profile.archetypeId,
+      archetypeLabel: profile.archetypeLabel,
+      domainLabel: profile.lens.domainLabel,
+      fullTranscribedText: transcribedText,
+      overallReadiness: outlineResult.overallReadiness || 'Balanced Blueprint — Needs Reframing',
+      gradeBand: outlineResult.overallReadiness || 'Balanced Blueprint — Needs Reframing',
+      directiveAnalysis: outlineResult.directiveAnalysis || {
+        directiveWord: 'Essay Outline',
+        alignmentStatus: 'Aligned',
+        requiredDimensions: 'Multi-dimensional Essay Blueprint',
+        feedback: 'Outline evaluated against FPSC structural and parallelism standards.'
+      },
+      thesisAudit: outlineResult.thesisAudit || null,
+      headerUpgrades: outlineResult.headerUpgrades || [],
+      outlineAlignment: null,
+      factCheck: [],
+      examinerSummary: outlineResult.examinerSummary || null,
+      customObservations: [],
+      thingsToInclude: outlineResult.thingsToInclude || [],
+      suggestedVisual: outlineResult.suggestedVisual || null,
+      rewrites: [],
+      annotations: validatedAnnotations,
+      scoreBreakdown,
+      wordCount: totalWords,
+      introWordCount: totalWords,
+      targetIntroWords: profile.targetIntroWords,
+      evaluatedModelId: resolvedModelName,
+      evaluatedModelName: modelDisplayName
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BRANCH B: FULL ENGLISH ESSAY MODE (Token-Optimized 3-Agent Parallel DAG, Score-Free)
+  // ═══════════════════════════════════════════════════════════
+
+  if (profile.archetypeId === 'essay') {
+    const anatomy = segmentEssayAnatomy(transcribedText);
+    const introWords = countIntroWords(transcribedText, true);
+
+    onAgentComplete?.({
+      agentId: 'agent1',
+      agentName: 'Node 2/4: Macro-Structure, Thesis & Outline-to-Body Auditor',
+      detail: `Auditing Outline-to-Body alignment across ${anatomy.bodyTopicSentences.length} body paragraphs...`,
+      percent: 38,
+      phase: 'starting'
+    });
+
+    const essayPromises = [
+      // Agent A: Macro-Structure, Thesis & Outline-to-Body Alignment (Receives ~600w anatomical slice!)
+      callAgentWithFailover({
+        prompt: buildEssayAgentAMacroPrompt(resolvedQuestion, anatomy, introWords, totalWords),
+        apiKey: effectiveKey,
+        candidateList,
+        maxTokens: 4096,
+        temperature: 0.2
+      }).then(({ result }) => {
+        apiCallsCount++;
+        onAgentComplete?.({
+          agentId: 'agent4',
+          agentName: 'Node 2/4: Macro-Structure & Thesis Audit Complete',
+          detail: 'Completed Thesis critique and Outline-to-Body alignment matrix.',
+          percent: 58,
+          phase: 'complete'
+        });
+        return result;
+      }),
+
+      // Agent B: PEEL Body Paragraph Coach, Evidence Verifier & 3-Tier Rewriter
+      callAgentWithFailover({
+        prompt: buildEssayAgentBBodyPrompt(resolvedQuestion, transcribedText),
+        apiKey: effectiveKey,
+        candidateList,
+        maxTokens: 5120,
+        temperature: 0.25
+      }).then(({ result }) => {
+        apiCallsCount++;
+        onAgentComplete?.({
+          agentId: 'agent5',
+          agentName: 'Node 3/4: PEEL Paragraph Coach & Topper Rewriter',
+          detail: 'Audited body paragraphs, empirical evidence, and 3-tier rewrites.',
+          percent: 78,
+          phase: 'complete'
+        });
+        return result;
+      }),
+
+      // Agent C: Pedagogical Language Mentor & 4-Part Micro-Lesson Highlighter
+      callAgentWithFailover({
+        prompt: buildEssayAgentCPedagogicalPrompt(transcribedText),
+        apiKey: effectiveKey,
+        candidateList,
+        maxTokens: 6144,
+        temperature: 0.2
+      }).then(({ result }) => {
+        apiCallsCount++;
+        onAgentComplete?.({
+          agentId: 'agent6',
+          agentName: 'Node 4/4: Pedagogical Micro-Lesson Highlighter',
+          detail: 'Mapped line-by-line explanations, fixes, and grammar rules.',
+          percent: 94,
+          phase: 'complete'
+        });
+        return result;
+      })
+    ];
+
+    const settled = await Promise.allSettled(essayPromises);
+    const macroResult = settled[0].status === 'fulfilled' ? settled[0].value : {};
+    const bodyResult = settled[1].status === 'fulfilled' ? settled[1].value : {};
+    const pedResult = settled[2].status === 'fulfilled' ? settled[2].value : {};
+
+    if (settled.every((s) => s.status === 'rejected')) {
+      const firstReason = settled[0]?.reason;
+      throw new Error(firstReason?.message || 'Essay diagnostic agents failed to respond.');
+    }
+
+    incrementUsage(apiCallsCount);
+
+    const validatedAnnotations = validateAnnotations(pedResult.annotations || [], transcribedText);
+
+    const rawBreakdownPool = {
+      topic_relevance: macroResult.scoreBreakdown_topic_relevance,
+      outline: macroResult.scoreBreakdown_outline,
+      thesis: macroResult.scoreBreakdown_thesis,
+      introduction: macroResult.scoreBreakdown_introduction,
+      body_paragraphs: bodyResult.scoreBreakdown_body_paragraphs,
+      coherence: macroResult.scoreBreakdown_coherence,
+      grammar_syntax: pedResult.scoreBreakdown_grammar_syntax
+    };
+
+    const scoreBreakdown = {};
+    for (const comp of profile.breakdown) {
+      const resolved = resolveQualitativeCriterion(rawBreakdownPool[comp.id], comp.defaultFeedback);
+      scoreBreakdown[comp.id] = {
+        name: comp.name,
+        status: resolved.status,
+        scored: false,
+        feedback: resolved.feedback
+      };
+    }
+
+    const overallReadiness = macroResult.overallReadiness || 'Balanced Draft — Needs Structural Polish';
+    const modelDisplayName = getModelDisplayName(resolvedModelName);
+
+    onAgentComplete?.({
+      agentId: 'merge',
+      agentName: 'Essay Diagnostic Complete',
+      detail: overallReadiness,
+      percent: 100,
+      phase: 'complete'
+    });
+
+    return {
+      topic: topic || resolvedQuestion,
+      examQuestion: resolvedQuestion,
+      essayMode: 'full',
+      scored: false,
+      archetypeId: profile.archetypeId,
+      archetypeLabel: profile.archetypeLabel,
+      domainLabel: profile.lens.domainLabel,
+      fullTranscribedText: transcribedText,
+      overallReadiness,
+      gradeBand: overallReadiness,
+      directiveAnalysis: macroResult.directiveAnalysis || {
+        directiveWord: 'English Essay',
+        alignmentStatus: 'Aligned',
+        requiredDimensions: 'Multi-dimensional Argumentative Essay',
+        feedback: 'Evaluated against FPSC Essay Examiner standards.'
+      },
+      thesisAudit: macroResult.thesisAudit || null,
+      outlineAlignment: macroResult.outlineAlignment || null,
+      headerUpgrades: macroResult.headerUpgrades || [],
+      factCheck: bodyResult.factCheck || [],
+      examinerSummary: macroResult.examinerSummary || null,
+      customObservations: bodyResult.customObservations || [],
+      thingsToInclude: bodyResult.thingsToInclude || [],
+      suggestedVisual: bodyResult.suggestedVisual || null,
+      rewrites: bodyResult.rewrites || [],
+      annotations: validatedAnnotations,
+      scoreBreakdown,
+      wordCount: totalWords,
+      introWordCount: introWords,
+      targetIntroWords: profile.targetIntroWords,
+      evaluatedModelId: resolvedModelName,
+      evaluatedModelName: modelDisplayName
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BRANCH C: 20-MARK SUBJECTIVE & PRECIS MODE (Quantitative Scoring + Micro-Lessons)
   // ═══════════════════════════════════════════════════════════
 
   onAgentComplete?.({
@@ -703,21 +1354,7 @@ export const executeMultiAgentPipeline = async ({
     console.warn('[FPSC Engine] Agent 1 degraded gracefully:', err.message);
   }
 
-  onAgentComplete?.({
-    agentId: 'agent1',
-    agentName: 'Agent 2/6: Question Directive & Scope Auditor',
-    detail: `Directive "${directiveAnalysis.directiveWord}" — ${directiveAnalysis.alignmentStatus}`,
-    percent: 45,
-    phase: 'complete'
-  });
-
-  // Deterministic word counts before Phase 2 so Agent 6 gets exact introWordCount
-  const totalWords = countWords(transcribedText);
-  const introWords = countIntroWords(transcribedText);
-
-  // ═══════════════════════════════════════════════════════════
-  // PHASE 2: Agents 3, 4, 5, 6 — Parallel Specialist Audit (Promise.allSettled)
-  // ═══════════════════════════════════════════════════════════
+  const introWords = countIntroWords(transcribedText, false);
 
   onAgentComplete?.({
     agentId: 'agent3',
@@ -728,7 +1365,6 @@ export const executeMultiAgentPipeline = async ({
   });
 
   const phase2Promises = [
-    // Agent 3: Factual & Citation Verification
     callAgentWithFailover({
       prompt: buildAgent3FactualPrompt(profile, resolvedQuestion, transcribedText),
       apiKey: effectiveKey,
@@ -747,7 +1383,6 @@ export const executeMultiAgentPipeline = async ({
       return result;
     }),
 
-    // Agent 4: Structural Causality & Quantitative Marks
     callAgentWithFailover({
       prompt: buildAgent4CausalityPrompt(profile, resolvedQuestion, directiveAnalysis, transcribedText),
       apiKey: effectiveKey,
@@ -766,7 +1401,6 @@ export const executeMultiAgentPipeline = async ({
       return result;
     }),
 
-    // Agent 5: Headings/Outline, Visuals & 3-Tier Topper Rewrites
     callAgentWithFailover({
       prompt: buildAgent5VisualsAndRewritesPrompt(profile, resolvedQuestion, transcribedText),
       apiKey: effectiveKey,
@@ -785,7 +1419,6 @@ export const executeMultiAgentPipeline = async ({
       return result;
     }),
 
-    // Agent 6: Line-by-Line Verbatim Highlighter
     callAgentWithFailover({
       prompt: buildAgent6AnnotationsPrompt(profile, transcribedText, introWords),
       apiKey: effectiveKey,
@@ -797,7 +1430,7 @@ export const executeMultiAgentPipeline = async ({
       onAgentComplete?.({
         agentId: 'agent6',
         agentName: 'Agent 6/6: Line-by-Line Error & Strength Highlighter',
-        detail: 'Mapped inline callouts across answer script.',
+        detail: 'Mapped pedagogical callouts across answer script.',
         percent: 94,
         phase: 'complete'
       });
@@ -812,40 +1445,20 @@ export const executeMultiAgentPipeline = async ({
   const agent5Result = settled[2].status === 'fulfilled' ? settled[2].value : {};
   const agent6Result = settled[3].status === 'fulfilled' ? settled[3].value : {};
 
-  // Ensure at least 2 Phase 2 agents succeeded
-  const fulfilledCount = settled.filter((s) => s.status === 'fulfilled').length;
-  if (fulfilledCount === 0) {
+  if (settled.every((s) => s.status === 'rejected')) {
     const firstReason = settled.find((s) => s.status === 'rejected')?.reason;
     throw new Error(firstReason?.message || 'All analytical agents failed to respond.');
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // FINAL: Merge, Validate Annotations & Compute Quantitative FPSC Score
-  // ═══════════════════════════════════════════════════════════
-
-  onAgentComplete?.({
-    agentId: 'merge',
-    agentName: 'Finalizing FPSC Scorecard & Validating Highlights',
-    detail: 'Running deterministic target-phrase validation and score reduction...',
-    percent: 98,
-    phase: 'starting'
-  });
-
-  const rawAnnotations = agent6Result.annotations || [];
-  const validatedAnnotations = validateAnnotations(rawAnnotations, transcribedText);
-
+  const validatedAnnotations = validateAnnotations(agent6Result.annotations || [], transcribedText);
   incrementUsage(apiCallsCount);
 
-  // Merge all possible scoreBreakdown keys from Agents 3, 4, 5, 6
   const rawBreakdownPool = {
     introduction: agent6Result.scoreBreakdown_introduction,
     headings: agent5Result.scoreBreakdown_headings,
     diagrams: agent5Result.scoreBreakdown_diagrams,
-    outline: agent5Result.scoreBreakdown_outline,
     title: agent5Result.scoreBreakdown_title,
     critical_analysis: agent4Result.scoreBreakdown_critical_analysis,
-    thesis: agent4Result.scoreBreakdown_thesis,
-    conclusion: agent4Result.scoreBreakdown_conclusion,
     precis_rules: agent4Result.scoreBreakdown_precis_rules,
     comprehension: agent4Result.scoreBreakdown_comprehension,
     citations_evidence: agent3Result.scoreBreakdown_citations_evidence,
@@ -861,19 +1474,12 @@ export const executeMultiAgentPipeline = async ({
     scoreBreakdown[comp.id] = {
       name: comp.name,
       status: resolved.status,
+      scored: true,
       score: resolved.score,
       maxMarks: comp.maxMarks,
       feedback: resolved.feedback || comp.defaultFeedback
     };
     calculatedTotalScore += resolved.score;
-  }
-
-  // Also ensure standard legacy keys exist for backward compatibility
-  if (!scoreBreakdown.headings && agent5Result.scoreBreakdown_headings) {
-    scoreBreakdown.headings = agent5Result.scoreBreakdown_headings;
-  }
-  if (!scoreBreakdown.diagrams && agent5Result.scoreBreakdown_diagrams) {
-    scoreBreakdown.diagrams = agent5Result.scoreBreakdown_diagrams;
   }
 
   const overallScore = Math.min(profile.totalScore, Math.round(calculatedTotalScore * 2) / 2);
@@ -889,52 +1495,6 @@ export const executeMultiAgentPipeline = async ({
 
   const modelDisplayName = getModelDisplayName(resolvedModelName);
 
-  const unified = {
-    topic: topic || resolvedQuestion,
-    examQuestion: resolvedQuestion,
-    archetypeId: profile.archetypeId,
-    archetypeLabel: profile.archetypeLabel,
-    domainLabel: profile.lens.domainLabel,
-    fullTranscribedText: transcribedText,
-
-    // Quantitative FPSC Marks
-    overallScore,
-    maxScore,
-    passingScore: profile.passingScore,
-    passStatus,
-    gradeBand,
-
-    // Agent 1
-    directiveAnalysis,
-
-    // Agent 3
-    factCheck: agent3Result.factCheck || [],
-
-    // Agent 4
-    examinerSummary: agent4Result.examinerSummary || null,
-    customObservations: agent4Result.customObservations || [],
-    thingsToInclude: agent4Result.thingsToInclude || [],
-
-    // Agent 5
-    suggestedVisual: agent5Result.suggestedVisual || null,
-    rewrites: agent5Result.rewrites || [],
-
-    // Agent 6 (post-processed)
-    annotations: validatedAnnotations,
-
-    // Calibrated scoreBreakdown
-    scoreBreakdown,
-
-    // Programmatic word counts
-    wordCount: totalWords,
-    introWordCount: introWords,
-    targetIntroWords: profile.targetIntroWords,
-
-    // Model tracking
-    evaluatedModelId: resolvedModelName,
-    evaluatedModelName: modelDisplayName
-  };
-
   onAgentComplete?.({
     agentId: 'merge',
     agentName: 'Evaluation Complete',
@@ -943,5 +1503,33 @@ export const executeMultiAgentPipeline = async ({
     phase: 'complete'
   });
 
-  return unified;
+  return {
+    topic: topic || resolvedQuestion,
+    examQuestion: resolvedQuestion,
+    essayMode: 'full',
+    scored: true,
+    archetypeId: profile.archetypeId,
+    archetypeLabel: profile.archetypeLabel,
+    domainLabel: profile.lens.domainLabel,
+    fullTranscribedText: transcribedText,
+    overallScore,
+    maxScore,
+    passingScore: profile.passingScore,
+    passStatus,
+    gradeBand,
+    directiveAnalysis,
+    factCheck: agent3Result.factCheck || [],
+    examinerSummary: agent4Result.examinerSummary || null,
+    customObservations: agent4Result.customObservations || [],
+    thingsToInclude: agent4Result.thingsToInclude || [],
+    suggestedVisual: agent5Result.suggestedVisual || null,
+    rewrites: agent5Result.rewrites || [],
+    annotations: validatedAnnotations,
+    scoreBreakdown,
+    wordCount: totalWords,
+    introWordCount: introWords,
+    targetIntroWords: profile.targetIntroWords,
+    evaluatedModelId: resolvedModelName,
+    evaluatedModelName: modelDisplayName
+  };
 };

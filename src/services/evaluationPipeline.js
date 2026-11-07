@@ -1,23 +1,24 @@
 /**
- * FPSC 6-Agent Task Force Pipeline Runner
- * Wires the Subject-Adaptive Multi-Agent Evaluation Engine to the UI progress stepper.
+ * FPSC Multi-Agent Pipeline Runner
+ * Wires the Subject-Adaptive & Essay Anatomy Evaluation Engine to the UI progress stepper.
  */
 
 import { executeMultiAgentPipeline, getStoredApiKey } from './geminiApi';
 
 export const PIPELINE_STEPS = [
-  { id: 'transcribe', label: 'Agent 1/6: Vision OCR & Script Digitizer', basePercent: 25 },
-  { id: 'directive', label: 'Agent 2/6: Question Directive & Scope Auditor', basePercent: 42 },
-  { id: 'accuracy', label: 'Agent 3/6: Factual & Scholarly Citation Verifier', basePercent: 60 },
-  { id: 'coverage', label: 'Agent 4/6: Structural Causality & FPSC Scorer', basePercent: 74 },
-  { id: 'visuals', label: 'Agent 5/6: Visual Architect & Topper Rewriter', basePercent: 86 },
-  { id: 'grammar', label: 'Agent 6/6: Universal Error & Strength Highlighter', basePercent: 95 }
+  { id: 'transcribe', label: 'Agent 1: Vision OCR & Script Digitizer', basePercent: 25 },
+  { id: 'directive', label: 'Agent 2: Scope & Outline Alignment Auditor', basePercent: 45 },
+  { id: 'accuracy', label: 'Agent 3: Empirical & Citation Verifier', basePercent: 65 },
+  { id: 'coverage', label: 'Agent 4: PEEL & Structural Depth Mentor', basePercent: 78 },
+  { id: 'visuals', label: 'Agent 5: Blueprint & Topper Rewriter', basePercent: 88 },
+  { id: 'grammar', label: 'Agent 6: Pedagogical Micro-Lesson Highlighter', basePercent: 96 }
 ];
 
 export const executeEvaluationPipeline = async ({
   text,
   imageArray,
   subject,
+  essayMode = 'full',
   examQuestion,
   mode,
   apiKey,
@@ -29,13 +30,26 @@ export const executeEvaluationPipeline = async ({
     throw new Error('Please configure your Gemini API Key in Settings (⚙️) before evaluating a paper.');
   }
 
+  const isEssay = (subject || '').toLowerCase().includes('essay');
+  const totalSteps = isEssay ? (essayMode === 'outline_only' ? 2 : 4) : 6;
+
   onProgress?.({
     currentStep: 1,
-    totalSteps: 6,
-    stage: 'Initializing FPSC 6-Agent Pipeline',
-    stepLabel: 'Initializing FPSC 6-Agent Pipeline',
-    detail: `Calibrating ${subject || 'FPSC CSS'} rubric and preparing submission...`,
-    percent: 5,
+    totalSteps,
+    stage:
+      isEssay && essayMode === 'outline_only'
+        ? 'Initializing FPSC Outline & Thesis Mentor'
+        : isEssay
+        ? 'Initializing Anatomical Essay Diagnostic DAG'
+        : 'Initializing FPSC 6-Agent Pipeline',
+    stepLabel:
+      isEssay && essayMode === 'outline_only'
+        ? 'Initializing FPSC Outline & Thesis Mentor'
+        : isEssay
+        ? 'Initializing Anatomical Essay Diagnostic DAG'
+        : 'Initializing FPSC 6-Agent Pipeline',
+    detail: `Calibrating ${subject || 'FPSC CSS'} diagnostic rubric...`,
+    percent: 6,
     phase: 'starting'
   });
 
@@ -43,6 +57,7 @@ export const executeEvaluationPipeline = async ({
     text,
     imageArray,
     subject,
+    essayMode,
     examQuestion: examQuestion?.trim() || '',
     apiKey: effectiveKey,
     selectedModel,
@@ -51,14 +66,14 @@ export const executeEvaluationPipeline = async ({
       if (agentId === 'agent2') stepNum = 1;
       else if (agentId === 'agent1') stepNum = 2;
       else if (agentId === 'agent3') stepNum = 3;
-      else if (agentId === 'agent4') stepNum = 4;
-      else if (agentId === 'agent5') stepNum = 5;
-      else if (agentId === 'agent6') stepNum = 6;
-      else stepNum = 6;
+      else if (agentId === 'agent4') stepNum = isEssay && essayMode === 'outline_only' ? 2 : isEssay ? 2 : 4;
+      else if (agentId === 'agent5') stepNum = isEssay ? 3 : 5;
+      else if (agentId === 'agent6') stepNum = isEssay ? 4 : 6;
+      else stepNum = totalSteps;
 
       onProgress?.({
         currentStep: stepNum,
-        totalSteps: 6,
+        totalSteps,
         stage: agentName,
         stepLabel: agentName,
         detail: detail || `Executing ${agentName}...`,
@@ -72,7 +87,8 @@ export const executeEvaluationPipeline = async ({
     ...liveResult,
     id: `eval-${Date.now()}`,
     type: mode,
-    subject: subject,
+    subject,
+    essayMode: liveResult.essayMode || essayMode,
     examQuestion: liveResult.examQuestion || examQuestion || liveResult.topic || '',
     candidateName: 'Candidate Submission',
     date: new Date().toISOString().split('T')[0],
