@@ -211,7 +211,7 @@ export const SearchableSubjectSelect = ({ value, onChange }) => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search 47 official FPSC CSS subjects (e.g. Essay, IR, Criminology)..."
+                placeholder="Search subject (e.g. Essay, IR, History)..."
                 style={{
                   width: '100%',
                   background: 'transparent',

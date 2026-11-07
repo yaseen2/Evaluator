@@ -6,7 +6,6 @@ import {
   X,
   Sparkles,
   Trash2,
-  HelpCircle,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
@@ -66,15 +65,15 @@ const compressImageFile = (file, maxDimension = 1600, quality = 0.84) => {
 
 export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSubject, setActiveSubject }) => {
   const [activeTab, setActiveTab] = useState('image'); // 'image' | 'text'
-  const [selectedSubject, setSelectedSubject] = useState(activeSubject || 'Islamic History & Culture');
+  const [selectedSubject, setSelectedSubject] = useState(activeSubject || 'English Essay');
   const [examQuestion, setExamQuestion] = useState('');
   const [essayText, setEssayText] = useState('');
-  const [imagePreviews, setImagePreviews] = useState([]); // Array of compressed base64 strings
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isQuestionFocused, setIsQuestionFocused] = useState(false);
   const [isEssayFocused, setIsEssayFocused] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState(null); // { img, index }
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [errorWarning, setErrorWarning] = useState('');
 
   const touchStartX = useRef(0);
@@ -87,28 +86,8 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
     }
   }, [activeSubject]);
 
-  // Dynamic Subject-Aware Questionnaire Labels & Hints
   const subjLower = (selectedSubject || '').toLowerCase();
   const isEssay = subjLower.includes('essay');
-  const isPrecis = subjLower.includes('precis') || subjLower.includes('composition');
-
-  const questionLabel = isEssay
-    ? 'Selected Essay Topic / Title (100 Marks Paper)'
-    : isPrecis
-    ? 'Precis / Composition Section Prompt (100 Marks Paper)'
-    : 'FPSC Exam Question / Prompt (20 Marks Question)';
-
-  const questionPlaceholder = isEssay
-    ? 'e.g. "Global Warming and the Future of Pakistan: Challenges and Opportunities"'
-    : isPrecis
-    ? 'e.g. "Write a Précis of the given passage in 1/3rd length and suggest a suitable title."'
-    : 'e.g. Q2. Examine the economic conditions of Pre-Islamic Arabia, focusing on pastoralism, trade caravans, and usury.';
-
-  const questionHelpText = isEssay
-    ? 'FPSC English Essay (100 Marks) is evaluated on Formal Outline, Thesis Clarity, Argumentative Depth, Cohesive Transitions (zero body headings), & Register.'
-    : isPrecis
-    ? 'English Precis & Composition is evaluated on the 1/3rd Length Rule, Indirect Speech, Thematic Fidelity, Title Precision, & Grammar.'
-    : '20-Mark CSS questions are evaluated on Substantive Intro (~100w), Self-Explanatory Headings, Structural Causality ("Why & How"), Visuals, & Scholarly Citations.';
 
   const isReadyToSubmit =
     !isEvaluating &&
@@ -116,7 +95,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
     ((activeTab === 'image' && imagePreviews.length > 0) ||
       (activeTab === 'text' && essayText.trim().length > 0));
 
-  // Keyboard navigation for Lightbox (ArrowLeft / ArrowRight / Escape)
+  // Keyboard navigation for Lightbox
   useEffect(() => {
     if (!lightboxImage) return;
 
@@ -220,11 +199,11 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
 
   const handleSubmit = () => {
     if (activeTab === 'text' && !essayText.trim()) {
-      setErrorWarning('Please paste your essay or answer text before proceeding.');
+      setErrorWarning('Please enter your answer text.');
       return;
     }
     if (activeTab === 'image' && imagePreviews.length === 0) {
-      setErrorWarning('Please select at least 1 answer sheet photo to upload.');
+      setErrorWarning('Please upload at least 1 page photo.');
       return;
     }
 
@@ -249,72 +228,48 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
           onClick={(e) => e.stopPropagation()}
           style={{
             width: '92%',
-            maxWidth: '620px',
-            height: 'auto',
-            maxHeight: '92vh',
+            maxWidth: '560px',
+            maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
-            padding: '1.25rem 1.35rem',
+            padding: '1.25rem 1.4rem',
             boxSizing: 'border-box',
-            overflow: 'visible'
+            overflowY: 'auto'
           }}
         >
-          {/* FIXED HEADER */}
+          {/* HEADER */}
           <div
             style={{
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'flex-start',
+              alignItems: 'center',
               borderBottom: '1px solid var(--border)',
               paddingBottom: '0.75rem',
-              marginBottom: '0.85rem'
+              marginBottom: '1rem'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '8px',
-                  background: 'rgba(2, 132, 199, 0.1)',
-                  border: '1px solid rgba(2, 132, 199, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}
-              >
-                <FileText size={17} color="var(--accent-blue)" />
-              </div>
-              <div>
-                <h3
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontWeight: 700,
-                    fontSize: '1.02rem',
-                    color: 'var(--text-primary)',
-                    margin: 0,
-                    letterSpacing: '-0.01em'
-                  }}
-                >
-                  Submit Candidate Answer Script
-                </h3>
-                <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                  Configure subject & question details, then upload your handwritten pages or typed text.
-                </p>
-              </div>
-            </div>
+            <h3
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 650,
+                fontSize: '1rem',
+                color: 'var(--text-primary)',
+                margin: 0,
+                letterSpacing: '-0.01em'
+              }}
+            >
+              Submit Answer Script
+            </h3>
             <button
               type="button"
               onClick={onClose}
               style={{
                 background: 'transparent',
-                border: '1px solid transparent',
-                borderRadius: '6px',
+                border: 'none',
                 color: 'var(--text-muted)',
                 cursor: 'pointer',
-                padding: '5px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -325,32 +280,35 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
             </button>
           </div>
 
-          {/* MODAL BODY — Full-width alignment so dropdown never clips or leaks background text */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {/* STEP 1: SUBJECT SELECTOR */}
+          {/* FORM FIELDS */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {/* SUBJECT */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  1. FPSC CSS Examination Subject
-                </label>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  47 Official Compulsory & Optional Subjects
-                </span>
-              </div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  marginBottom: '5px'
+                }}
+              >
+                Subject
+              </label>
               <SearchableSubjectSelect
                 value={selectedSubject}
                 onChange={(newSubject) => setSelectedSubject(newSubject)}
               />
             </div>
 
-            {/* STEP 2: QUESTION / TOPIC PROMPT */}
+            {/* TOPIC / QUESTION */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  2. {questionLabel}
+                <label style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Topic or Question Prompt
                 </label>
-                <span style={{ fontSize: '0.68rem', color: 'var(--accent-blue)', fontWeight: 500 }}>
-                  Auto-detected if written on Page 1
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                  Optional if written on script
                 </span>
               </div>
               <textarea
@@ -362,13 +320,13 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   setExamQuestion(e.target.value);
                   setErrorWarning('');
                 }}
-                placeholder={questionPlaceholder}
+                placeholder={isEssay ? 'e.g. Global Warming and the Future of Pakistan...' : 'e.g. Q2. Analyze the economic reforms...'}
                 style={{
                   width: '100%',
-                  padding: '8px 11px',
+                  padding: '7px 10px',
                   background: 'var(--bg-card)',
                   border: isQuestionFocused ? '1px solid var(--accent-blue)' : '1px solid var(--border-strong)',
-                  boxShadow: isQuestionFocused ? '0 0 0 3px rgba(2, 132, 199, 0.12)' : 'none',
+                  boxShadow: isQuestionFocused ? '0 0 0 3px rgba(2, 132, 199, 0.1)' : 'none',
                   borderRadius: 'var(--radius-md)',
                   color: 'var(--text-primary)',
                   fontFamily: 'var(--font-sans)',
@@ -379,31 +337,17 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
                 }}
               />
-              <p
-                style={{
-                  fontSize: '0.68rem',
-                  color: 'var(--text-muted)',
-                  margin: '5px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '5px',
-                  lineHeight: 1.4
-                }}
-              >
-                <HelpCircle size={12} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                <span>{questionHelpText}</span>
-              </p>
             </div>
 
-            {/* STEP 3: SCRIPT INPUT METHOD TABS (Crisp Segmented Control in both Light & Dark Mode) */}
+            {/* TABS (Upload Photos / Paste Text) */}
             <div
               style={{
                 display: 'flex',
-                gap: '6px',
+                gap: '4px',
                 background: 'var(--bg-card)',
-                padding: '4px',
+                padding: '3px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-strong)'
+                border: '1px solid var(--border)'
               }}
             >
               <button
@@ -416,9 +360,9 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   flex: 1,
                   background: activeTab === 'image' ? 'var(--bg-panel)' : 'transparent',
                   color: activeTab === 'image' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                  border: activeTab === 'image' ? '1px solid rgba(2, 132, 199, 0.35)' : '1px solid transparent',
-                  boxShadow: activeTab === 'image' ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
-                  padding: '6px 10px',
+                  border: activeTab === 'image' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid transparent',
+                  boxShadow: activeTab === 'image' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '0.74rem',
                   fontWeight: 600,
@@ -427,11 +371,11 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.12s ease'
                 }}
               >
                 <ImageIcon size={14} />
-                <span>Upload Multi-Page Photos</span>
+                <span>Upload Photos</span>
               </button>
 
               <button
@@ -444,9 +388,9 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   flex: 1,
                   background: activeTab === 'text' ? 'var(--bg-panel)' : 'transparent',
                   color: activeTab === 'text' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                  border: activeTab === 'text' ? '1px solid rgba(2, 132, 199, 0.35)' : '1px solid transparent',
-                  boxShadow: activeTab === 'text' ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
-                  padding: '6px 10px',
+                  border: activeTab === 'text' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid transparent',
+                  boxShadow: activeTab === 'text' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '0.74rem',
                   fontWeight: 600,
@@ -455,35 +399,17 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.12s ease'
                 }}
               >
                 <FileText size={14} />
-                <span>Type / Paste Answer Text</span>
+                <span>Paste Text</span>
               </button>
             </div>
 
-            {/* Tab 1: Multi-Page Photo Upload */}
+            {/* TAB CONTENT */}
             {activeTab === 'image' ? (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    3. Upload Answer Sheet Pages & Sequence
-                  </label>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      color: imagePreviews.length > 0 ? 'var(--pass-green)' : 'var(--accent-blue)',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 600
-                    }}
-                  >
-                    {isCompressing
-                      ? 'Optimizing images...'
-                      : `${imagePreviews.length} ${imagePreviews.length === 1 ? 'Page' : 'Pages'} Selected`}
-                  </span>
-                </div>
-
                 {/* Drag & Drop Zone */}
                 <div
                   onDragOver={(e) => {
@@ -495,7 +421,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   style={{
                     border: isDragging ? '1.5px dashed var(--accent-blue)' : '1.5px dashed var(--border-strong)',
                     borderRadius: 'var(--radius-md)',
-                    padding: imagePreviews.length > 0 ? '0.65rem' : '1.1rem 1rem',
+                    padding: imagePreviews.length > 0 ? '0.75rem 1rem' : '1.1rem 1rem',
                     textAlign: 'center',
                     background: isDragging ? 'rgba(2, 132, 199, 0.06)' : 'var(--bg-card)',
                     cursor: 'pointer',
@@ -520,45 +446,33 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                       gap: '4px'
                     }}
                   >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'rgba(2, 132, 199, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '2px'
-                      }}
-                    >
-                      <Upload size={16} color="var(--accent-blue)" />
-                    </div>
+                    <Upload size={18} color="var(--accent-blue)" style={{ marginBottom: '2px' }} />
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, fontWeight: 600 }}>
                       {isCompressing
-                        ? 'Optimizing high-resolution pages for fast OCR...'
-                        : 'Click or Drag Answer Sheet Photos (Page 1, 2, 3...)'}
+                        ? 'Processing photos...'
+                        : 'Click to upload photos or drag & drop'}
                     </p>
                     <span style={{ fontSize: '0.69rem', color: 'var(--text-muted)' }}>
-                      JPEG, PNG, WebP supported • Auto-compressed for high-speed Vision OCR
+                      JPEG, PNG, WebP
                     </span>
                   </label>
                 </div>
 
-                {/* Page Cards Grid with Magnify & Reordering */}
+                {/* Page Thumbnails */}
                 {imagePreviews.length > 0 && (
-                  <div style={{ marginTop: '0.6rem' }}>
+                  <div style={{ marginTop: '0.75rem' }}>
                     <div
                       style={{
-                        fontSize: '0.68rem',
-                        color: 'var(--text-muted)',
+                        fontSize: '0.7rem',
+                        color: 'var(--text-secondary)',
                         marginBottom: '6px',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        fontWeight: 500
                       }}
                     >
-                      <span>Re-order sequence using ◄ ► arrows, or click page to zoom:</span>
+                      <span>{imagePreviews.length} {imagePreviews.length === 1 ? 'page' : 'pages'} uploaded</span>
                       <button
                         type="button"
                         onClick={() => setImagePreviews([])}
@@ -566,20 +480,21 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                           background: 'transparent',
                           border: 'none',
                           color: 'var(--fail-red)',
-                          fontSize: '0.68rem',
+                          fontSize: '0.7rem',
                           cursor: 'pointer',
-                          fontWeight: 600
+                          fontWeight: 500
                         }}
                       >
-                        Clear All
+                        Remove all
                       </button>
                     </div>
+
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(115px, 1fr))',
                         gap: '8px',
-                        maxHeight: '175px',
+                        maxHeight: '160px',
                         overflowY: 'auto',
                         padding: '2px'
                       }}
@@ -593,7 +508,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                             borderRadius: '6px',
                             overflow: 'hidden',
                             background: '#0f172a',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                             display: 'flex',
                             flexDirection: 'column'
                           }}
@@ -601,46 +516,41 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                           <div
                             onClick={() => setLightboxImage({ img, index: idx })}
                             style={{ position: 'relative', cursor: 'zoom-in', flex: 1, background: '#000' }}
-                            title="Click to inspect full page"
+                            title="Click to preview"
                           >
                             <img
                               src={img}
                               alt={`Page ${idx + 1}`}
-                              style={{ width: '100%', height: '96px', objectFit: 'cover', display: 'block' }}
+                              style={{ width: '100%', height: '80px', objectFit: 'cover', display: 'block' }}
                             />
-
                             <div
                               style={{
                                 position: 'absolute',
-                                top: 4,
-                                left: 4,
-                                background: 'rgba(15, 23, 42, 0.88)',
-                                color: '#38bdf8',
-                                fontSize: '0.64rem',
-                                fontWeight: 700,
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontFamily: 'var(--font-mono)',
-                                border: '1px solid rgba(56, 189, 248, 0.35)'
-                              }}
-                            >
-                              Page {idx + 1}
-                            </div>
-
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 4,
-                                right: 4,
-                                background: 'rgba(15, 23, 42, 0.8)',
+                                top: 3,
+                                left: 3,
+                                background: 'rgba(0,0,0,0.75)',
                                 color: 'white',
-                                padding: '3px',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center'
+                                fontSize: '0.62rem',
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                fontFamily: 'var(--font-mono)'
                               }}
                             >
-                              <Maximize2 size={11} />
+                              P.{idx + 1}
+                            </div>
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 3,
+                                right: 3,
+                                background: 'rgba(0,0,0,0.65)',
+                                color: 'white',
+                                padding: '2px',
+                                borderRadius: '3px'
+                              }}
+                            >
+                              <Maximize2 size={10} />
                             </div>
                           </div>
 
@@ -648,13 +558,13 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                             style={{
                               background: 'var(--bg-panel)',
                               borderTop: '1px solid var(--border)',
-                              padding: '4px 6px',
+                              padding: '3px 4px',
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center'
                             }}
                           >
-                            <div style={{ display: 'flex', gap: '4px' }}>
+                            <div style={{ display: 'flex', gap: '3px' }}>
                               <button
                                 type="button"
                                 disabled={idx === 0}
@@ -663,19 +573,18 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                                   handleMoveImage(idx, 'left');
                                 }}
                                 style={{
-                                  background: idx === 0 ? 'transparent' : 'var(--bg-card)',
-                                  border: '1px solid var(--border)',
+                                  background: 'transparent',
+                                  border: 'none',
                                   color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                                  opacity: idx === 0 ? 0.45 : 1,
-                                  borderRadius: '4px',
+                                  opacity: idx === 0 ? 0.3 : 1,
                                   cursor: idx === 0 ? 'default' : 'pointer',
-                                  padding: '2px 5px',
+                                  padding: '1px 3px',
                                   display: 'flex',
                                   alignItems: 'center'
                                 }}
                                 title="Move Left"
                               >
-                                <ChevronLeft size={12} />
+                                <ChevronLeft size={13} />
                               </button>
                               <button
                                 type="button"
@@ -685,19 +594,18 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                                   handleMoveImage(idx, 'right');
                                 }}
                                 style={{
-                                  background: idx === imagePreviews.length - 1 ? 'transparent' : 'var(--bg-card)',
-                                  border: '1px solid var(--border)',
+                                  background: 'transparent',
+                                  border: 'none',
                                   color: idx === imagePreviews.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-                                  opacity: idx === imagePreviews.length - 1 ? 0.45 : 1,
-                                  borderRadius: '4px',
+                                  opacity: idx === imagePreviews.length - 1 ? 0.3 : 1,
                                   cursor: idx === imagePreviews.length - 1 ? 'default' : 'pointer',
-                                  padding: '2px 5px',
+                                  padding: '1px 3px',
                                   display: 'flex',
                                   alignItems: 'center'
                                 }}
                                 title="Move Right"
                               >
-                                <ChevronRight size={12} />
+                                <ChevronRight size={13} />
                               </button>
                             </div>
 
@@ -716,9 +624,9 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                                 display: 'flex',
                                 alignItems: 'center'
                               }}
-                              title="Remove Page"
+                              title="Delete"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>
@@ -728,19 +636,19 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                 )}
               </div>
             ) : (
-              /* Tab 2: Text Area */
+              /* Text Area */
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    3. Paste Full Essay or Answer Text
+                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Answer Text
                   </label>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {essayText.trim() ? `${essayText.trim().split(/\s+/).length} words` : '0 words'}
                   </span>
                 </div>
                 <textarea
                   rows={5}
-                  placeholder="Paste your complete CSS essay or 20-mark answer script text here..."
+                  placeholder="Paste your essay or answer text here..."
                   value={essayText}
                   onFocus={() => setIsEssayFocused(true)}
                   onBlur={() => setIsEssayFocused(false)}
@@ -750,30 +658,30 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   }}
                   style={{
                     width: '100%',
-                    padding: '0.65rem 0.75rem',
+                    padding: '8px 10px',
                     background: 'var(--bg-card)',
                     border: isEssayFocused ? '1px solid var(--accent-blue)' : '1px solid var(--border-strong)',
-                    boxShadow: isEssayFocused ? '0 0 0 3px rgba(2, 132, 199, 0.12)' : 'none',
+                    boxShadow: isEssayFocused ? '0 0 0 3px rgba(2, 132, 199, 0.1)' : 'none',
                     borderRadius: 'var(--radius-md)',
                     color: 'var(--text-primary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '0.81rem',
                     lineHeight: 1.5,
                     outline: 'none',
-                    resize: 'vertical',
+                    resize: 'none',
                     transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
                   }}
                 />
               </div>
             )}
 
-            {/* Warning Banner */}
+            {/* Error message */}
             {errorWarning && (
               <div
                 style={{
                   background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  padding: '7px 10px',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '6px 10px',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '0.74rem',
                   color: 'var(--fail-red)',
@@ -788,7 +696,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
             )}
           </div>
 
-          {/* FIXED FOOTER BUTTONS */}
+          {/* FOOTER */}
           <div
             style={{
               flexShrink: 0,
@@ -796,30 +704,15 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
               justifyContent: 'space-between',
               alignItems: 'center',
               borderTop: '1px solid var(--border)',
-              paddingTop: '0.75rem',
-              marginTop: '0.85rem'
+              paddingTop: '0.85rem',
+              marginTop: '1.1rem'
             }}
           >
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  background: isReadyToSubmit ? 'var(--pass-green)' : 'var(--warning-amber)'
-                }}
-              />
-              <span>
-                {isEssay
-                  ? '100-Mark Essay Rubric (2 Credits)'
-                  : isPrecis
-                  ? '100-Mark Précis Rubric (1 Credit)'
-                  : '20-Mark FPSC Rubric (1 Credit)'}
-              </span>
-            </div>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {isEssay ? '100-Mark Essay (2 Credits)' : '20-Mark Question (1 Credit)'}
+            </span>
 
-            <div style={{ display: 'flex', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="button" className="btn-minimal" onClick={onClose}>
                 Cancel
               </button>
@@ -833,13 +726,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                 }}
               >
                 <Sparkles size={13} />
-                <span>
-                  {isEvaluating
-                    ? 'Evaluating...'
-                    : activeTab === 'image' && imagePreviews.length > 1
-                    ? `Evaluate ${imagePreviews.length} Pages`
-                    : 'Evaluate Script'}
-                </span>
+                <span>{isEvaluating ? 'Evaluating...' : 'Evaluate Script'}</span>
               </button>
             </div>
           </div>
@@ -871,20 +758,13 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
           onTouchEnd={handleTouchEnd}
         >
           <div style={{ width: '100%', maxWidth: '850px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 20002 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', padding: '5px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                Candidate Script
-              </span>
-              <span style={{ color: 'var(--border-strong)', fontSize: '0.8rem' }}>•</span>
-              <span style={{ color: 'var(--accent-blue)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                Page {lightboxImage.index + 1} of {imagePreviews.length}
-              </span>
-            </div>
-
+            <span style={{ color: 'var(--accent-blue)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              Page {lightboxImage.index + 1} of {imagePreviews.length}
+            </span>
             <button
               type="button"
               onClick={() => setLightboxImage(null)}
-              style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '50%', padding: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}
+              style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '50%', padding: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               title="Close (Esc)"
             >
               <X size={18} />
@@ -918,10 +798,9 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.6)'
+                  justifyContent: 'center'
                 }}
-                title="Previous Page (Left Arrow)"
+                title="Previous Page"
               >
                 <ChevronLeft size={22} color="var(--accent-blue)" />
               </button>
@@ -930,7 +809,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
             <img
               src={lightboxImage.img}
               alt={`Page ${lightboxImage.index + 1}`}
-              style={{ maxWidth: '100%', maxHeight: '78vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 25px 60px rgba(0,0,0,0.8)', border: '1px solid var(--border-strong)' }}
+              style={{ maxWidth: '100%', maxHeight: '78vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-strong)' }}
             />
 
             {imagePreviews.length > 1 && (
@@ -956,19 +835,18 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.6)'
+                  justifyContent: 'center'
                 }}
-                title="Next Page (Right Arrow)"
+                title="Next Page"
               >
                 <ChevronRight size={22} color="var(--accent-blue)" />
               </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 20002, paddingBottom: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 20002 }}>
             {imagePreviews.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.12)', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(15, 23, 42, 0.85)', padding: '6px 12px', borderRadius: '16px' }}>
                 {imagePreviews.map((_, idx) => {
                   const isActive = idx === lightboxImage.index;
                   return (
@@ -979,21 +857,20 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                         setLightboxImage({ img: imagePreviews[idx], index: idx });
                       }}
                       style={{
-                        width: isActive ? '18px' : '8px',
-                        height: '8px',
+                        width: isActive ? '16px' : '7px',
+                        height: '7px',
                         borderRadius: isActive ? '4px' : '50%',
                         background: isActive ? 'var(--accent-blue)' : 'rgba(255, 255, 255, 0.3)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                        transition: 'all 0.15s ease'
                       }}
-                      title={`Go to Page ${idx + 1}`}
                     />
                   );
                 })}
               </div>
             )}
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-              Swipe left / right on mobile • Click anywhere to close
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>
+              Click anywhere to close
             </span>
           </div>
         </div>
