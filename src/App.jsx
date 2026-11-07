@@ -9,10 +9,46 @@ import { executeEvaluationPipeline } from './services/evaluationPipeline';
 
 import sampleEvaluation from './data/evaluations/eval-graph-latest.json';
 
+const HISTORY_STORAGE_KEY = 'css_evaluator_saved_history_v2';
+
+const loadSavedHistory = () => {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load saved evaluation history:', e);
+  }
+  return [sampleEvaluation];
+};
+
+const persistHistorySafely = (historyList) => {
+  const trimmed = historyList.slice(0, 15);
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch (_) {
+    // If base64 images exceed localStorage quota, store lightweight copies without raw base64 arrays
+    try {
+      const lightweight = trimmed.map((item, idx) =>
+        idx === 0 ? item : { ...item, imagePages: [] }
+      );
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(lightweight));
+    } catch (__) {
+      const textOnly = trimmed.map((item) => ({ ...item, imagePages: [] }));
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(textOnly));
+    }
+  }
+};
+
 export default function App() {
-  const [activeSubject, setActiveSubject] = useState('Islamic History & Culture');
+  const [evaluationHistory, setEvaluationHistory] = useState(loadSavedHistory);
+  const [evaluation, setEvaluation] = useState(() => loadSavedHistory()[0] || sampleEvaluation);
+  const [activeSubject, setActiveSubject] = useState(() => loadSavedHistory()[0]?.subject || 'Islamic History & Culture');
   const [mode, setMode] = useState('digital'); // 'digital' | 'handwritten'
-  const [evaluation, setEvaluation] = useState(sampleEvaluation);
   const [currentSubmissionImages, setCurrentSubmissionImages] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -20,7 +56,6 @@ export default function App() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [pipelineProgress, setPipelineProgress] = useState(null);
 
-  // Modern Alert Modal State
   const [alertConfig, setAlertConfig] = useState({
     isOpen: false,
     title: '',
@@ -30,7 +65,6 @@ export default function App() {
     onAction: null
   });
 
-  // Theme State ('dark' | 'light' | 'auto')
   const [themeMode, setThemeMode] = useState(() => {
     return localStorage.getItem('css_eval_theme') || 'dark';
   });
@@ -52,7 +86,7 @@ export default function App() {
     if (themeMode === 'auto') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       const handleSystemThemeChange = () => applyTheme();
-      
+
       mediaQuery.addEventListener('change', handleSystemThemeChange);
       return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
     }
@@ -69,12 +103,51 @@ export default function App() {
     });
   };
 
+  const handleSelectHistoryItem = (item) => {
+    if (!item) return;
+    setEvaluation(item);
+    if (item.subject) setActiveSubject(item.subject);
+    if (item.imagePages?.length > 0) {
+      setCurrentSubmissionImages(item.imagePages);
+    } else {
+      setCurrentSubmissionImages([]);
+    }
+  };
+
+  const handleDeleteHistoryItem = (idToDelete) => {
+    setEvaluationHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== idToDelete);
+      const nextList = updated.length > 0 ? updated : [sampleEvaluation];
+      persistHistorySafely(nextList);
+      if (evaluation?.id === idToDelete) {
+        setEvaluation(nextList[0]);
+      }
+      return nextList;
+    });
+  };
+
   const handleRunEvaluation = async (submissionData) => {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      setUploadOpen(false);
+      showAlert({
+        title: 'Gemini API Key Required',
+        message: 'Please configure your Google AI Studio Gemini API Key in Platform Settings before running a live 6-agent evaluation.',
+        type: 'warning',
+        actionLabel: 'Open Settings',
+        onAction: () => setSettingsOpen(true)
+      });
+      return;
+    }
+
     setIsEvaluating(true);
     setUploadOpen(false);
     if (submissionData?.imageArray) {
       setCurrentSubmissionImages(submissionData.imageArray);
+    } else {
+      setCurrentSubmissionImages([]);
     }
+
     try {
       const selectedMode = submissionData?.mode || mode;
       const effectiveSubject = submissionData?.subject || activeSubject;
@@ -86,28 +159,24 @@ export default function App() {
         subject: effectiveSubject,
         examQuestion,
         mode: selectedMode,
-        apiKey: getStoredApiKey(),
+        apiKey,
         selectedModel: getStoredModel(),
         onProgress: (progress) => setPipelineProgress(progress)
       });
+
       setEvaluation(result);
-      setGroundingUsage(getGroundingUsage());
+      setEvaluationHistory((prev) => {
+        const nextHistory = [result, ...prev.filter((item) => item.id !== result.id)];
+        persistHistorySafely(nextHistory);
+        return nextHistory;
+      });
+      setGroundingUsage({ ...getGroundingUsage() });
     } catch (err) {
-      if (err.message === 'MISSING_EXAM_QUESTION') {
-        showAlert({
-          title: 'Exam Question Required',
-          message: 'We could not detect an exam question at the top of your uploaded page or in the question box. Please provide the FPSC question so the AI examiner can grade your answer accurately.',
-          type: 'warning',
-          actionLabel: 'Type Question Now',
-          onAction: () => setUploadOpen(true)
-        });
-      } else {
-        showAlert({
-          title: 'Evaluation Could Not Complete',
-          message: err.message,
-          type: 'error'
-        });
-      }
+      showAlert({
+        title: 'Evaluation Could Not Complete',
+        message: err.message || 'An unexpected error occurred during the evaluation pipeline.',
+        type: 'error'
+      });
     } finally {
       setIsEvaluating(false);
       setPipelineProgress(null);
@@ -122,6 +191,10 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenUpload={() => setUploadOpen(true)}
         isEvaluating={isEvaluating}
+        evaluationHistory={evaluationHistory}
+        activeEvaluationId={evaluation?.id}
+        onSelectEvaluation={handleSelectHistoryItem}
+        onDeleteEvaluation={handleDeleteHistoryItem}
       />
 
       <EvaluationStudio
@@ -154,7 +227,7 @@ export default function App() {
 
       <AlertModal
         isOpen={alertConfig.isOpen}
-        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setAlertConfig((prev) => ({ ...prev, isOpen: false }))}
         title={alertConfig.title}
         message={alertConfig.message}
         type={alertConfig.type}

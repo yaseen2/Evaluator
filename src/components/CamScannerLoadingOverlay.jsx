@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FileSearch, ShieldCheck, Cpu, Zap } from 'lucide-react';
 
-export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten', subject = 'Islamic History & Culture', images = [] }) => {
+export const CamScannerLoadingOverlay = ({ pipelineProgress, subject = 'Islamic History & Culture', images = [] }) => {
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const STAGES = [
-    { title: 'Vision OCR & Layout Analysis', detail: 'Scanning page margins & digitizing handwriting...', icon: FileSearch },
-    { title: 'FPSC Rubric Evaluation', detail: `Applying official ${subject} examination rubrics...`, icon: ShieldCheck },
-    { title: 'Historiography & Citation Audit', detail: 'Verifying chronological accuracy & primary sources...', icon: Cpu },
-    { title: 'Callout Synthesis & Scorecard', detail: 'Generating precise line-by-line feedback callouts...', icon: Zap }
+    { title: 'Agent 1/6: Vision OCR & Script Digitizer', detail: 'Scanning page margins & transcribing handwritten script...', icon: FileSearch },
+    { title: 'Agent 2/6: Question Directive & Scope Auditor', detail: `Auditing directive alignment for ${subject}...`, icon: ShieldCheck },
+    { title: 'Agent 3/6: Factual & Citation Verifier', detail: 'Verifying claims, scholarly citations, dates, and empirical data...', icon: Cpu },
+    { title: 'Agent 4/6: Structural Causality & FPSC Scorer', detail: 'Evaluating "Why & How" causality & calculating FPSC marks...', icon: ShieldCheck },
+    { title: 'Agent 5/6: Visual Architect & Topper Rewriter', detail: 'Designing schematic diagram & 3-tier paragraph rewrites...', icon: Cpu },
+    { title: 'Agent 6/6: Line-by-Line Error & Strength Highlighter', detail: 'Mapping verbatim Red / Amber / Green callouts across text...', icon: Zap }
   ];
 
-  // Rotate through stages and uploaded images dynamically
   useEffect(() => {
     const stageInterval = setInterval(() => {
       setActiveStageIndex((prev) => (prev + 1) % STAGES.length);
-    }, 2400);
+    }, 2800);
 
     let imageInterval;
     if (images && images.length > 1) {
@@ -31,12 +32,17 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
     };
   }, [images]);
 
-  const currentStage = pipelineProgress ? {
-    title: pipelineProgress.stage || STAGES[activeStageIndex].title,
-    detail: pipelineProgress.detail || STAGES[activeStageIndex].detail
-  } : STAGES[activeStageIndex];
+  const activeStepZeroBased = pipelineProgress?.currentStep
+    ? Math.max(0, Math.min(STAGES.length - 1, pipelineProgress.currentStep - 1))
+    : activeStageIndex;
 
-  const currentImg = (images && images.length > 0) ? images[activeImageIndex] : null;
+  const currentStage = {
+    title: pipelineProgress?.stepLabel || pipelineProgress?.stage || STAGES[activeStepZeroBased].title,
+    detail: pipelineProgress?.detail || STAGES[activeStepZeroBased].detail,
+    percent: pipelineProgress?.percent || Math.round(((activeStepZeroBased + 1) / STAGES.length) * 85)
+  };
+
+  const currentImg = images && images.length > 0 ? images[activeImageIndex] : null;
 
   return (
     <div
@@ -70,12 +76,12 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
         }}
       />
 
-      {/* CAMSCANNER HOLOGRAPHIC PAPER CANVAS WITH DARK CONTRAST OVERLAY */}
+      {/* CAMSCANNER HOLOGRAPHIC PAPER CANVAS */}
       <div
         style={{
           position: 'relative',
-          width: '320px',
-          height: '430px',
+          width: '300px',
+          height: '400px',
           background: '#040711',
           borderRadius: '10px',
           boxShadow: '0 30px 70px rgba(0,0,0,0.85), 0 0 40px rgba(56, 189, 248, 0.3)',
@@ -89,7 +95,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
           animation: 'floatPaper 6s ease-in-out infinite'
         }}
       >
-        {/* ACTUAL CANDIDATE UPLOADED IMAGE */}
         {currentImg ? (
           <img
             src={currentImg}
@@ -103,7 +108,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
             }}
           />
         ) : (
-          /* Fallback Clean Paper */
           <div style={{ width: '100%', height: '100%', padding: '2rem 1.5rem', background: '#fafaf7', color: '#1e293b' }}>
             <div style={{ height: '14px', width: '75%', background: '#1e293b', borderRadius: '3px', marginBottom: '1.25rem' }} />
             <div style={{ height: '8px', width: '40%', background: '#38bdf8', borderRadius: '2px', marginBottom: '1.5rem' }} />
@@ -113,7 +117,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
           </div>
         )}
 
-        {/* DARK CONTRAST VIGNETTE OVERLAY (MAKES ELECTRIC BLUE LASER POP OUT STUNNINGLY) */}
         <div
           style={{
             position: 'absolute',
@@ -127,7 +130,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
           }}
         />
 
-        {/* ELECTRIC CYAN / BLUE HOLOGRAPHIC LASER BEAM */}
         <div
           style={{
             position: 'absolute',
@@ -141,7 +143,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
           }}
         />
 
-        {/* LASER LIGHT GLOW TRAIL */}
         <div
           style={{
             position: 'absolute',
@@ -156,46 +157,62 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
         />
       </div>
 
-      {/* ELECTRIC BLUE REAL-TIME AI PIPELINE HUD */}
+      {/* REAL-TIME 6-AGENT PIPELINE HUD */}
       <div
         style={{
-          marginTop: '1.75rem',
+          marginTop: '1.5rem',
           textAlign: 'center',
-          maxWidth: '460px',
+          maxWidth: '480px',
           width: '100%',
           background: 'var(--bg-panel)',
           border: '1px solid rgba(56, 189, 248, 0.25)',
-          padding: '1.25rem 1.5rem',
+          padding: '1.15rem 1.5rem',
           borderRadius: 'var(--radius-lg)',
           boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
         }}
       >
-        {/* Stage Status Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 10px #38bdf8', animation: 'ping 1.5s infinite' }} />
-          <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>
-            {currentStage.title}
-          </h4>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 10px #38bdf8', animation: 'ping 1.5s infinite' }} />
+            <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
+              {currentStage.title}
+            </h4>
+          </div>
+          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
+            {currentStage.percent}%
+          </span>
         </div>
 
-        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.45, textAlign: 'left' }}>
           {currentStage.detail}
         </p>
 
-        {/* Stage Step Indicators */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-          {STAGES.map((s, idx) => {
-            const isActive = idx === activeStageIndex;
+        {/* Continuous Progress Bar */}
+        <div style={{ height: '5px', width: '100%', background: 'var(--bg-card)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px', border: '1px solid var(--border)' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${currentStage.percent}%`,
+              background: 'linear-gradient(90deg, #0284c7, #38bdf8)',
+              boxShadow: '0 0 10px #38bdf8',
+              transition: 'width 0.4s ease'
+            }}
+          />
+        </div>
+
+        {/* 6-Agent Step Segments */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
+          {STAGES.map((_, idx) => {
+            const isCompleted = idx < activeStepZeroBased;
+            const isActive = idx === activeStepZeroBased;
             return (
               <div
                 key={idx}
                 style={{
-                  height: '4px',
+                  height: '3px',
                   flex: 1,
-                  maxWidth: '80px',
                   borderRadius: '2px',
-                  background: isActive ? '#38bdf8' : 'var(--border)',
-                  boxShadow: isActive ? '0 0 10px #38bdf8' : 'none',
+                  background: isCompleted ? '#10b981' : isActive ? '#38bdf8' : 'var(--border)',
                   transition: 'all 0.3s ease'
                 }}
               />
@@ -204,7 +221,6 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, mode = 'handwritten
         </div>
       </div>
 
-      {/* KEYFRAME ANIMATIONS INJECTOR */}
       <style>{`
         @keyframes laserScan {
           0% { top: 4%; }

@@ -1,29 +1,46 @@
-import React, { useState, useRef } from 'react';
-import { FileText, ChevronDown, ChevronUp, BarChart2, Cpu } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { FileText, ChevronDown, ChevronUp, BarChart2, Cpu, Image as ImageIcon, Printer } from 'lucide-react';
 
-export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
+export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId, submissionImages = [] }) => {
   const [isVisualExpanded, setIsVisualExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState('transcribed'); // 'transcribed' | 'original'
   const containerRef = useRef(null);
+  const highlightRefs = useRef({});
+
+  // Reset highlight refs when evaluation changes
+  useEffect(() => {
+    highlightRefs.current = {};
+    setViewMode('transcribed');
+  }, [evaluation?.id]);
+
+  // Bidirectional Scroll Sync: When user selects a callout in RubricTabs, scroll paper to highlight
+  useEffect(() => {
+    if (selectedAnnId && viewMode === 'transcribed') {
+      const targetEl = highlightRefs.current[selectedAnnId];
+      if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedAnnId, viewMode]);
 
   if (!evaluation) return null;
 
-  const evaluatedModelName = evaluation.evaluatedModelName || 'Gemini 2.5 Flash';
-
-  // Real AI-generated annotations only — no hardcoded fallbacks.
-  // Post-processing validation already removed orphaned annotations in geminiApi.js
+  const evaluatedModelName = evaluation.evaluatedModelName || 'Gemini 3.8 Flash';
   const allAnnotations = evaluation.annotations || [];
-
   const suggestedVisual = evaluation.suggestedVisual || null;
-
-  // Real transcribed text from Agent 2 — no hardcoded fallback text
   const fullText = evaluation.fullTranscribedText || evaluation.text || '';
+  const imagePages = evaluation.imagePages?.length > 0 ? evaluation.imagePages : submissionImages;
 
-  const paragraphs = fullText.split('\n\n');
+  const paragraphs = fullText.split(/\n\s*\n/).filter(Boolean);
 
   // Identify exact paragraph index where the suggested visual belongs inline
-  const targetHeading = suggestedVisual?.insertAfterHeading?.toLowerCase() || '';
-  let visualInsertIndex = paragraphs.findIndex(p => p.toLowerCase().includes(targetHeading));
-  if (visualInsertIndex === -1) visualInsertIndex = 2; // Default after intro if no matching heading
+  const targetHeading = suggestedVisual?.insertAfterHeading?.toLowerCase()?.trim() || '';
+  let visualInsertIndex = targetHeading
+    ? paragraphs.findIndex((p) => p.toLowerCase().includes(targetHeading))
+    : -1;
+  if (visualInsertIndex === -1 && paragraphs.length > 0) {
+    visualInsertIndex = Math.min(2, paragraphs.length - 1);
+  }
 
   const handleTranscribedClick = (e, ann) => {
     e.stopPropagation();
@@ -33,32 +50,31 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => 
   };
 
   /**
-   * Case-Insensitive Robust Regex Highlighter (Supporting 1-10 word target phrases sorted by length)
+   * Case-Insensitive Regex Highlighter with Ref Registration for Bidirectional Scroll
    */
   const renderHighlightedParagraph = (text) => {
     if (!allAnnotations || allAnnotations.length === 0) return text;
 
-    const validAnns = allAnnotations.filter(a => {
-      if (!a.targetPhrase) return false;
+    const validAnns = allAnnotations.filter((a) => {
+      if (!a.targetPhrase || typeof a.targetPhrase !== 'string') return false;
       const escaped = a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return new RegExp(escaped, 'i').test(text);
     });
 
     if (validAnns.length === 0) return text;
 
-    // Sort valid annotations by length descending so longer 1-10 word phrases match before shorter sub-phrases
+    // Sort longest first so longer phrases match before shorter sub-phrases
     validAnns.sort((a, b) => b.targetPhrase.length - a.targetPhrase.length);
 
-    // Create regex matching any of the valid target phrases
     const regexPattern = new RegExp(
-      `(${validAnns.map(a => a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+      `(${validAnns.map((a) => a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
       'gi'
     );
 
     const parts = text.split(regexPattern);
 
     return parts.map((part, i) => {
-      const matchedAnn = validAnns.find(a => a.targetPhrase.toLowerCase() === part.toLowerCase());
+      const matchedAnn = validAnns.find((a) => a.targetPhrase.toLowerCase() === part.toLowerCase());
       if (matchedAnn) {
         const annId = matchedAnn.id || `ann-${matchedAnn.targetPhrase}`;
         const isSelected = selectedAnnId === annId;
@@ -66,20 +82,21 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => 
         return (
           <span
             key={`${annId}-${i}`}
+            ref={(el) => {
+              if (el) highlightRefs.current[annId] = el;
+            }}
             onClick={(e) => handleTranscribedClick(e, matchedAnn)}
             className={`word-highlight ${matchedAnn.type}`}
             style={{
-              position: 'relative',
-              display: 'inline-block',
               padding: '1px 4px',
               margin: '0 1px',
-              cursor: 'pointer',
               borderRadius: '3px',
-              boxShadow: isSelected ? '0 0 0 2px #38bdf8, 0 4px 12px rgba(56, 189, 248, 0.4)' : 'none',
-              transform: isSelected ? 'scale(1.05)' : 'none',
-              transition: 'all 0.15s ease'
+              boxShadow: isSelected
+                ? '0 0 0 2px #0284c7, 0 4px 14px rgba(2, 132, 199, 0.45)'
+                : 'none',
+              fontWeight: isSelected ? 600 : 'inherit'
             }}
-            title={`Click to focus comment in side panel: ${matchedAnn.comment}`}
+            title={`[${matchedAnn.category}] ${matchedAnn.comment}`}
           >
             {part}
           </span>
@@ -100,9 +117,11 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => 
         boxShadow: '0 4px 12px rgba(2, 132, 199, 0.08)'
       }}
     >
-      {/* Clickable Header Bar */}
       <div
-        onClick={(e) => { e.stopPropagation(); setIsVisualExpanded(!isVisualExpanded); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsVisualExpanded(!isVisualExpanded);
+        }}
         style={{
           padding: '8px 12px',
           background: 'rgba(2, 132, 199, 0.08)',
@@ -114,19 +133,18 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => 
           userSelect: 'none'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <BarChart2 size={16} color="#0284c7" />
           <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Arial, sans-serif' }}>
-            📊 {suggestedVisual.title || 'Suggested Visual Diagram'}
+            📊 {suggestedVisual.title || 'Suggested Visual Schematic'}
           </span>
           <span style={{ fontSize: '0.68rem', background: '#0284c7', color: 'white', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
-            Click to Expand
+            {isVisualExpanded ? 'Hide Blueprint' : 'Click to Expand'}
           </span>
         </div>
         {isVisualExpanded ? <ChevronUp size={16} color="#0369a1" /> : <ChevronDown size={16} color="#0369a1" />}
       </div>
 
-      {/* Collapsible Diagram Content */}
       {isVisualExpanded && (
         <div style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', background: '#ffffff' }}>
           {suggestedVisual.description && (
@@ -168,82 +186,196 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId }) => 
         height: '100%',
         minHeight: 0,
         overflowY: 'auto',
-        padding: '1.5rem 1.5rem 4rem 1.5rem',
+        padding: '1.25rem 1.5rem 4rem 1.5rem',
         background: 'var(--bg-app)'
       }}
     >
-      {/* Top Booklet Banner */}
-      <div style={{ maxWidth: '760px', margin: '0 auto 1rem auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Top Booklet Toolbar */}
+      <div
+        className="no-print"
+        style={{
+          maxWidth: '760px',
+          margin: '0 auto 0.85rem auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '8px'
+        }}
+      >
+        {/* View Mode Switcher (Transcribed vs Original Handwritten Pages) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {imagePages && imagePages.length > 0 ? (
+            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewMode('transcribed');
+                }}
+                style={{
+                  background: viewMode === 'transcribed' ? 'var(--bg-card-hover)' : 'transparent',
+                  color: viewMode === 'transcribed' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                  border: 'none',
+                  padding: '4px 10px',
+                  borderRadius: '3px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <FileText size={13} />
+                <span>Annotated Transcript</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewMode('original');
+                }}
+                style={{
+                  background: viewMode === 'original' ? 'var(--bg-card-hover)' : 'transparent',
+                  color: viewMode === 'original' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                  border: 'none',
+                  padding: '4px 10px',
+                  borderRadius: '3px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <ImageIcon size={13} />
+                <span>Original Pages ({imagePages.length})</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={16} color="var(--accent-blue)" />
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Annotated FPSC Answer Booklet
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right Actions: Model Badge + Print/PDF Report */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={16} color="var(--accent-blue)" />
-          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Transcribed Academic Answer Sheet
-          </span>
-        </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '4px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.7rem', color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)' }}>
+            <Cpu size={12} color="var(--accent-blue)" />
+            <span>{evaluatedModelName}</span>
+          </div>
 
-        {/* AI MODEL ENGINE BADGE */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.7rem', color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)' }}>
-          <Cpu size={12} color="var(--accent-blue)" />
-          <span>Evaluated by: <strong>{evaluatedModelName}</strong></span>
+          <button
+            className="btn-minimal"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.print();
+            }}
+            style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+            title="Print or Save Evaluation Report as PDF"
+          >
+            <Printer size={13} color="var(--accent-blue)" />
+            <span>Export PDF</span>
+          </button>
         </div>
       </div>
 
-      {/* AUTHENTIC FPSC CSS PHYSICAL ANSWER SHEET */}
-      <div className="physical-paper" style={{ position: 'relative' }}>
-        
-        {/* Paper Meta Header */}
-        <div className="paper-meta">
-          <div>
-            <strong>Subject:</strong> {evaluation.subject || 'Islamic History & Culture'}
-          </div>
-          <div>
-            <strong>Evaluated By:</strong> {evaluatedModelName}
-          </div>
+      {/* VIEW 1: ORIGINAL UPLOADED HANDWRITTEN PAGES */}
+      {viewMode === 'original' && imagePages && imagePages.length > 0 ? (
+        <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {imagePages.map((imgSrc, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
+              }}
+            >
+              <div style={{ padding: '6px 12px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                <span>Original Candidate Script — Page {idx + 1} of {imagePages.length}</span>
+                <span>{evaluation.subject}</span>
+              </div>
+              <img
+                src={imgSrc}
+                alt={`Answer Script Page ${idx + 1}`}
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </div>
+          ))}
         </div>
+      ) : (
+        /* VIEW 2: AUTHENTIC FPSC CSS PHYSICAL ANSWER SHEET WITH HIGHLIGHTS */
+        <div className="physical-paper" style={{ position: 'relative' }}>
+          {/* Paper Meta Header */}
+          <div className="paper-meta">
+            <div>
+              <strong>Subject:</strong> {evaluation.subject || 'Islamic History & Culture'}
+            </div>
+            {evaluation.examQuestion && (
+              <div style={{ maxWidth: '420px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={evaluation.examQuestion}>
+                <strong>Q:</strong> {evaluation.examQuestion}
+              </div>
+            )}
+            <div>
+              <strong>Date:</strong> {evaluation.date || new Date().toISOString().split('T')[0]}
+            </div>
+          </div>
 
-        {/* Formatted Transcribed Content Paragraphs with Synchronized Highlighting */}
-        {paragraphs.map((para, pIdx) => {
-          const isHeading = para.length < 80 && !para.endsWith('.') && (para.includes(':') || para.match(/^[0-9A-Z]/));
-          const highlightedContent = renderHighlightedParagraph(para);
+          {/* Formatted Transcribed Content Paragraphs with Synchronized Highlighting */}
+          {paragraphs.map((para, pIdx) => {
+            const trimmed = para.trim();
+            const isHeading =
+              trimmed.length < 90 &&
+              !trimmed.endsWith('.') &&
+              (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
+            const highlightedContent = renderHighlightedParagraph(para);
 
-          return (
-            <React.Fragment key={pIdx}>
-              {isHeading ? (
-                <h4
-                  style={{
-                    fontFamily: 'Arial, sans-serif',
-                    fontWeight: 700,
-                    fontSize: '1.08rem',
-                    color: '#0f172a',
-                    marginTop: '1.5rem',
-                    marginBottom: '0.65rem',
-                    borderBottom: '1px solid #e2e8f0',
-                    paddingBottom: '4px'
-                  }}
-                >
-                  {highlightedContent}
-                </h4>
-              ) : (
-                <p
-                  style={{
-                    fontFamily: 'Arial, sans-serif',
-                    fontSize: '1rem',
-                    lineHeight: 1.85,
-                    color: '#1e293b',
-                    marginBottom: '1.25rem'
-                  }}
-                >
-                  {highlightedContent}
-                </p>
-              )}
+            return (
+              <React.Fragment key={pIdx}>
+                {isHeading ? (
+                  <h4
+                    style={{
+                      fontFamily: 'Arial, sans-serif',
+                      fontWeight: 700,
+                      fontSize: '1.05rem',
+                      color: '#0f172a',
+                      marginTop: '1.4rem',
+                      marginBottom: '0.6rem',
+                      borderBottom: '1px solid #e2e8f0',
+                      paddingBottom: '4px',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    {highlightedContent}
+                  </h4>
+                ) : (
+                  <p
+                    style={{
+                      fontFamily: 'Arial, sans-serif',
+                      fontSize: '0.98rem',
+                      lineHeight: 1.85,
+                      color: '#1e293b',
+                      marginBottom: '1.15rem',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    {highlightedContent}
+                  </p>
+                )}
 
-              {/* CONTEXTUAL INLINE PLACEMENT: Insert Suggested Visual dropdown right after its target section! */}
-              {pIdx === visualInsertIndex && suggestedVisual && renderSuggestedVisualDropdown()}
-            </React.Fragment>
-          );
-        })}
-
-      </div>
+                {pIdx === visualInsertIndex && suggestedVisual && renderSuggestedVisualDropdown()}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
