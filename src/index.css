@@ -32,11 +32,11 @@
 [data-theme="light"] {
   --bg-app: #f1f5f9;
   --bg-panel: #ffffff;
-  --bg-card: #ffffff;
-  --bg-card-hover: #e2e8f0;
+  --bg-card: #f8fafc;
+  --bg-card-hover: #f1f5f9;
   
-  --border: rgba(0, 0, 0, 0.1);
-  --border-strong: rgba(0, 0, 0, 0.2);
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
 
   --accent-gold: #0284c7;
   --accent-blue: #0284c7;
@@ -47,6 +47,16 @@
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #64748b;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.subject-option-item:hover {
+  background: var(--bg-card-hover) !important;
 }
 
 * {
