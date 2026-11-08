@@ -25,7 +25,7 @@ import {
 import sampleEssayEvaluation from './data/evaluations/sample-essay-evaluation.json';
 import sampleEvaluation from './data/evaluations/eval-graph-latest.json';
 
-const HISTORY_STORAGE_KEY = 'css_evaluator_saved_history_v3';
+const HISTORY_STORAGE_KEY = 'css_evaluator_saved_history_v4';
 
 const loadSavedHistory = () => {
   try {

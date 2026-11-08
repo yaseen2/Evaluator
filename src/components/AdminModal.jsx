@@ -82,6 +82,9 @@ export const AdminModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const pendingPaymentsCount = paymentRequests.filter((r) => r.status === 'pending').length;
+  const totalPapersEvaluated = candidates.reduce((acc, c) => acc + Number(c.evaluationsCount || 0), 0);
+  const totalPlatformTokens = candidates.reduce((acc, c) => acc + Number(c.totalTokensConsumed || 0), 0);
+  const totalPlatformCreditsUsed = candidates.reduce((acc, c) => acc + Number(c.totalCreditsUsed || 0), 0);
 
   const handleApproveRequest = async (reqId) => {
     setProcessingReqId(reqId);
@@ -189,6 +192,36 @@ export const AdminModal = ({ isOpen, onClose }) => {
           >
             <X size={18} />
           </button>
+        </div>
+
+        {/* Platform Token & Margin Summary Strip */}
+        <div
+          style={{
+            flexShrink: 0,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '8px',
+            marginTop: '0.65rem'
+          }}
+        >
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
+            <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Candidates</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{candidates.length}</div>
+          </div>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
+            <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Papers Graded</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)' }}>{totalPapersEvaluated}</div>
+          </div>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
+            <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Tokens Used</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              {(totalPlatformTokens / 1000).toFixed(1)}k
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
+            <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Credits Burned</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--pass-green)', fontFamily: 'var(--font-mono)' }}>{totalPlatformCreditsUsed}</div>
+          </div>
         </div>
 
         {/* Tabs */}

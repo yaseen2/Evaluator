@@ -10,6 +10,64 @@
   "candidateName": "Graph DAG Submission",
   "date": "2026-11-07",
   "evaluatedModelName": "Gemini 3.8 Flash (DAG Engine)",
+  "creditsConsumed": 9,
+  "tokenUsage": {
+    "inputTokens": 5420,
+    "outputTokens": 4680,
+    "thinkingTokens": 0,
+    "totalTokens": 10100,
+    "weightedTokens": 21800,
+    "creditsConsumed": 9,
+    "weightedTokensPerCredit": 2500,
+    "outputMultiplier": 3.5,
+    "stages": [
+      {
+        "stage": "Directive & Scope Auditor",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 920,
+        "outputTokens": 410,
+        "thinkingTokens": 0,
+        "totalTokens": 1330,
+        "weightedTokens": 2355
+      },
+      {
+        "stage": "Empirical & Fact Verifier",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 1120,
+        "outputTokens": 980,
+        "thinkingTokens": 0,
+        "totalTokens": 2100,
+        "weightedTokens": 4550
+      },
+      {
+        "stage": "Structural Causality & FPSC Scorer",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 1160,
+        "outputTokens": 1050,
+        "thinkingTokens": 0,
+        "totalTokens": 2210,
+        "weightedTokens": 4835
+      },
+      {
+        "stage": "Visual Architect & Topper Rewriter",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 1100,
+        "outputTokens": 1140,
+        "thinkingTokens": 0,
+        "totalTokens": 2240,
+        "weightedTokens": 5090
+      },
+      {
+        "stage": "Pedagogical Micro-Lesson Highlighter",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 1120,
+        "outputTokens": 1100,
+        "thinkingTokens": 0,
+        "totalTokens": 2220,
+        "weightedTokens": 4970
+      }
+    ]
+  },
   "overallScore": 11,
   "maxScore": 20,
   "passingScore": 8,
