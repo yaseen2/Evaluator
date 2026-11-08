@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Copy, Check, Shield, Key, RefreshCw, Users, CreditCard } from 'lucide-react';
+import { X, Plus, Copy, Check, Shield, Key, RefreshCw, Users, CreditCard, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import {
   createSubscriptionVoucher,
   fetchAllVouchers,
@@ -8,38 +8,47 @@ import {
   savePlatformGeminiConfig,
   getPlatformGeminiConfig,
   savePaymentConfig,
-  getPaymentConfig
+  getPaymentConfig,
+  fetchAllPaymentRequests,
+  approvePaymentRequest,
+  rejectPaymentRequest
 } from '../services/firebase';
 import { AVAILABLE_MODELS, getStoredApiKey } from '../services/geminiApi';
 
 export const AdminModal = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState('vouchers'); // 'vouchers' | 'candidates' | 'settings'
+  const [activeTab, setActiveTab] = useState('payments'); // 'payments' | 'vouchers' | 'candidates' | 'settings'
+  const [paymentRequests, setPaymentRequests] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
   const [toppedUpUid, setToppedUpUid] = useState(null);
+  const [processingReqId, setProcessingReqId] = useState(null);
 
   // Platform Gemini Config State
   const [platformKey, setPlatformKey] = useState('');
   const [platformModel, setPlatformModel] = useState('auto');
 
-  // Payment & WhatsApp Checkout Config State
+  // Payment & Direct Checkout Config State
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [bankOrWalletName, setBankOrWalletName] = useState('JazzCash / EasyPaisa / RAAST');
   const [paymentAccountTitle, setPaymentAccountTitle] = useState('');
   const [paymentAccountNumber, setPaymentAccountNumber] = useState('');
+  const [aspirantCheckoutUrl, setAspirantCheckoutUrl] = useState('');
+  const [proCheckoutUrl, setProCheckoutUrl] = useState('');
   const [configSaved, setConfigSaved] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [voucherList, candidateList, geminiCfg, payCfg] = await Promise.all([
+      const [reqList, voucherList, candidateList, geminiCfg, payCfg] = await Promise.all([
+        fetchAllPaymentRequests(),
         fetchAllVouchers(),
         fetchAllCandidates(),
         getPlatformGeminiConfig(),
         getPaymentConfig()
       ]);
+      setPaymentRequests(reqList);
       setVouchers(voucherList);
       setCandidates(candidateList);
 
@@ -55,6 +64,8 @@ export const AdminModal = ({ isOpen, onClose }) => {
         setBankOrWalletName(payCfg.bankOrWalletName || 'JazzCash / EasyPaisa / RAAST');
         setPaymentAccountTitle(payCfg.paymentAccountTitle || '');
         setPaymentAccountNumber(payCfg.paymentAccountNumber || '');
+        setAspirantCheckoutUrl(payCfg.aspirantCheckoutUrl || '');
+        setProCheckoutUrl(payCfg.proCheckoutUrl || '');
       }
     } finally {
       setLoading(false);
@@ -68,6 +79,32 @@ export const AdminModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const pendingPaymentsCount = paymentRequests.filter((r) => r.status === 'pending').length;
+
+  const handleApproveRequest = async (reqId) => {
+    setProcessingReqId(reqId);
+    try {
+      const approved = await approvePaymentRequest(reqId);
+      setPaymentRequests((prev) => prev.map((r) => (r.id === reqId ? { ...r, status: 'approved', approvedAt: approved.approvedAt } : r)));
+      // Also refresh candidate list credit balance
+      setCandidates((prev) =>
+        prev.map((c) => (c.uid === approved.userId ? { ...c, credits: approved.updatedCredits, tier: approved.planId } : c))
+      );
+    } finally {
+      setProcessingReqId(null);
+    }
+  };
+
+  const handleRejectRequest = async (reqId) => {
+    setProcessingReqId(reqId);
+    try {
+      await rejectPaymentRequest(reqId);
+      setPaymentRequests((prev) => prev.map((r) => (r.id === reqId ? { ...r, status: 'rejected' } : r)));
+    } finally {
+      setProcessingReqId(null);
+    }
+  };
 
   const handleGenerateVoucher = async (credits, tier, label) => {
     setLoading(true);
@@ -104,7 +141,9 @@ export const AdminModal = ({ isOpen, onClose }) => {
         whatsappNumber,
         bankOrWalletName,
         paymentAccountTitle,
-        paymentAccountNumber
+        paymentAccountNumber,
+        aspirantCheckoutUrl,
+        proCheckoutUrl
       })
     ]);
     setConfigSaved(true);
@@ -118,7 +157,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '94%',
-          maxWidth: '720px',
+          maxWidth: '750px',
           maxHeight: '88vh',
           padding: '1.25rem',
           display: 'flex',
@@ -127,10 +166,19 @@ export const AdminModal = ({ isOpen, onClose }) => {
         }}
       >
         {/* Header */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.65rem' }}>
+        <div
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid var(--border)',
+            paddingBottom: '0.65rem'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Shield size={18} color="var(--accent-blue)" />
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               SaaS Owner & Subscription Admin Portal
             </h3>
           </div>
@@ -143,7 +191,30 @@ export const AdminModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Tabs */}
-        <div className="nav-tabs" style={{ flexShrink: 0, margin: '0.65rem 0' }}>
+        <div className="nav-tabs" style={{ flexShrink: 0, margin: '0.65rem 0', flexWrap: 'wrap' }}>
+          <button
+            className={`tab-item ${activeTab === 'payments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('payments')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <span>Payment Queue</span>
+            {pendingPaymentsCount > 0 ? (
+              <span
+                style={{
+                  fontSize: '0.64rem',
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  background: 'var(--warning-amber)',
+                  color: '#fff'
+                }}
+              >
+                {pendingPaymentsCount} Pending
+              </span>
+            ) : (
+              <span style={{ opacity: 0.7 }}>({paymentRequests.length})</span>
+            )}
+          </button>
           <button
             className={`tab-item ${activeTab === 'vouchers' ? 'active' : ''}`}
             onClick={() => setActiveTab('vouchers')}
@@ -154,18 +225,150 @@ export const AdminModal = ({ isOpen, onClose }) => {
             className={`tab-item ${activeTab === 'candidates' ? 'active' : ''}`}
             onClick={() => setActiveTab('candidates')}
           >
-            Registered Candidates ({candidates.length})
+            Candidates ({candidates.length})
           </button>
           <button
             className={`tab-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
-            Payment & AI Engine Settings
+            Payment & AI Settings
           </button>
         </div>
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.25rem 2px' }}>
+          {/* TAB 0: IN-APP PAYMENT VERIFICATION QUEUE */}
+          {activeTab === 'payments' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  Verify candidate RAAST / JazzCash / EasyPaisa Transaction IDs (TIDs) and approve credits in 1 click:
+                </span>
+                <button className="btn-minimal" onClick={loadData} style={{ padding: '4px 8px' }} title="Refresh Queue">
+                  <RefreshCw size={12} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {paymentRequests.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '1.5rem',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.78rem',
+                      background: 'var(--bg-card)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)'
+                    }}
+                  >
+                    No payment verification requests submitted yet. When candidates submit a Transaction ID (TID) inside the Subscription modal, it appears here.
+                  </div>
+                ) : (
+                  paymentRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: req.status === 'pending' ? '1.5px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '10px'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {req.userName || 'CSS Candidate'}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({req.userEmail})</span>
+                          <span
+                            style={{
+                              fontSize: '0.64rem',
+                              fontWeight: 700,
+                              padding: '2px 7px',
+                              borderRadius: '10px',
+                              background: 'rgba(2, 132, 199, 0.12)',
+                              color: 'var(--accent-blue)'
+                            }}
+                          >
+                            {req.planName} ({req.pricePKR} • +{req.credits} Credits)
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span>
+                            <strong>Method:</strong> {req.paymentMethod}
+                          </span>
+                          <span>
+                            <strong>TID:</strong>{' '}
+                            <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-blue)' }}>
+                              {req.transactionId}
+                            </code>
+                          </span>
+                          {req.senderAccount && (
+                            <span>
+                              <strong>Sender:</strong> {req.senderAccount}
+                            </span>
+                          )}
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>
+                            {req.createdAt?.replace('T', ' ').slice(0, 16)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {req.status === 'pending' ? (
+                          <>
+                            <button
+                              className="btn-accent"
+                              disabled={processingReqId === req.id}
+                              onClick={() => handleApproveRequest(req.id)}
+                              style={{ padding: '5px 11px', fontSize: '0.72rem', background: '#059669', borderColor: '#10b981' }}
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>{processingReqId === req.id ? 'Approving...' : `Approve (+${req.credits})`}</span>
+                            </button>
+                            <button
+                              className="btn-minimal"
+                              disabled={processingReqId === req.id}
+                              onClick={() => handleRejectRequest(req.id)}
+                              style={{ padding: '5px 9px', fontSize: '0.72rem', color: 'var(--fail-red)' }}
+                            >
+                              <XCircle size={13} />
+                              <span>Decline</span>
+                            </button>
+                          </>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              padding: '3px 8px',
+                              borderRadius: '10px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: req.status === 'approved' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                              color: req.status === 'approved' ? 'var(--pass-green)' : 'var(--fail-red)'
+                            }}
+                          >
+                            {req.status === 'approved' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                            <span>{req.status === 'approved' ? `Approved (+${req.credits} Credits)` : 'Declined'}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: VOUCHERS */}
           {activeTab === 'vouchers' && (
             <div>
@@ -193,7 +396,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                 <button
                   className="btn-accent"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(100, 'pro', 'CSS/PMS Pro Pass (100 Credits)')}
+                  onClick={() => handleGenerateVoucher(100, 'pro', 'CSS Allocation Pro (100 Credits)')}
                 >
                   <Plus size={13} />
                   <span>+100 Credits (PKR 3,500)</span>
@@ -268,7 +471,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                  View all registered CSS/PMS candidates and directly top up their evaluation credits:
+                  View all registered CSS candidates and directly top up their evaluation credits:
                 </span>
                 <button className="btn-minimal" onClick={loadData} style={{ padding: '4px 8px' }}>
                   <RefreshCw size={12} />
@@ -302,7 +505,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {c.displayName || 'CSS Candidate'}
                           </span>
-                          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent-blue)', fontWeight: 700, textTransform: 'uppercase' }}>
+                          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(2, 132, 199, 0.12)', color: 'var(--accent-blue)', fontWeight: 700, textTransform: 'uppercase' }}>
                             {c.tier || 'free'}
                           </span>
                         </div>
@@ -346,17 +549,17 @@ export const AdminModal = ({ isOpen, onClose }) => {
           {/* TAB 3: PAYMENT & AI ENGINE SETTINGS */}
           {activeTab === 'settings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {/* Payment & WhatsApp Checkout Block */}
+              {/* Direct Payment & Checkout Block */}
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.85rem', borderRadius: 'var(--radius-md)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.65rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-blue)' }}>
                   <CreditCard size={15} />
-                  <span>Subscription Payment & WhatsApp Checkout Details</span>
+                  <span>Direct RAAST / JazzCash / EasyPaisa & Card Checkout Details</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      WhatsApp Number (with country code, e.g. 923001234567)
+                      WhatsApp Number (e.g. 923001234567)
                     </label>
                     <input
                       type="text"
@@ -380,7 +583,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                       Account Title
@@ -403,6 +606,33 @@ export const AdminModal = ({ isOpen, onClose }) => {
                       value={paymentAccountNumber}
                       onChange={(e) => setPaymentAccountNumber(e.target.value)}
                       style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      Optional Card Checkout URL — CSS Aspirant (Safepay / LemonSqueezy)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={aspirantCheckoutUrl}
+                      onChange={(e) => setAspirantCheckoutUrl(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      Optional Card Checkout URL — Allocation Pro (Safepay / LemonSqueezy)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={proCheckoutUrl}
+                      onChange={(e) => setProCheckoutUrl(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg-panel)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
                     />
                   </div>
                 </div>

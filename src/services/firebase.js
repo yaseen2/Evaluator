@@ -55,10 +55,10 @@ export const SUBSCRIPTION_PLANS = [
     credits: 2,
     badge: '2 Free Credits',
     features: [
-      '2 Complimentary Paper Evaluation Credits',
-      'Full 6-Agent FPSC Diagnostic Pipeline',
-      'Line-by-Line Red / Amber / Green Callouts',
-      'Quantitative Marks out of 20 or 100'
+      '2 Complimentary Evaluation Credits',
+      'Full Essay (2 Credits) or Essay Outline (1 Credit)',
+      '4-Part Micro-Lesson Callouts & Thesis Audit',
+      '20-Mark FPSC Subject Grading (1 Credit)'
     ]
   },
   {
@@ -70,23 +70,23 @@ export const SUBSCRIPTION_PLANS = [
     badge: 'Most Popular',
     highlight: true,
     features: [
-      '30 Paper Evaluation Credits (All 50+ CSS & PMS Subjects)',
-      '3-Tier Topper Paragraph Rewrites',
-      'Suggested Visual Flowcharts & Schematics',
-      'Cloud Evaluation History & PDF Report Export'
+      '30 Evaluation Credits (15 Full Essays or 30 Outlines/Questions)',
+      'Thesis Audit + Outline-to-Body Alignment Check',
+      '3-Tier PEEL Paragraph Rewrites & Micro-Lessons',
+      'Cloud Evaluation History & Printable PDF Dossier'
     ]
   },
   {
     id: 'pro',
-    name: 'CSS/PMS Allocation Pro',
+    name: 'CSS Allocation Pro',
     pricePKR: 'PKR 3,500',
     period: '/ exam pass',
     credits: 100,
     badge: 'Best Value',
     features: [
-      '100 Evaluation Credits (Questions + 100m Essays)',
-      'Deep 100-Mark English Essay & Precis Audits',
-      'Priority Gemini 3.8 Flash Flagship Engine',
+      '100 Evaluation Credits (50 Full Essays or 100 Outlines/Questions)',
+      'All 47 Official FPSC Compulsory & Optional Subjects',
+      'Priority Gemini 3.8 Flash Diagnostic Engine',
       'Unlimited Cloud History & Printable PDF Dossiers'
     ]
   }
@@ -362,12 +362,21 @@ export const getPlatformGeminiConfig = async () => {
   return null;
 };
 
-export const savePaymentConfig = async ({ whatsappNumber, paymentAccountTitle, paymentAccountNumber, bankOrWalletName }) => {
+export const savePaymentConfig = async ({
+  whatsappNumber,
+  paymentAccountTitle,
+  paymentAccountNumber,
+  bankOrWalletName,
+  aspirantCheckoutUrl,
+  proCheckoutUrl
+}) => {
   await setDoc(doc(db, 'platform_config', 'payment'), {
     whatsappNumber: (whatsappNumber || '').trim(),
     paymentAccountTitle: (paymentAccountTitle || '').trim(),
     paymentAccountNumber: (paymentAccountNumber || '').trim(),
     bankOrWalletName: (bankOrWalletName || 'JazzCash / EasyPaisa / RAAST').trim(),
+    aspirantCheckoutUrl: (aspirantCheckoutUrl || '').trim(),
+    proCheckoutUrl: (proCheckoutUrl || '').trim(),
     updatedAt: new Date().toISOString()
   });
 };
@@ -382,4 +391,138 @@ export const getPaymentConfig = async () => {
     // ignore
   }
   return null;
+};
+
+// ─────────────────────────────────────────────────────────────
+// IN-APP PAYMENT VERIFICATION QUEUE (JazzCash / EasyPaisa / RAAST TID)
+// ─────────────────────────────────────────────────────────────
+
+export const submitPaymentRequest = async ({
+  uid,
+  email,
+  displayName,
+  planId,
+  planName,
+  pricePKR,
+  credits,
+  paymentMethod,
+  transactionId,
+  senderAccount
+}) => {
+  if (!uid) throw new Error('Please sign in first.');
+  const cleanTid = (transactionId || '').trim();
+  if (!cleanTid) throw new Error('Please enter your Transaction ID (TID) or Reference Number.');
+
+  const requestId = `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const payload = {
+    id: requestId,
+    userId: uid,
+    userEmail: email || '',
+    userName: displayName || 'CSS Candidate',
+    planId: planId || 'aspirant',
+    planName: planName || 'CSS Aspirant Monthly',
+    pricePKR: pricePKR || 'PKR 1,500',
+    credits: Number(credits || 30),
+    paymentMethod: paymentMethod || 'JazzCash / EasyPaisa / RAAST',
+    transactionId: cleanTid,
+    senderAccount: (senderAccount || '').trim(),
+    status: 'pending', // 'pending' | 'approved' | 'rejected'
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  await setDoc(doc(db, 'payment_requests', requestId), payload);
+  return payload;
+};
+
+export const fetchUserPaymentRequests = async (uid) => {
+  if (!uid) return [];
+  try {
+    const q = query(collection(db, 'payment_requests'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    const list = [];
+    snap.forEach((docSnap) => list.push(docSnap.data()));
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return list;
+  } catch (_) {
+    return [];
+  }
+};
+
+export const fetchAllPaymentRequests = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'payment_requests'));
+    const list = [];
+    snap.forEach((docSnap) => list.push(docSnap.data()));
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return list;
+  } catch (_) {
+    return [];
+  }
+};
+
+export const approvePaymentRequest = async (requestId) => {
+  const reqRef = doc(db, 'payment_requests', requestId);
+
+  return runTransaction(db, async (tx) => {
+    const reqSnap = await tx.get(reqRef);
+    if (!reqSnap.exists()) {
+      throw new Error('Payment request not found.');
+    }
+    const reqData = reqSnap.data();
+    if (reqData.status === 'approved') {
+      throw new Error('This payment request has already been approved.');
+    }
+
+    const userRef = doc(db, 'users', reqData.userId);
+    const userSnap = await tx.get(userRef);
+    const currentCredits = userSnap.exists() ? Number(userSnap.data().credits || 0) : 0;
+    const addedCredits = Number(reqData.credits || 30);
+    const updatedCredits = currentCredits + addedCredits;
+    const updatedTier = reqData.planId || 'aspirant';
+    const nowIso = new Date().toISOString();
+
+    tx.update(reqRef, {
+      status: 'approved',
+      approvedAt: nowIso,
+      updatedAt: nowIso
+    });
+
+    if (userSnap.exists()) {
+      tx.update(userRef, {
+        credits: updatedCredits,
+        tier: updatedTier,
+        updatedAt: nowIso
+      });
+    } else {
+      tx.set(userRef, {
+        uid: reqData.userId,
+        email: reqData.userEmail || '',
+        displayName: reqData.userName || 'CSS Candidate',
+        role: 'candidate',
+        tier: updatedTier,
+        credits: updatedCredits,
+        evaluationsCount: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    return {
+      ...reqData,
+      status: 'approved',
+      approvedAt: nowIso,
+      updatedCredits
+    };
+  });
+};
+
+export const rejectPaymentRequest = async (requestId) => {
+  const reqRef = doc(db, 'payment_requests', requestId);
+  const nowIso = new Date().toISOString();
+  await updateDoc(reqRef, {
+    status: 'rejected',
+    updatedAt: nowIso
+  });
+  return { id: requestId, status: 'rejected', updatedAt: nowIso };
 };
