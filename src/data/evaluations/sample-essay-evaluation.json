@@ -18,6 +18,46 @@
   "targetIntroWords": 180,
   "evaluatedModelId": "gemini-3.8-flash",
   "evaluatedModelName": "Gemini 3.8 Flash",
+  "creditsConsumed": 12,
+  "tokenUsage": {
+    "inputTokens": 6840,
+    "outputTokens": 6420,
+    "thinkingTokens": 0,
+    "totalTokens": 13260,
+    "weightedTokens": 29310,
+    "creditsConsumed": 12,
+    "weightedTokensPerCredit": 2500,
+    "outputMultiplier": 3.5,
+    "stages": [
+      {
+        "stage": "Macro-Structure & Thesis Audit",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 1820,
+        "outputTokens": 1640,
+        "thinkingTokens": 0,
+        "totalTokens": 3460,
+        "weightedTokens": 7560
+      },
+      {
+        "stage": "PEEL Paragraph & Rewrites Coach",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 2540,
+        "outputTokens": 2480,
+        "thinkingTokens": 0,
+        "totalTokens": 5020,
+        "weightedTokens": 11220
+      },
+      {
+        "stage": "Pedagogical Micro-Lesson Highlighter",
+        "model": "Gemini 3.8 Flash",
+        "inputTokens": 2480,
+        "outputTokens": 2300,
+        "thinkingTokens": 0,
+        "totalTokens": 4780,
+        "weightedTokens": 10530
+      }
+    ]
+  },
   "examinerSummary": "Your essay demonstrates promising awareness of digital public infrastructure and algorithmic bias, and your vocabulary is natural and readable. However, two structural issues hold this draft back from a strong FPSC pass: (1) your Outline mixes single-word labels with full sentences (breaking grammatical parallelism) and includes a 'Cyber Warfare' header that is never discussed in the body paragraphs, and (2) your Thesis Statement merely repeats the prompt instead of taking a clear analytical stance.",
   "directiveAnalysis": {
     "directiveWord": "Analytical / Expository Essay",

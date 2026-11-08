@@ -11,12 +11,14 @@ import {
   Target,
   GitMerge,
   Copy,
-  Check
+  Check,
+  Zap
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 
 export const ScorecardSummary = ({ evaluation }) => {
   const [copiedThesis, setCopiedThesis] = useState(false);
+  const [showTokenDetails, setShowTokenDetails] = useState(false);
 
   if (!evaluation) return null;
 
@@ -41,6 +43,8 @@ export const ScorecardSummary = ({ evaluation }) => {
   const thingsToInclude = evaluation.thingsToInclude || [];
   const thesisAudit = evaluation.thesisAudit || null;
   const outlineAlignment = evaluation.outlineAlignment || null;
+  const tokenUsage = evaluation.tokenUsage || null;
+  const creditsConsumed = evaluation.creditsConsumed || tokenUsage?.creditsConsumed || null;
 
   const redCount = annotations.filter((a) => a.type === 'red').length;
   const amberCount = annotations.filter((a) => a.type === 'amber').length;
@@ -176,27 +180,119 @@ export const ScorecardSummary = ({ evaluation }) => {
           </h3>
         </div>
 
-        {/* Deterministic Word Count Pill */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'var(--bg-card)',
-            padding: '4px 10px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border)',
-            fontSize: '0.7rem',
-            color: 'var(--text-secondary)',
-            fontFamily: 'var(--font-mono)'
-          }}
-          title={isOutlineOnly ? `Outline Words: ${wordCount}` : `Total Words: ${wordCount} | Introduction Words: ${introWordCount}`}
-        >
-          <FileText size={13} color="var(--accent-blue)" />
-          <span>{isOutlineOnly ? `${wordCount}w Outline` : `${wordCount}w (Intro: ${introWordCount}w)`}</span>
+        {/* Word Count & Token-Synced Credit Telemetry Pills */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--bg-card)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)',
+              fontSize: '0.7rem',
+              color: 'var(--text-secondary)',
+              fontFamily: 'var(--font-mono)'
+            }}
+            title={isOutlineOnly ? `Outline Words: ${wordCount}` : `Total Words: ${wordCount} | Introduction Words: ${introWordCount}`}
+          >
+            <FileText size={13} color="var(--accent-blue)" />
+            <span>{isOutlineOnly ? `${wordCount}w Outline` : `${wordCount}w (Intro: ${introWordCount}w)`}</span>
+          </div>
+
+          {tokenUsage && (
+            <button
+              type="button"
+              onClick={() => setShowTokenDetails(!showTokenDetails)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(2, 132, 199, 0.08)',
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid rgba(2, 132, 199, 0.28)',
+                fontSize: '0.66rem',
+                color: 'var(--accent-blue)',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Click to view exact Gemini token & credit ledger"
+            >
+              <Zap size={11} />
+              <span>
+                {creditsConsumed} Credits • {(tokenUsage.totalTokens / 1000).toFixed(1)}k Tokens
+              </span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* EXPANDABLE PER-AGENT TOKEN & CREDIT RECEIPT */}
+      {showTokenDetails && tokenUsage && (
+        <div
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 12px',
+            marginBottom: '0.85rem',
+            fontSize: '0.71rem'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Zap size={13} color="var(--accent-blue)" />
+              <span>Token-Synced Compute Receipt</span>
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)', fontWeight: 700 }}>
+              {creditsConsumed} Credits (1 Credit = 2,500 Weighted Tokens)
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '6px',
+              background: 'var(--bg-panel)',
+              padding: '6px 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--border)',
+              fontFamily: 'var(--font-mono)',
+              marginBottom: Array.isArray(tokenUsage.stages) && tokenUsage.stages.length > 0 ? '6px' : 0
+            }}
+          >
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Input:</span>{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{tokenUsage.inputTokens?.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Output (3.5×):</span>{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{tokenUsage.outputTokens?.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Weighted:</span>{' '}
+              <strong style={{ color: 'var(--accent-blue)' }}>{tokenUsage.weightedTokens?.toLocaleString()}</strong>
+            </div>
+          </div>
+
+          {Array.isArray(tokenUsage.stages) && tokenUsage.stages.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', color: 'var(--text-secondary)', fontSize: '0.67rem', fontFamily: 'var(--font-mono)' }}>
+              {tokenUsage.stages.map((st, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{st.stage}</span>
+                  <span>
+                    {st.inputTokens.toLocaleString()} in + {st.outputTokens.toLocaleString()} out ({st.weightedTokens.toLocaleString()}w)
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* HERO BANNER: SCORE-FREE QUALITATIVE FOR ESSAYS vs QUANTITATIVE FOR 20-MARK QUESTIONS */}
       {isScored ? (

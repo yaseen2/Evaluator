@@ -53,13 +53,13 @@ export const SUBSCRIPTION_PLANS = [
     name: 'Starter Trial',
     pricePKR: 'Free',
     period: 'on Sign-Up',
-    credits: 2,
-    badge: '2 Free Credits',
+    credits: 30,
+    badge: '30 Free Credits',
     features: [
-      '2 Complimentary Evaluation Credits',
-      'Full Essay (2 Credits) or Essay Outline (1 Credit)',
-      '4-Part Micro-Lesson Callouts & Thesis Audit',
-      '20-Mark FPSC Subject Grading (1 Credit)'
+      '30 Token-Synced Credits (~1.25L Weighted Tokens)',
+      'Essay Outline (~4–6 Credits) or 20m Answer (~9 Credits)',
+      'Full 100m English Essay Audit (~18–28 Credits)',
+      '4-Part Micro-Lesson Callouts & Thesis Audit'
     ]
   },
   {
@@ -67,14 +67,14 @@ export const SUBSCRIPTION_PLANS = [
     name: 'CSS Aspirant Monthly',
     pricePKR: 'PKR 1,500',
     period: '/ month',
-    credits: 30,
+    credits: 500,
     badge: 'Most Popular',
     highlight: true,
     features: [
-      '30 Evaluation Credits (15 Full Essays or 30 Outlines/Questions)',
-      'Thesis Audit + Outline-to-Body Alignment Check',
-      '3-Tier PEEL Paragraph Rewrites & Micro-Lessons',
-      'Cloud Evaluation History & Printable PDF Dossier'
+      '500 Token-Synced Credits (1.25M Weighted Compute Tokens)',
+      '~20–25 Full Essays, ~55 Subjective Answers, or ~110 Outlines',
+      'Exact Token Metering (Pay Less for Shorter Scripts)',
+      '3-Tier PEEL Paragraph Rewrites & Cloud History'
     ]
   },
   {
@@ -82,13 +82,13 @@ export const SUBSCRIPTION_PLANS = [
     name: 'CSS Allocation Pro',
     pricePKR: 'PKR 3,500',
     period: '/ exam pass',
-    credits: 100,
+    credits: 1500,
     badge: 'Best Value',
     features: [
-      '100 Evaluation Credits (50 Full Essays or 100 Outlines/Questions)',
+      '1,500 Token-Synced Credits (3.75M Weighted Compute Tokens)',
+      '~65+ Full Essays or ~160+ Subjective Answers / Outlines',
       'All 47 Official FPSC Compulsory & Optional Subjects',
-      'Priority Gemini 3.8 Flash Diagnostic Engine',
-      'Unlimited Cloud History & Printable PDF Dossiers'
+      'Priority Gemini 3.8 Flash Engine & PDF Dossiers'
     ]
   }
 ];
@@ -141,8 +141,17 @@ export const ensureUserProfile = async (firebaseUser, customName = '') => {
     if (snap.exists()) {
       const existing = snap.data();
       if (isAdmin && existing.role !== 'admin') {
-        await updateDoc(userRef, { role: 'admin', tier: 'pro', credits: 9999 });
-        return { ...existing, role: 'admin', tier: 'pro', credits: 9999 };
+        await updateDoc(userRef, { role: 'admin', tier: 'pro', credits: 99999, creditScaleVersion: 2 });
+        return { ...existing, role: 'admin', tier: 'pro', credits: 99999, creditScaleVersion: 2 };
+      }
+      // Auto-migrate v1 flat-credit balances (2/30/100) to v2 Token-Synced Micro-Credits (30/500/1500)
+      if (!existing.creditScaleVersion || existing.creditScaleVersion < 2) {
+        const migratedCredits = isAdmin ? 99999 : Math.max(0, Math.round((Number(existing.credits) || 0) * 15));
+        await updateDoc(userRef, {
+          credits: migratedCredits,
+          creditScaleVersion: 2
+        });
+        return { ...existing, credits: migratedCredits, creditScaleVersion: 2 };
       }
       return existing;
     }
@@ -154,8 +163,11 @@ export const ensureUserProfile = async (firebaseUser, customName = '') => {
       photoURL: firebaseUser.photoURL || '',
       role: isAdmin ? 'admin' : 'candidate',
       tier: isAdmin ? 'pro' : 'free',
-      credits: isAdmin ? 9999 : 2,
+      credits: isAdmin ? 99999 : 30,
+      creditScaleVersion: 2,
       evaluationsCount: 0,
+      totalTokensConsumed: 0,
+      totalCreditsUsed: 0,
       createdAt: new Date().toISOString()
     };
 
@@ -169,31 +181,57 @@ export const ensureUserProfile = async (firebaseUser, customName = '') => {
       displayName: customName || firebaseUser.displayName || 'CSS Aspirant',
       role: isAdmin ? 'admin' : 'candidate',
       tier: isAdmin ? 'pro' : 'free',
-      credits: isAdmin ? 9999 : 2,
+      credits: isAdmin ? 99999 : 30,
+      creditScaleVersion: 2,
       evaluationsCount: 0
     };
   }
 };
 
-export const deductUserCredits = async (uid, creditCost = 1) => {
+export const deductUserCredits = async (uid, creditCost = 4, tokenUsage = null) => {
   if (!uid) return null;
   const userRef = doc(db, 'users', uid);
   const snap = await getDoc(userRef);
   if (!snap.exists()) return null;
 
   const data = snap.data();
-  if (data.role === 'admin') return data;
+  const nextCount = (Number(data.evaluationsCount) || 0) + 1;
+  const addedTokens = Number(tokenUsage?.totalTokens || 0);
+  const nextTotalTokens = (Number(data.totalTokensConsumed) || 0) + addedTokens;
+  const nextTotalCreditsUsed = (Number(data.totalCreditsUsed) || 0) + Number(creditCost || 0);
+
+  if (data.role === 'admin') {
+    await updateDoc(userRef, {
+      evaluationsCount: nextCount,
+      totalTokensConsumed: nextTotalTokens,
+      totalCreditsUsed: nextTotalCreditsUsed,
+      lastEvaluatedAt: new Date().toISOString()
+    });
+    return {
+      ...data,
+      evaluationsCount: nextCount,
+      totalTokensConsumed: nextTotalTokens,
+      totalCreditsUsed: nextTotalCreditsUsed
+    };
+  }
 
   const nextCredits = Math.max(0, (Number(data.credits) || 0) - creditCost);
-  const nextCount = (Number(data.evaluationsCount) || 0) + 1;
 
   await updateDoc(userRef, {
     credits: nextCredits,
     evaluationsCount: nextCount,
+    totalTokensConsumed: nextTotalTokens,
+    totalCreditsUsed: nextTotalCreditsUsed,
     lastEvaluatedAt: new Date().toISOString()
   });
 
-  return { ...data, credits: nextCredits, evaluationsCount: nextCount };
+  return {
+    ...data,
+    credits: nextCredits,
+    evaluationsCount: nextCount,
+    totalTokensConsumed: nextTotalTokens,
+    totalCreditsUsed: nextTotalCreditsUsed
+  };
 };
 
 // ─────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import { SearchableSubjectSelect } from './SearchableSubjectSelect';
+import { estimateCreditsPreFlight } from '../services/geminiApi';
 
 /**
  * Compresses & resizes high-resolution phone camera photos on the client side
@@ -89,6 +90,15 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
 
   const subjLower = (selectedSubject || '').toLowerCase();
   const isEssay = subjLower.includes('essay');
+
+  const typedWordCount = essayText.trim() ? essayText.trim().split(/\s+/).length : 0;
+  const preFlightEstimate = estimateCreditsPreFlight({
+    isEssay,
+    essayMode: isEssay ? essayMode : 'full',
+    activeTab,
+    imageCount: imagePreviews.length,
+    wordCount: typedWordCount
+  });
 
   const isReadyToSubmit =
     !isEvaluating &&
@@ -344,7 +354,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                       transition: 'all 0.12s ease'
                     }}
                   >
-                    Full Essay (2 Credits)
+                    Full Essay (~18–28 Credits)
                   </button>
                   <button
                     type="button"
@@ -363,7 +373,7 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
                       transition: 'all 0.12s ease'
                     }}
                   >
-                    Outline & Thesis Only (1 Credit)
+                    Outline & Thesis Only (~4 Credits)
                   </button>
                 </div>
               </div>
@@ -776,12 +786,11 @@ export const UploadModal = ({ isOpen, onClose, onSubmit, isEvaluating, activeSub
               marginTop: '1.1rem'
             }}
           >
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {isEssay
-                ? essayMode === 'outline_only'
-                  ? 'Essay Outline Audit (1 Credit)'
-                  : 'Full Essay Diagnostic (2 Credits)'
-                : '20-Mark Question (1 Credit)'}
+            <span
+              style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+              title="Exact credits are metered after completion based on actual Gemini input + 3.5× output tokens consumed."
+            >
+              Est. ~{preFlightEstimate.estimatedCredits} Credits (Token-Synced)
             </span>
 
             <div style={{ display: 'flex', gap: '0.5rem' }}>

@@ -7,7 +7,7 @@ import { AlertModal } from './components/AlertModal';
 import { AuthModal } from './components/AuthModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { AdminModal } from './components/AdminModal';
-import { getGroundingUsage, getStoredApiKey, getStoredModel } from './services/geminiApi';
+import { getGroundingUsage, getStoredApiKey, getStoredModel, estimateCreditsPreFlight } from './services/geminiApi';
 import { executeEvaluationPipeline } from './services/evaluationPipeline';
 import {
   subscribeToAuthChanges,
@@ -213,7 +213,14 @@ export default function App() {
     const effectiveSubject = submissionData?.subject || activeSubject;
     const essayMode = submissionData?.essayMode || 'full';
     const isEssay = effectiveSubject.toLowerCase().includes('essay');
-    const creditCost = isEssay && essayMode !== 'outline_only' ? 2 : 1;
+    const typedWords = submissionData?.text ? submissionData.text.trim().split(/\s+/).length : 0;
+    const preFlight = estimateCreditsPreFlight({
+      isEssay,
+      essayMode,
+      activeTab: submissionData?.mode === 'digital' ? 'text' : 'image',
+      imageCount: submissionData?.imageArray?.length || 0,
+      wordCount: typedWords
+    });
 
     // 1. Check if user has a personal BYOK key configured in local Settings
     let activeApiKey = getStoredApiKey();
@@ -231,7 +238,7 @@ export default function App() {
       const isAdmin = userProfile?.role === 'admin';
       const availableCredits = Number(userProfile?.credits ?? 0);
 
-      if (!isAdmin && availableCredits < creditCost) {
+      if (!isAdmin && availableCredits < preFlight.minRequiredCredits) {
         setUploadOpen(false);
         setSubscriptionOpen(true);
         return;
@@ -291,14 +298,22 @@ export default function App() {
         return nextHistory;
       });
 
-      // Cloud Sync & Atomic Credit Deduction
+      // Cloud Sync & Exact Token-Synced Credit Deduction
       if (user) {
         await saveEvaluationToFirestore(user.uid, result);
+        const actualCredits =
+          result.creditsConsumed ||
+          result.tokenUsage?.creditsConsumed ||
+          preFlight.estimatedCredits;
+
         if (usingPlatformCredits || userProfile?.role !== 'admin') {
-          const updatedProfile = await deductUserCredits(user.uid, creditCost);
+          const updatedProfile = await deductUserCredits(user.uid, actualCredits, result.tokenUsage);
           if (updatedProfile) {
             setUserProfile(updatedProfile);
           }
+        } else {
+          // Even for Admin, record token telemetry on profile
+          await deductUserCredits(user.uid, actualCredits, result.tokenUsage);
         }
       }
 

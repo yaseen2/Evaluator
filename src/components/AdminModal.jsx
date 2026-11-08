@@ -408,26 +408,26 @@ export const AdminModal = ({ isOpen, onClose }) => {
                 <button
                   className="btn-minimal"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(10, 'aspirant', 'Starter Pack (10 Credits)')}
+                  onClick={() => handleGenerateVoucher(100, 'aspirant', 'Starter Pack (100 Credits)')}
                 >
                   <Plus size={13} color="var(--accent-blue)" />
-                  <span>+10 Credits Code</span>
+                  <span>+100 Credits Code</span>
                 </button>
                 <button
                   className="btn-accent"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(30, 'aspirant', 'CSS Aspirant Monthly (30 Credits)')}
+                  onClick={() => handleGenerateVoucher(500, 'aspirant', 'CSS Aspirant Monthly (500 Credits)')}
                 >
                   <Plus size={13} />
-                  <span>+30 Credits (PKR 1,500)</span>
+                  <span>+500 Credits (PKR 1,500)</span>
                 </button>
                 <button
                   className="btn-accent"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(100, 'pro', 'CSS Allocation Pro (100 Credits)')}
+                  onClick={() => handleGenerateVoucher(1500, 'pro', 'CSS Allocation Pro (1,500 Credits)')}
                 >
                   <Plus size={13} />
-                  <span>+100 Credits (PKR 3,500)</span>
+                  <span>+1,500 Credits (PKR 3,500)</span>
                 </button>
                 <button className="btn-minimal" onClick={loadData} title="Refresh">
                   <RefreshCw size={13} />
@@ -538,7 +538,9 @@ export const AdminModal = ({ isOpen, onClose }) => {
                           </span>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {c.email} • Papers Evaluated: <strong>{c.evaluationsCount || 0}</strong> • Balance: <strong style={{ color: 'var(--pass-green)' }}>{c.role === 'admin' ? '∞' : c.credits} Credits</strong>
+                          {c.email} • Papers: <strong>{c.evaluationsCount || 0}</strong>
+                          {c.totalTokensConsumed ? ` • Tokens: ${(c.totalTokensConsumed / 1000).toFixed(1)}k` : ''} • Balance:{' '}
+                          <strong style={{ color: 'var(--pass-green)' }}>{c.role === 'admin' ? '∞' : c.credits} Credits</strong>
                         </div>
                       </div>
 
@@ -552,18 +554,18 @@ export const AdminModal = ({ isOpen, onClose }) => {
                           <button
                             className="btn-minimal"
                             disabled={loading}
-                            onClick={() => handleDirectGrant(c.uid, 30, 'aspirant')}
+                            onClick={() => handleDirectGrant(c.uid, 500, 'aspirant')}
                             style={{ padding: '4px 8px', fontSize: '0.7rem' }}
                           >
-                            +30 Credits
+                            +500 Credits
                           </button>
                           <button
                             className="btn-accent"
                             disabled={loading}
-                            onClick={() => handleDirectGrant(c.uid, 100, 'pro')}
+                            onClick={() => handleDirectGrant(c.uid, 1500, 'pro')}
                             style={{ padding: '4px 8px', fontSize: '0.7rem' }}
                           >
-                            +100 Pro
+                            +1,500 Pro
                           </button>
                         </div>
                       )}

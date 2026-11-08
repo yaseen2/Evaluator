@@ -94,7 +94,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
         >
           <Sparkles size={15} style={{ flexShrink: 0 }} />
           <span>
-            <strong>New Candidate Bonus:</strong> Get <strong>2 Free Paper Evaluation Credits</strong> immediately upon sign-up!
+            <strong>New Candidate Bonus:</strong> Get <strong>30 Free Token-Synced Credits</strong> immediately upon sign-up!
           </span>
         </div>
 

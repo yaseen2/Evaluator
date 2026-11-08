@@ -14,7 +14,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && (
-        isAdmin() || (request.resource.data.credits <= 2 && request.resource.data.tier == 'free')
+        isAdmin() || (request.resource.data.credits <= 30 && request.resource.data.tier == 'free')
       );
       allow update: if isOwner(userId) || isAdmin();
     }

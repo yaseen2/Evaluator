@@ -254,7 +254,112 @@ const safeParseJSON = (rawText) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// CORE LLM CALLER WITH AUTOMATIC MODEL FAILOVER
+// TOKEN-SYNCED MICRO-CREDIT METERING ENGINE (Option A: 1 Credit = 2,500 Weighted Tokens)
+// ─────────────────────────────────────────────────────────────
+
+export const WEIGHTED_TOKENS_PER_CREDIT = 2500;
+export const OUTPUT_TOKEN_MULTIPLIER = 3.5;
+
+/**
+ * Creates a thread-safe per-evaluation token accumulator that tracks exact Gemini usageMetadata
+ * across Vision OCR and all parallel diagnostic agents, while ignoring failed failover attempts.
+ */
+export const createTokenLedger = () => {
+  const stages = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalThinkingTokens = 0;
+  let totalRawTokens = 0;
+
+  return {
+    recordStage(stageName, modelName, usage = {}) {
+      const inputTokens = Math.max(0, Number(usage.inputTokens || 0));
+      const outputTokens = Math.max(0, Number(usage.outputTokens || 0));
+      const thinkingTokens = Math.max(0, Number(usage.thinkingTokens || 0));
+      const rawTokens = Math.max(0, Number(usage.totalTokens || inputTokens + outputTokens + thinkingTokens));
+      const stageWeighted = Math.round(inputTokens + OUTPUT_TOKEN_MULTIPLIER * (outputTokens + thinkingTokens));
+
+      totalInputTokens += inputTokens;
+      totalOutputTokens += outputTokens;
+      totalThinkingTokens += thinkingTokens;
+      totalRawTokens += rawTokens;
+
+      stages.push({
+        stage: stageName,
+        model: getModelDisplayName(modelName),
+        inputTokens,
+        outputTokens,
+        thinkingTokens,
+        totalTokens: rawTokens,
+        weightedTokens: stageWeighted
+      });
+    },
+
+    finalize() {
+      const weightedTokens = Math.round(
+        totalInputTokens + OUTPUT_TOKEN_MULTIPLIER * (totalOutputTokens + totalThinkingTokens)
+      );
+      const creditsConsumed = Math.max(2, Math.min(60, Math.ceil(weightedTokens / WEIGHTED_TOKENS_PER_CREDIT)));
+
+      return {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        thinkingTokens: totalThinkingTokens,
+        totalTokens: totalRawTokens,
+        weightedTokens,
+        creditsConsumed,
+        weightedTokensPerCredit: WEIGHTED_TOKENS_PER_CREDIT,
+        outputMultiplier: OUTPUT_TOKEN_MULTIPLIER,
+        stages
+      };
+    }
+  };
+};
+
+/**
+ * Pre-flight token & credit estimator used in UploadModal and App.jsx before running the pipeline.
+ */
+export const estimateCreditsPreFlight = ({
+  isEssay = false,
+  essayMode = 'full',
+  activeTab = 'image',
+  imageCount = 0,
+  wordCount = 0
+}) => {
+  const pages = activeTab === 'image' ? Math.max(1, Number(imageCount || 0)) : 0;
+  const words = activeTab === 'text' ? Math.max(0, Number(wordCount || 0)) : 0;
+
+  let estimatedWeightedTokens = 0;
+  let minRequiredCredits = 3;
+
+  if (isEssay && essayMode === 'outline_only') {
+    // 1-2 call Outline & Thesis pipeline
+    estimatedWeightedTokens = 9500 + pages * 3200 + Math.max(0, words - 200) * 10;
+    minRequiredCredits = pages > 0 ? 4 + pages : 4;
+  } else if (isEssay) {
+    // 3-4 call Anatomical Essay DAG
+    estimatedWeightedTokens = 44000 + pages * 4200 + Math.max(0, words - 1200) * 14;
+    minRequiredCredits = pages > 0 ? 18 + pages : 18;
+  } else {
+    // 20-Mark Subjective / Precis 6-agent pipeline
+    estimatedWeightedTokens = 21000 + pages * 3500 + Math.max(0, words - 450) * 12;
+    minRequiredCredits = pages > 0 ? 9 + pages : 9;
+  }
+
+  const estimatedCredits = Math.max(
+    minRequiredCredits,
+    Math.min(60, Math.ceil(estimatedWeightedTokens / WEIGHTED_TOKENS_PER_CREDIT))
+  );
+
+  return {
+    estimatedCredits,
+    minRequiredCredits,
+    estimatedWeightedTokens
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// CORE LLM CALLER WITH AUTOMATIC MODEL FAILOVER & USAGE TELEMETRY
 // ─────────────────────────────────────────────────────────────
 
 const callSingleAgent = async ({ prompt, apiKey, modelName, imageArray, text, maxTokens = 4096, temperature = 0.2 }) => {
@@ -311,15 +416,57 @@ const callSingleAgent = async ({ prompt, apiKey, modelName, imageArray, text, ma
     throw new Error('Agent returned empty response');
   }
 
-  return safeParseJSON(rawText);
+  const parsed = safeParseJSON(rawText);
+
+  const meta = data.usageMetadata || {};
+  const fallbackInput =
+    Math.ceil(((prompt?.length || 0) + (text?.length || 0)) / 4) +
+    (imageArray && imageArray.length > 0 ? imageArray.length * 258 : 0);
+  const fallbackOutput = Math.ceil((rawText?.length || 0) / 4);
+
+  const inputTokens = Number(meta.promptTokenCount) || fallbackInput;
+  const outputTokens = Number(meta.candidatesTokenCount) || fallbackOutput;
+  const thinkingTokens = Number(meta.thoughtsTokenCount) || 0;
+  const totalTokens = Number(meta.totalTokenCount) || inputTokens + outputTokens + thinkingTokens;
+
+  return {
+    parsed,
+    usage: {
+      inputTokens,
+      outputTokens,
+      thinkingTokens,
+      totalTokens
+    }
+  };
 };
 
-const callAgentWithFailover = async ({ prompt, apiKey, candidateList, imageArray, text, maxTokens, temperature }) => {
+const callAgentWithFailover = async ({
+  prompt,
+  apiKey,
+  candidateList,
+  imageArray,
+  text,
+  maxTokens,
+  temperature,
+  stageName = 'Diagnostic Agent',
+  ledger = null
+}) => {
   let lastError = null;
   for (const modelName of candidateList) {
     try {
-      const result = await callSingleAgent({ prompt, apiKey, modelName, imageArray, text, maxTokens, temperature });
-      return { result, modelName };
+      const { parsed, usage } = await callSingleAgent({
+        prompt,
+        apiKey,
+        modelName,
+        imageArray,
+        text,
+        maxTokens,
+        temperature
+      });
+      if (ledger) {
+        ledger.recordStage(stageName, modelName, usage);
+      }
+      return { result: parsed, modelName, usage };
     } catch (err) {
       console.warn(`[FPSC Engine] Agent failed on ${modelName}:`, err.message);
       lastError = err;
@@ -1015,6 +1162,7 @@ export const executeMultiAgentPipeline = async ({
 
   let resolvedModelName = candidateList[0];
   let apiCallsCount = 0;
+  const ledger = createTokenLedger();
 
   // ═══════════════════════════════════════════════════════════
   // STEP 1: Single-Pass Vision OCR / Script Ingestion
@@ -1045,7 +1193,9 @@ export const executeMultiAgentPipeline = async ({
       imageArray,
       text,
       maxTokens: 8192,
-      temperature: 0.1
+      temperature: 0.1,
+      stageName: 'Vision OCR & Digitizer',
+      ledger
     });
     apiCallsCount++;
     resolvedModelName = modelName;
@@ -1087,7 +1237,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 6144,
-      temperature: 0.2
+      temperature: 0.2,
+      stageName: 'FPSC Outline & Thesis Mentor',
+      ledger
     });
     apiCallsCount++;
     resolvedModelName = modelName;
@@ -1115,11 +1267,12 @@ export const executeMultiAgentPipeline = async ({
     }
 
     const modelDisplayName = getModelDisplayName(resolvedModelName);
+    const tokenUsage = ledger.finalize();
 
     onAgentComplete?.({
       agentId: 'merge',
       agentName: 'Outline Diagnostic Complete',
-      detail: outlineResult.overallReadiness || 'FPSC Outline Audit Ready',
+      detail: `${outlineResult.overallReadiness || 'FPSC Outline Audit Ready'} (${tokenUsage.creditsConsumed} Credits • ${(tokenUsage.totalTokens / 1000).toFixed(1)}k tokens)`,
       percent: 100,
       phase: 'complete'
     });
@@ -1156,7 +1309,9 @@ export const executeMultiAgentPipeline = async ({
       introWordCount: totalWords,
       targetIntroWords: profile.targetIntroWords,
       evaluatedModelId: resolvedModelName,
-      evaluatedModelName: modelDisplayName
+      evaluatedModelName: modelDisplayName,
+      tokenUsage,
+      creditsConsumed: tokenUsage.creditsConsumed
     };
   }
 
@@ -1183,7 +1338,9 @@ export const executeMultiAgentPipeline = async ({
         apiKey: effectiveKey,
         candidateList,
         maxTokens: 4096,
-        temperature: 0.2
+        temperature: 0.2,
+        stageName: 'Macro-Structure & Thesis Audit',
+        ledger
       }).then(({ result }) => {
         apiCallsCount++;
         onAgentComplete?.({
@@ -1202,7 +1359,9 @@ export const executeMultiAgentPipeline = async ({
         apiKey: effectiveKey,
         candidateList,
         maxTokens: 5120,
-        temperature: 0.25
+        temperature: 0.25,
+        stageName: 'PEEL Paragraph & Rewrites Coach',
+        ledger
       }).then(({ result }) => {
         apiCallsCount++;
         onAgentComplete?.({
@@ -1221,7 +1380,9 @@ export const executeMultiAgentPipeline = async ({
         apiKey: effectiveKey,
         candidateList,
         maxTokens: 6144,
-        temperature: 0.2
+        temperature: 0.2,
+        stageName: 'Pedagogical Micro-Lesson Highlighter',
+        ledger
       }).then(({ result }) => {
         apiCallsCount++;
         onAgentComplete?.({
@@ -1272,11 +1433,12 @@ export const executeMultiAgentPipeline = async ({
 
     const overallReadiness = macroResult.overallReadiness || 'Balanced Draft — Needs Structural Polish';
     const modelDisplayName = getModelDisplayName(resolvedModelName);
+    const tokenUsage = ledger.finalize();
 
     onAgentComplete?.({
       agentId: 'merge',
       agentName: 'Essay Diagnostic Complete',
-      detail: overallReadiness,
+      detail: `${overallReadiness} (${tokenUsage.creditsConsumed} Credits • ${(tokenUsage.totalTokens / 1000).toFixed(1)}k tokens)`,
       percent: 100,
       phase: 'complete'
     });
@@ -1313,7 +1475,9 @@ export const executeMultiAgentPipeline = async ({
       introWordCount: introWords,
       targetIntroWords: profile.targetIntroWords,
       evaluatedModelId: resolvedModelName,
-      evaluatedModelName: modelDisplayName
+      evaluatedModelName: modelDisplayName,
+      tokenUsage,
+      creditsConsumed: tokenUsage.creditsConsumed
     };
   }
 
@@ -1343,7 +1507,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 1024,
-      temperature: 0.15
+      temperature: 0.15,
+      stageName: 'Directive & Scope Auditor',
+      ledger
     });
     apiCallsCount++;
     resolvedModelName = modelName;
@@ -1370,7 +1536,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 4096,
-      temperature: 0.15
+      temperature: 0.15,
+      stageName: 'Empirical & Fact Verifier',
+      ledger
     }).then(({ result }) => {
       apiCallsCount++;
       onAgentComplete?.({
@@ -1388,7 +1556,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 4096,
-      temperature: 0.25
+      temperature: 0.25,
+      stageName: 'Structural Causality & FPSC Scorer',
+      ledger
     }).then(({ result }) => {
       apiCallsCount++;
       onAgentComplete?.({
@@ -1406,7 +1576,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 4096,
-      temperature: 0.25
+      temperature: 0.25,
+      stageName: 'Visual Architect & Topper Rewriter',
+      ledger
     }).then(({ result }) => {
       apiCallsCount++;
       onAgentComplete?.({
@@ -1424,7 +1596,9 @@ export const executeMultiAgentPipeline = async ({
       apiKey: effectiveKey,
       candidateList,
       maxTokens: 6144,
-      temperature: 0.2
+      temperature: 0.2,
+      stageName: 'Pedagogical Micro-Lesson Highlighter',
+      ledger
     }).then(({ result }) => {
       apiCallsCount++;
       onAgentComplete?.({
@@ -1494,11 +1668,12 @@ export const executeMultiAgentPipeline = async ({
   else gradeBand = `Below FPSC Passing Threshold (<${profile.passingScore}/${maxScore})`;
 
   const modelDisplayName = getModelDisplayName(resolvedModelName);
+  const tokenUsage = ledger.finalize();
 
   onAgentComplete?.({
     agentId: 'merge',
     agentName: 'Evaluation Complete',
-    detail: `Scored ${overallScore}/${maxScore} (${gradeBand})`,
+    detail: `Scored ${overallScore}/${maxScore} (${tokenUsage.creditsConsumed} Credits • ${(tokenUsage.totalTokens / 1000).toFixed(1)}k tokens)`,
     percent: 100,
     phase: 'complete'
   });
@@ -1530,6 +1705,8 @@ export const executeMultiAgentPipeline = async ({
     introWordCount: introWords,
     targetIntroWords: profile.targetIntroWords,
     evaluatedModelId: resolvedModelName,
-    evaluatedModelName: modelDisplayName
+    evaluatedModelName: modelDisplayName,
+    tokenUsage,
+    creditsConsumed: tokenUsage.creditsConsumed
   };
 };

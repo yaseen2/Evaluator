@@ -246,7 +246,7 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
               )}
             </div>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-              1 Credit = Essay Outline or 20-Mark Question • 2 Credits = Full 100-Mark English Essay
+              Token-Synced Metering (1 Credit = 2,500 Weighted Tokens) • ~4 Credits/Outline • ~9 Credits/20m Answer • ~18–28 Credits/Essay
             </p>
           </div>
           <button
@@ -329,7 +329,7 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
                       }}
                       style={{ width: '100%', justifyContent: 'center', padding: '7px' }}
                     >
-                      {user ? (isCurrentTier ? 'Active Starter Plan' : 'Included') : 'Sign Up for 2 Free Credits'}
+                      {user ? (isCurrentTier ? 'Active Starter Plan' : 'Included') : 'Sign Up for 30 Free Credits'}
                     </button>
                   ) : (
                     <button
