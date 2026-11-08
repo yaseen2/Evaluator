@@ -92,8 +92,11 @@ export default function App() {
   });
 
   const [themeMode, setThemeMode] = useState(() => {
-    return localStorage.getItem('css_eval_theme') || 'dark';
+    return localStorage.getItem('css_eval_theme') || 'light';
   });
+
+  // SuperKalam Workspace Navigation View: 'hub' (Evaluate Answer & My Evaluations Hub) | 'report' (Detailed Studio)
+  const [activeView, setActiveView] = useState('report');
 
   // Listen to Firebase Auth & Sync Cloud History
   useEffect(() => {
@@ -186,6 +189,7 @@ export default function App() {
     } else {
       setCurrentSubmissionImages([]);
     }
+    setActiveView('report');
   };
 
   const handleDeleteHistoryItem = async (idToDelete) => {
@@ -292,6 +296,7 @@ export default function App() {
       });
 
       setEvaluation(result);
+      setActiveView('report');
       setEvaluationHistory((prev) => {
         const nextHistory = [result, ...prev.filter((item) => item.id !== result.id)];
         persistHistorySafely(nextHistory);
@@ -333,6 +338,8 @@ export default function App() {
   return (
     <div className="app-container">
       <Navbar
+        activeView={activeView}
+        setActiveView={setActiveView}
         activeSubject={activeSubject}
         setActiveSubject={setActiveSubject}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -352,14 +359,25 @@ export default function App() {
       />
 
       <EvaluationStudio
+        activeView={activeView}
+        setActiveView={setActiveView}
         evaluation={evaluation}
         activeSubject={activeSubject}
+        setActiveSubject={setActiveSubject}
         mode={mode}
         setMode={setMode}
         isEvaluating={isEvaluating}
         pipelineProgress={pipelineProgress}
         submissionImages={currentSubmissionImages}
+        evaluationHistory={evaluationHistory}
+        onSelectEvaluation={handleSelectHistoryItem}
+        onDeleteEvaluation={handleDeleteHistoryItem}
+        onSubmitEvaluation={handleRunEvaluation}
+        user={user}
+        userProfile={userProfile}
         onOpenUpload={() => setUploadOpen(true)}
+        onOpenAuth={() => setAuthOpen(true)}
+        onOpenSubscription={() => setSubscriptionOpen(true)}
       />
 
       <SettingsModal

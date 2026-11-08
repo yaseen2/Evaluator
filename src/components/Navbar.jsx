@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 
 export const Navbar = ({
+  activeView = 'report',
+  setActiveView,
   onOpenSettings,
   onOpenUpload,
   onOpenAuth,
@@ -52,26 +54,108 @@ export const Navbar = ({
 
   return (
     <nav className="navbar">
-      {/* Brand Title & Badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span className="brand-title">FPSC Evaluator</span>
+      {/* Left: Brand Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          onClick={() => setActiveView && setActiveView('hub')}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          title="Go to Answer Evaluation Hub"
+        >
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #257af3 0%, #1557bf 100%)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '0.85rem',
+              boxShadow: '0 2px 8px rgba(37, 122, 243, 0.3)'
+            }}
+          >
+            K
+          </div>
+          <span className="brand-title" style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            FPSC Kalam
+          </span>
+        </div>
         <span
           className="desktop-only-btn"
           style={{
-            fontSize: '0.65rem',
+            fontSize: '0.62rem',
             fontFamily: 'var(--font-mono)',
-            fontWeight: 600,
+            fontWeight: 700,
             color: 'var(--accent-blue)',
-            background: 'rgba(56, 189, 248, 0.1)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            padding: '1px 7px',
-            borderRadius: '10px'
+            background: 'var(--accent-blue-soft)',
+            border: '1px solid rgba(37, 122, 243, 0.25)',
+            padding: '2px 8px',
+            borderRadius: '9999px'
           }}
         >
-          CSS/PMS Cloud v3.0
+          AI Mains Evaluation
         </span>
       </div>
 
+      {/* Center: SuperKalam 2-Pill Workspace Switcher */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'var(--bg-app)',
+          border: '1px solid var(--border)',
+          borderRadius: '9999px',
+          padding: '3px'
+        }}
+      >
+        <button
+          onClick={() => setActiveView && setActiveView('hub')}
+          style={{
+            border: 'none',
+            background: activeView === 'hub' ? '#ffffff' : 'transparent',
+            color: activeView === 'hub' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            fontWeight: activeView === 'hub' ? 700 : 500,
+            fontSize: '0.78rem',
+            padding: '5px 14px',
+            borderRadius: '9999px',
+            boxShadow: activeView === 'hub' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <span>✍️</span>
+          <span>Evaluate Answer</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView && setActiveView('report')}
+          style={{
+            border: 'none',
+            background: activeView === 'report' ? '#ffffff' : 'transparent',
+            color: activeView === 'report' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            fontWeight: activeView === 'report' ? 700 : 500,
+            fontSize: '0.78rem',
+            padding: '5px 14px',
+            borderRadius: '9999px',
+            boxShadow: activeView === 'report' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <span>📊</span>
+          <span>Evaluation Report</span>
+        </button>
+      </div>
+
+      {/* Right Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {/* Admin Portal Button (Visible ONLY to Admin yaseenwazir953@gmail.com) */}
         {isAdmin && (
@@ -378,9 +462,17 @@ export const Navbar = ({
         )}
 
         {/* Primary Evaluation CTA */}
-        <button className="btn-accent" onClick={onOpenUpload} disabled={isEvaluating}>
+        <button
+          className="btn-superkalam-primary"
+          onClick={() => {
+            if (setActiveView) setActiveView('hub');
+            else onOpenUpload?.();
+          }}
+          disabled={isEvaluating}
+          style={{ padding: '6px 14px', fontSize: '0.78rem' }}
+        >
           {isEvaluating ? <RefreshCw size={13} className="spin" /> : <Upload size={13} />}
-          <span>{isEvaluating ? 'Evaluating...' : 'Evaluate Paper'}</span>
+          <span>{isEvaluating ? 'Evaluating...' : '+ New Evaluation'}</span>
         </button>
       </div>
     </nav>

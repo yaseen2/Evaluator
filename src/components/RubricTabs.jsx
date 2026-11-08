@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Compass, FileText, CheckCircle2, MessageSquare, ShieldAlert, BookOpen } from 'lucide-react';
+import {
+  AlertTriangle,
+  Compass,
+  FileText,
+  CheckCircle2,
+  MessageSquare,
+  ShieldAlert,
+  BookOpen,
+  Sparkles,
+  Lightbulb,
+  XCircle
+} from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
 
@@ -53,67 +64,65 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
   };
 
   return (
-    <div>
-      {/* Subject-Specific Rubric Tabs Header */}
-      <div className="nav-tabs">
+    <div style={{ marginTop: '16px' }}>
+      {/* SuperKalam Rounded Pill Tabs */}
+      <div className="sk-tab-list">
         <button
-          className={`tab-item ${activeTab === 'callouts' ? 'active' : ''}`}
+          className={`sk-tab-pill ${activeTab === 'callouts' ? 'active' : ''}`}
           onClick={() => setActiveTab('callouts')}
         >
-          Callouts ({allAnnotations.length})
+          💡 Mistakes & Fixes ({allAnnotations.length})
         </button>
         <button
-          className={`tab-item ${activeTab === 'rewrites' ? 'active' : ''}`}
+          className={`sk-tab-pill ${activeTab === 'rewrites' ? 'active' : ''}`}
           onClick={() => setActiveTab('rewrites')}
         >
-          {profile.archetypeId === 'essay_outline'
-            ? `Header Upgrades (${totalUpgradesCount})`
-            : `Topper Rewrites (${totalUpgradesCount})`}
+          ✦ {profile.archetypeId === 'essay_outline' ? `Header Upgrades (${totalUpgradesCount})` : `Topper Rewrites (${totalUpgradesCount})`}
         </button>
         {profile.archetypeId !== 'essay_outline' && (
           <button
-            className={`tab-item ${activeTab === 'accuracy' ? 'active' : ''}`}
+            className={`sk-tab-pill ${activeTab === 'accuracy' ? 'active' : ''}`}
             onClick={() => setActiveTab('accuracy')}
           >
-            Fact Audit ({factChecks.length})
+            📌 Fact Audit ({factChecks.length})
           </button>
         )}
         <button
-          className={`tab-item ${activeTab === 'directive' ? 'active' : ''}`}
+          className={`sk-tab-pill ${activeTab === 'directive' ? 'active' : ''}`}
           onClick={() => setActiveTab('directive')}
         >
-          Scope & Rules
+          📘 Rules & Scope
         </button>
       </div>
 
-      {/* TAB 1: LINE-BY-LINE PEDAGOGICAL CALLOUT ANNOTATIONS FEED ("BEYOND RED CIRCLES") */}
+      {/* TAB 1: SUPERKALAM #mistakes-yes WARM CREAM CARDS */}
       {activeTab === 'callouts' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Quick Filter Pills */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Filter Pills */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <MessageSquare size={12} color="var(--accent-blue)" />
-              <span>Click any card to locate on script:</span>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <MessageSquare size={13} color="var(--accent-blue)" />
+              <span>Click any card to highlight on answer script:</span>
             </div>
 
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '6px' }}>
               {[
                 { id: 'all', label: `All (${allAnnotations.length})`, color: 'var(--accent-blue)' },
-                { id: 'red', label: `Errors (${redCount})`, color: 'var(--fail-red)' },
-                { id: 'amber', label: `Improve (${amberCount})`, color: 'var(--warning-amber)' },
+                { id: 'red', label: `Mistakes (${redCount})`, color: 'var(--fail-red)' },
+                { id: 'amber', label: `Polish (${amberCount})`, color: 'var(--warning-amber)' },
                 { id: 'green', label: `Strengths (${greenCount})`, color: 'var(--pass-green)' }
               ].map((f) => (
                 <button
                   key={f.id}
                   onClick={() => setCalloutFilter(f.id)}
                   style={{
-                    background: calloutFilter === f.id ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+                    background: calloutFilter === f.id ? 'var(--accent-blue-soft)' : '#ffffff',
                     border: calloutFilter === f.id ? `1px solid ${f.color}` : '1px solid var(--border)',
                     color: calloutFilter === f.id ? f.color : 'var(--text-muted)',
-                    fontSize: '0.65rem',
+                    fontSize: '0.68rem',
                     fontWeight: 600,
-                    padding: '2px 7px',
-                    borderRadius: '10px',
+                    padding: '3px 9px',
+                    borderRadius: '9999px',
                     cursor: 'pointer'
                   }}
                 >
@@ -127,90 +136,103 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             const annId = ann.id || `ann-${idx}`;
             const isSelected = selectedAnnId === annId;
             const accentColor = getTypeColor(ann.type);
+            const isMistake = ann.type === 'red' || ann.type === 'amber';
 
             return (
               <div
                 key={annId}
                 ref={(el) => (cardRefs.current[annId] = el)}
                 onClick={() => onSelectAnnId && onSelectAnnId(annId)}
+                className={isMistake ? 'sk-mistake-card' : ''}
                 style={{
-                  background: 'var(--bg-card)',
-                  border: isSelected ? `2px solid ${accentColor}` : '1px solid var(--border)',
-                  boxShadow: isSelected ? '0 0 16px rgba(56, 189, 248, 0.22)' : 'none',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
+                  background: isMistake ? 'var(--mistake-bg)' : '#ffffff',
+                  border: isSelected ? `2px solid ${accentColor}` : isMistake ? '1px solid var(--mistake-border)' : '1px solid var(--border)',
+                  boxShadow: isSelected ? '0 0 16px rgba(37, 122, 243, 0.25)' : '0 2px 8px rgba(0,0,0,0.03)',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderLeft: `4px solid ${accentColor}`
+                  transition: 'all 0.15s ease'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                {/* Header: Category + Target Phrase */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span
                     style={{
                       fontSize: '0.68rem',
                       fontWeight: 700,
                       color: accentColor,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.03em'
+                      letterSpacing: '0.04em'
                     }}
                   >
-                    {ann.category || 'Diagnostic Callout'}
+                    {ann.category || (ann.type === 'red' ? 'Grammar / Logic' : 'Stylistic Polish')}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      color: 'var(--text-muted)',
-                      fontFamily: 'var(--font-mono)',
-                      maxWidth: '55%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}
-                    title={ann.targetPhrase}
-                  >
-                    "{ann.targetPhrase}"
-                  </span>
+                  {ann.targetPhrase && (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        fontFamily: 'var(--font-mono)',
+                        maxWidth: '55%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={ann.targetPhrase}
+                    >
+                      "{ann.targetPhrase}"
+                    </span>
+                  )}
                 </div>
 
-                {/* Why Flagged */}
-                <p style={{ margin: '4px 0', fontSize: '0.78rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
-                  {ann.comment}
-                </p>
+                {/* SuperKalam Pattern: ✕ Mistake Explanation */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
+                  {ann.type === 'red' ? (
+                    <XCircle size={14} color="var(--fail-red)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  ) : ann.type === 'green' ? (
+                    <CheckCircle2 size={14} color="var(--pass-green)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  ) : (
+                    <AlertTriangle size={14} color="var(--warning-amber)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  )}
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
+                    {ann.comment}
+                  </p>
+                </div>
 
-                {/* Exact Rewritten Fix */}
+                {/* SuperKalam Pattern: 💡 Exact Rewritten Fix */}
                 {ann.suggestion && (
                   <div
                     style={{
-                      background: 'var(--bg-panel)',
+                      background: isMistake ? '#ffffff' : 'var(--bg-app)',
                       border: '1px solid var(--border)',
-                      padding: '5px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.72rem',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.76rem',
                       color: 'var(--accent-blue)',
-                      marginTop: '5px',
-                      lineHeight: 1.4
+                      marginTop: '6px',
+                      lineHeight: 1.45
                     }}
                   >
-                    💡 <strong>Fix:</strong> {ann.suggestion}
+                    💡 <strong>Correction:</strong> {ann.suggestion}
                   </div>
                 )}
 
-                {/* 1-Line Pedagogical Micro-Lesson ("Rule to Remember") */}
+                {/* SuperKalam Pattern: 📘 Rule to Remember (Pedagogical Lesson) */}
                 {ann.microLesson && (
                   <div
                     style={{
-                      marginTop: '5px',
-                      fontSize: '0.69rem',
+                      marginTop: '6px',
+                      fontSize: '0.72rem',
                       color: 'var(--text-secondary)',
                       display: 'flex',
                       alignItems: 'flex-start',
-                      gap: '5px',
-                      lineHeight: 1.38
+                      gap: '6px',
+                      lineHeight: 1.4
                     }}
                   >
-                    <BookOpen size={12} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <BookOpen size={13} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
                     <span>
-                      <strong>Rule:</strong> {ann.microLesson}
+                      <strong>Rule to Remember:</strong> {ann.microLesson}
                     </span>
                   </div>
                 )}
@@ -220,33 +242,33 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         </div>
       )}
 
-      {/* TAB 2: 3-TIER TOPPER PARAGRAPH REWRITES & OUTLINE HEADER UPGRADES */}
+      {/* TAB 2: 3-TIER TOPPER REWRITES */}
       {activeTab === 'rewrites' && (
         <ParagraphRewriter rewrites={rewrites} headerUpgrades={headerUpgrades} />
       )}
 
-      {/* TAB 3: DYNAMIC FACTUAL & CITATION AUDIT */}
+      {/* TAB 3: FACT AUDIT */}
       {activeTab === 'accuracy' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {factChecks.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Verified Claims, Dates, Citations & Empirical Audit ({factChecks.length}):
               </span>
               {factChecks.map((fc, idx) => (
-                <div key={idx} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: 'var(--radius-md)', fontSize: '0.78rem' }}>
+                <div key={idx} style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '12px 14px', borderRadius: '12px', fontSize: '0.8rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                   <div style={{ fontWeight: 600, color: fc.verified ? 'var(--pass-green)' : 'var(--fail-red)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {fc.verified ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                    {fc.verified ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
                     <span>{fc.verified ? 'Claim Verified' : 'Factual / Citation Blunder Detected'}</span>
                   </div>
-                  <div style={{ color: 'var(--text-primary)', marginBottom: '4px', lineHeight: 1.4 }}>"{fc.claim}"</div>
+                  <div style={{ color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.45 }}>"{fc.claim}"</div>
                   {fc.correctedFact && (
-                    <div style={{ color: 'var(--accent-blue)', fontSize: '0.72rem', background: 'var(--bg-panel)', padding: '5px 8px', borderRadius: '4px', border: '1px solid var(--border)', marginBottom: '4px' }}>
+                    <div style={{ color: 'var(--accent-blue)', fontSize: '0.75rem', background: 'var(--bg-app)', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '6px' }}>
                       <strong>Correction:</strong> {fc.correctedFact}
                     </div>
                   )}
                   {fc.source && (
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       📚 Source: {fc.source}
                     </div>
                   )}
@@ -254,12 +276,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               ))}
             </div>
           ) : (
-            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <CheckCircle2 size={20} color="var(--pass-green)" style={{ marginBottom: '4px' }} />
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--pass-green)' }}>
+            <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <CheckCircle2 size={24} color="var(--pass-green)" style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--pass-green)' }}>
                 No Factual Blunders Detected
               </div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
                 All verifiable claims, dates, and references in this script passed audit.
               </p>
             </div>
@@ -267,17 +289,17 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         </div>
       )}
 
-      {/* TAB 4: QUESTION DIRECTIVE, SCOPE & FPSC DEAL-BREAKERS */}
+      {/* TAB 4: RULES & SCOPE */}
       {activeTab === 'directive' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '14px', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <Compass size={16} color="var(--accent-blue)" />
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Examiner Directive & Prompt Audit
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Examiner Directive & Prompt Scope
               </span>
             </div>
-            <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               The prompt focus is <strong>"{directiveAnalysis.directiveWord || 'Analytical'}"</strong>
               {directiveAnalysis.targetTimeframe ? <> targeting <strong>"{directiveAnalysis.targetTimeframe}"</strong></> : null}.{' '}
               {directiveAnalysis.feedback}
@@ -285,14 +307,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           </div>
 
           {profile.archetypeId !== 'essay_outline' && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '14px', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <FileText size={16} color="var(--accent-blue)" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Substantive Introduction Audit (~{profile.targetIntroWords}+ Words Target)
                 </span>
               </div>
-              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
                 {breakdown.introduction?.feedback ||
                   `Ensure your introduction defines analytical scope, thesis statement, and primary themes in at least ${profile.targetIntroWords} words.`}
               </p>
@@ -300,14 +322,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           )}
 
           {dealBreakers.length > 0 && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ background: 'rgba(217, 52, 43, 0.04)', border: '1px solid rgba(217, 52, 43, 0.25)', padding: '14px', borderRadius: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <ShieldAlert size={16} color="var(--fail-red)" />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--fail-red)' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--fail-red)' }}>
                   FPSC Critical Deal-Breakers ({profile.archetypeLabel})
                 </span>
               </div>
-              <ul style={{ margin: '0 0 0 1.15rem', padding: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <ul style={{ margin: '0 0 0 1.2rem', padding: 0, fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 {dealBreakers.map((db, i) => (
                   <li key={i} style={{ marginBottom: '4px' }}>{db}</li>
                 ))}
