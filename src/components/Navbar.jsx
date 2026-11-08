@@ -57,9 +57,9 @@ export const Navbar = ({
       {/* Left: Brand Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div
-          onClick={() => setActiveView && setActiveView('hub')}
+          onClick={() => setActiveView && setActiveView('landing')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-          title="Go to Answer Evaluation Hub"
+          title="FPSC Kalam Home"
         >
           <div
             style={{
@@ -99,7 +99,7 @@ export const Navbar = ({
         </span>
       </div>
 
-      {/* Center: SuperKalam 2-Pill Workspace Switcher */}
+      {/* Center: SuperKalam Workspace Switcher */}
       <div
         style={{
           display: 'flex',
@@ -110,6 +110,28 @@ export const Navbar = ({
           padding: '3px'
         }}
       >
+        <button
+          onClick={() => setActiveView && setActiveView('landing')}
+          style={{
+            border: 'none',
+            background: activeView === 'landing' ? '#ffffff' : 'transparent',
+            color: activeView === 'landing' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            fontWeight: activeView === 'landing' ? 700 : 500,
+            fontSize: '0.78rem',
+            padding: '5px 12px',
+            borderRadius: '9999px',
+            boxShadow: activeView === 'landing' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <span>🏠</span>
+          <span className="desktop-only-btn">Home</span>
+        </button>
+
         <button
           onClick={() => setActiveView && setActiveView('hub')}
           style={{

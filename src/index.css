@@ -801,3 +801,80 @@ body {
     padding: 1.5rem !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   GOOGLE STITCH LANDING PAGE DESIGN TOKENS & ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+@keyframes camscannerSweep {
+  0% { top: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  48% { opacity: 1; }
+  50% { top: 96%; opacity: 0.8; }
+  52% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 0%; opacity: 0; }
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  40%, 100% { transform: translateX(200%); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseSubtle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.92; }
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(219, 234, 254, 0.5) 0%, rgba(254, 243, 199, 0.35) 30%, rgba(255, 255, 255, 0) 70%),
+              radial-gradient(circle at 10% 20%, rgba(240, 249, 255, 0.6) 0%, rgba(255, 255, 255, 0) 45%),
+              radial-gradient(circle at 90% 30%, rgba(254, 240, 138, 0.25) 0%, rgba(255, 255, 255, 0) 45%);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.glass-card-highlight {
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.75) 0%, rgba(255, 255, 255, 0.95) 100%);
+  border: 1.5px solid rgba(29, 110, 242, 0.45);
+  box-shadow: 0 10px 30px -8px rgba(29, 110, 242, 0.15);
+}
+
+.lined-sheet {
+  background-color: #fdfbf7;
+  background-image: 
+    linear-gradient(90deg, transparent 46px, #f43f5e 46px, #f43f5e 48px, transparent 48px),
+    linear-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 100% 100%, 100% 26px;
+  line-height: 26px;
+}
+
+.laser-line-glow {
+  box-shadow: 0 0 15px 3px rgba(56, 189, 248, 0.85), 0 0 30px 6px rgba(37, 99, 235, 0.6);
+}
+
+.animate-camscanner-sweep {
+  animation: camscannerSweep 3.5s ease-in-out infinite;
+}
+
+.animate-shine {
+  animation: shine 4s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+

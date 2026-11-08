@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { EvaluationStudio } from './components/EvaluationStudio';
+import { LandingPage } from './components/LandingPage';
 import { SettingsModal } from './components/SettingsModal';
 import { UploadModal } from './components/UploadModal';
 import { AlertModal } from './components/AlertModal';
@@ -358,27 +359,40 @@ export default function App() {
         onDeleteEvaluation={handleDeleteHistoryItem}
       />
 
-      <EvaluationStudio
-        activeView={activeView}
-        setActiveView={setActiveView}
-        evaluation={evaluation}
-        activeSubject={activeSubject}
-        setActiveSubject={setActiveSubject}
-        mode={mode}
-        setMode={setMode}
-        isEvaluating={isEvaluating}
-        pipelineProgress={pipelineProgress}
-        submissionImages={currentSubmissionImages}
-        evaluationHistory={evaluationHistory}
-        onSelectEvaluation={handleSelectHistoryItem}
-        onDeleteEvaluation={handleDeleteHistoryItem}
-        onSubmitEvaluation={handleRunEvaluation}
-        user={user}
-        userProfile={userProfile}
-        onOpenUpload={() => setUploadOpen(true)}
-        onOpenAuth={() => setAuthOpen(true)}
-        onOpenSubscription={() => setSubscriptionOpen(true)}
-      />
+      {activeView === 'landing' ? (
+        <LandingPage
+          onStartEvaluation={() => setActiveView('hub')}
+          onTrySample={(sample) => {
+            handleSelectHistoryItem(sample);
+            setActiveView('report');
+          }}
+          onOpenPricing={() => setSubscriptionOpen(true)}
+          onOpenAuth={() => setAuthOpen(true)}
+          user={user}
+        />
+      ) : (
+        <EvaluationStudio
+          activeView={activeView}
+          setActiveView={setActiveView}
+          evaluation={evaluation}
+          activeSubject={activeSubject}
+          setActiveSubject={setActiveSubject}
+          mode={mode}
+          setMode={setMode}
+          isEvaluating={isEvaluating}
+          pipelineProgress={pipelineProgress}
+          submissionImages={currentSubmissionImages}
+          evaluationHistory={evaluationHistory}
+          onSelectEvaluation={handleSelectHistoryItem}
+          onDeleteEvaluation={handleDeleteHistoryItem}
+          onSubmitEvaluation={handleRunEvaluation}
+          user={user}
+          userProfile={userProfile}
+          onOpenUpload={() => setUploadOpen(true)}
+          onOpenAuth={() => setAuthOpen(true)}
+          onOpenSubscription={() => setSubscriptionOpen(true)}
+        />
+      )}
 
       <SettingsModal
         isOpen={settingsOpen}
