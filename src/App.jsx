@@ -17,7 +17,9 @@ import {
   saveEvaluationToFirestore,
   fetchUserEvaluationsFromFirestore,
   deleteEvaluationFromFirestore,
-  getPlatformGeminiConfig
+  getPlatformGeminiConfig,
+  subscribeToUserProfile,
+  subscribeToPendingPaymentCount
 } from './services/firebase';
 
 import sampleEssayEvaluation from './data/evaluations/sample-essay-evaluation.json';
@@ -74,6 +76,7 @@ export default function App() {
   // Firebase User & Profile State
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [pendingAdminPayments, setPendingAdminPayments] = useState(0);
 
   const [groundingUsage, setGroundingUsage] = useState(getGroundingUsage());
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -118,6 +121,27 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Real-time listener on user profile (credits & tier update live when Admin approves payment)
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsubProfile = subscribeToUserProfile(user.uid, (liveProfile) => {
+      setUserProfile(liveProfile);
+    });
+    return () => unsubProfile();
+  }, [user?.uid]);
+
+  // Real-time listener on pending payments for Admin badge
+  useEffect(() => {
+    if (userProfile?.role !== 'admin') {
+      setPendingAdminPayments(0);
+      return;
+    }
+    const unsubPayments = subscribeToPendingPaymentCount((count) => {
+      setPendingAdminPayments(count);
+    });
+    return () => unsubPayments();
+  }, [userProfile?.role]);
 
   useEffect(() => {
     localStorage.setItem('css_eval_theme', themeMode);
@@ -304,6 +328,7 @@ export default function App() {
         onLogout={handleLogout}
         user={user}
         userProfile={userProfile}
+        pendingAdminPayments={pendingAdminPayments}
         isEvaluating={isEvaluating}
         evaluationHistory={evaluationHistory}
         activeEvaluationId={evaluation?.id}

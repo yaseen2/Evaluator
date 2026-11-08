@@ -12,7 +12,8 @@ import {
   Copy,
   Clock,
   Send,
-  ExternalLink
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 import {
   SUBSCRIPTION_PLANS,
@@ -34,9 +35,41 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
   const [paymentMethod, setPaymentMethod] = useState('RAAST / Bank Transfer');
   const [transactionId, setTransactionId] = useState('');
   const [senderAccount, setSenderAccount] = useState('');
+  const [receiptImageDataUrl, setReceiptImageDataUrl] = useState(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [paymentStatusMsg, setPaymentStatusMsg] = useState(null);
   const [userRequests, setUserRequests] = useState([]);
+
+  const handleReceiptUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 750;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        setReceiptImageDataUrl(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -71,8 +104,8 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
       return;
     }
 
-    if (!transactionId.trim()) {
-      setPaymentStatusMsg({ type: 'error', text: 'Please enter your Transaction ID (TID) or Reference Number.' });
+    if (!transactionId.trim() && !receiptImageDataUrl) {
+      setPaymentStatusMsg({ type: 'error', text: 'Please enter your Transaction ID (TID) or attach your payment receipt screenshot.' });
       return;
     }
 
@@ -89,14 +122,16 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
         credits: selectedPlanForPayment.credits,
         paymentMethod,
         transactionId,
-        senderAccount
+        senderAccount,
+        receiptImageDataUrl
       });
       setUserRequests((prev) => [created, ...prev]);
       setTransactionId('');
       setSenderAccount('');
+      setReceiptImageDataUrl(null);
       setPaymentStatusMsg({
         type: 'success',
-        text: `Payment TID (${created.transactionId}) submitted! Credits (+${created.credits}) will be added to your account upon verification.`
+        text: `Payment verification submitted! Credits (+${created.credits}) will be added to your account upon verification.`
       });
     } catch (err) {
       setPaymentStatusMsg({
@@ -465,15 +500,27 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <button
-                    type="submit"
-                    className="btn-accent"
-                    disabled={submittingPayment}
-                    style={{ padding: '7px 14px', fontSize: '0.76rem' }}
-                  >
-                    <Send size={13} />
-                    <span>{submittingPayment ? 'Submitting TID...' : `Submit Payment for +${selectedPlanForPayment.credits} Credits`}</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <label
+                      className="btn-minimal"
+                      style={{ cursor: 'pointer', padding: '6px 11px', fontSize: '0.73rem' }}
+                      title="Attach RAAST / JazzCash / EasyPaisa Receipt Screenshot"
+                    >
+                      <ImageIcon size={13} color={receiptImageDataUrl ? 'var(--pass-green)' : 'var(--accent-blue)'} />
+                      <span>{receiptImageDataUrl ? '✓ Receipt Screenshot Attached' : 'Attach Receipt Screenshot'}</span>
+                      <input type="file" accept="image/*" onChange={handleReceiptUpload} style={{ display: 'none' }} />
+                    </label>
+
+                    <button
+                      type="submit"
+                      className="btn-accent"
+                      disabled={submittingPayment}
+                      style={{ padding: '7px 14px', fontSize: '0.76rem' }}
+                    >
+                      <Send size={13} />
+                      <span>{submittingPayment ? 'Submitting...' : `Submit for +${selectedPlanForPayment.credits} Credits`}</span>
+                    </button>
+                  </div>
 
                   {buildWhatsAppCheckoutUrl(selectedPlanForPayment) && (
                     <a
@@ -484,7 +531,7 @@ export const SubscriptionModal = ({ isOpen, onClose, user, userProfile, onProfil
                       style={{ textDecoration: 'none', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.35)', fontSize: '0.73rem', padding: '6px 11px' }}
                     >
                       <MessageCircle size={13} />
-                      <span>Or Share Receipt on WhatsApp</span>
+                      <span>Or Share on WhatsApp</span>
                     </a>
                   )}
                 </div>

@@ -22,6 +22,7 @@ export const Navbar = ({
   onLogout,
   user,
   userProfile,
+  pendingAdminPayments = 0,
   isEvaluating,
   evaluationHistory = [],
   activeEvaluationId,
@@ -78,13 +79,27 @@ export const Navbar = ({
             className="btn-minimal"
             onClick={onOpenAdmin}
             style={{
-              borderColor: 'rgba(56, 189, 248, 0.45)',
+              borderColor: pendingAdminPayments > 0 ? 'rgba(245, 158, 11, 0.6)' : 'rgba(56, 189, 248, 0.45)',
               color: 'var(--accent-blue)'
             }}
-            title="Open SaaS Owner & Voucher Admin Portal"
+            title="Open SaaS Owner & Payment Queue Admin Portal"
           >
             <Shield size={13} color="var(--accent-blue)" />
             <span>Admin</span>
+            {pendingAdminPayments > 0 && (
+              <span
+                style={{
+                  fontSize: '0.62rem',
+                  fontWeight: 700,
+                  padding: '0 5px',
+                  borderRadius: '8px',
+                  background: 'var(--warning-amber)',
+                  color: '#fff'
+                }}
+              >
+                {pendingAdminPayments}
+              </span>
+            )}
           </button>
         )}
 

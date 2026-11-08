@@ -25,6 +25,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   runTransaction
 } from 'firebase/firestore';
 
@@ -407,11 +408,14 @@ export const submitPaymentRequest = async ({
   credits,
   paymentMethod,
   transactionId,
-  senderAccount
+  senderAccount,
+  receiptImageDataUrl
 }) => {
   if (!uid) throw new Error('Please sign in first.');
   const cleanTid = (transactionId || '').trim();
-  if (!cleanTid) throw new Error('Please enter your Transaction ID (TID) or Reference Number.');
+  if (!cleanTid && !receiptImageDataUrl) {
+    throw new Error('Please enter your Transaction ID (TID) or attach your payment receipt screenshot.');
+  }
 
   const requestId = `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const payload = {
@@ -424,8 +428,9 @@ export const submitPaymentRequest = async ({
     pricePKR: pricePKR || 'PKR 1,500',
     credits: Number(credits || 30),
     paymentMethod: paymentMethod || 'JazzCash / EasyPaisa / RAAST',
-    transactionId: cleanTid,
+    transactionId: cleanTid || 'Receipt Attached',
     senderAccount: (senderAccount || '').trim(),
+    receiptImageDataUrl: receiptImageDataUrl || null,
     status: 'pending', // 'pending' | 'approved' | 'rejected'
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -433,6 +438,35 @@ export const submitPaymentRequest = async ({
 
   await setDoc(doc(db, 'payment_requests', requestId), payload);
   return payload;
+};
+
+export const subscribeToUserProfile = (uid, callback) => {
+  if (!uid) return () => {};
+  const userRef = doc(db, 'users', uid);
+  return onSnapshot(
+    userRef,
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data());
+      }
+    },
+    () => {
+      // ignore snapshot permission error on sign-out
+    }
+  );
+};
+
+export const subscribeToPendingPaymentCount = (callback) => {
+  const q = query(collection(db, 'payment_requests'), where('status', '==', 'pending'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.size);
+    },
+    () => {
+      callback(0);
+    }
+  );
 };
 
 export const fetchUserPaymentRequests = async (uid) => {

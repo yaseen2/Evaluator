@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Copy, Check, Shield, Key, RefreshCw, Users, CreditCard, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { X, Plus, Copy, Check, Shield, Key, RefreshCw, Users, CreditCard, CheckCircle2, XCircle, Image as ImageIcon } from 'lucide-react';
 import {
   createSubscriptionVoucher,
   fetchAllVouchers,
@@ -24,6 +24,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
   const [copiedCode, setCopiedCode] = useState(null);
   const [toppedUpUid, setToppedUpUid] = useState(null);
   const [processingReqId, setProcessingReqId] = useState(null);
+  const [expandedReceiptId, setExpandedReceiptId] = useState(null);
 
   // Platform Gemini Config State
   const [platformKey, setPlatformKey] = useState('');
@@ -321,7 +322,18 @@ export const AdminModal = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        {req.receiptImageDataUrl && (
+                          <button
+                            type="button"
+                            className="btn-minimal"
+                            onClick={() => setExpandedReceiptId(expandedReceiptId === req.id ? null : req.id)}
+                            style={{ padding: '5px 9px', fontSize: '0.72rem' }}
+                          >
+                            <ImageIcon size={13} color="var(--accent-blue)" />
+                            <span>{expandedReceiptId === req.id ? 'Hide Receipt' : 'View Receipt'}</span>
+                          </button>
+                        )}
                         {req.status === 'pending' ? (
                           <>
                             <button
@@ -362,6 +374,22 @@ export const AdminModal = ({ isOpen, onClose }) => {
                           </span>
                         )}
                       </div>
+
+                      {expandedReceiptId === req.id && req.receiptImageDataUrl && (
+                        <div style={{ width: '100%', marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                          <img
+                            src={req.receiptImageDataUrl}
+                            alt="Payment Receipt"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '340px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-strong)',
+                              display: 'block'
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
