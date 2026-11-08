@@ -20,9 +20,10 @@ import {
   getPlatformGeminiConfig
 } from './services/firebase';
 
+import sampleEssayEvaluation from './data/evaluations/sample-essay-evaluation.json';
 import sampleEvaluation from './data/evaluations/eval-graph-latest.json';
 
-const HISTORY_STORAGE_KEY = 'css_evaluator_saved_history_v2';
+const HISTORY_STORAGE_KEY = 'css_evaluator_saved_history_v3';
 
 const loadSavedHistory = () => {
   try {
@@ -36,7 +37,7 @@ const loadSavedHistory = () => {
   } catch (e) {
     console.warn('Could not load saved evaluation history:', e);
   }
-  return [sampleEvaluation];
+  return [sampleEssayEvaluation, sampleEvaluation];
 };
 
 const persistHistorySafely = (historyList) => {
@@ -58,8 +59,8 @@ const persistHistorySafely = (historyList) => {
 
 export default function App() {
   const [evaluationHistory, setEvaluationHistory] = useState(loadSavedHistory);
-  const [evaluation, setEvaluation] = useState(() => loadSavedHistory()[0] || sampleEvaluation);
-  const [activeSubject, setActiveSubject] = useState(() => loadSavedHistory()[0]?.subject || 'Islamic History & Culture');
+  const [evaluation, setEvaluation] = useState(() => loadSavedHistory()[0] || sampleEssayEvaluation);
+  const [activeSubject, setActiveSubject] = useState(() => loadSavedHistory()[0]?.subject || 'English Essay');
   const [mode, setMode] = useState('digital');
   const [currentSubmissionImages, setCurrentSubmissionImages] = useState([]);
 

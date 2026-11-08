@@ -42,6 +42,70 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId, submi
     visualInsertIndex = Math.min(2, paragraphs.length - 1);
   }
 
+  // Identify currently selected annotation object for inline Micro-Lesson banner
+  const activeAnnotation = selectedAnnId
+    ? allAnnotations.find((a, idx) => (a.id || `ann-${idx}`) === selectedAnnId || `ann-${a.targetPhrase}` === selectedAnnId)
+    : null;
+
+  const renderInlineMicroLessonCard = (ann) => {
+    const borderColor =
+      ann.type === 'red' ? '#dc2626' : ann.type === 'green' ? '#059669' : '#d97706';
+    const bgTint =
+      ann.type === 'red'
+        ? '#fef2f2'
+        : ann.type === 'green'
+        ? '#ecfdf5'
+        : '#fffbeb';
+
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          margin: '0.5rem 0 1rem 0',
+          padding: '10px 14px',
+          background: bgTint,
+          border: `1px solid ${borderColor}`,
+          borderLeft: `4px solid ${borderColor}`,
+          borderRadius: '6px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: '0.8rem',
+          lineHeight: 1.45,
+          color: '#0f172a',
+          boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
+          animation: 'popIn 0.14s ease'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: borderColor, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {ann.category || 'Diagnostic Note'} — "{ann.targetPhrase}"
+          </span>
+          <button
+            type="button"
+            onClick={() => onSelectAnnId && onSelectAnnId(null)}
+            style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+          >
+            Dismiss ×
+          </button>
+        </div>
+
+        <div style={{ color: '#1e293b', fontWeight: 500, marginBottom: ann.suggestion || ann.microLesson ? '6px' : 0 }}>
+          {ann.comment}
+        </div>
+
+        {ann.suggestion && (
+          <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '5px 8px', borderRadius: '4px', fontSize: '0.76rem', color: '#0369a1', marginBottom: ann.microLesson ? '5px' : 0 }}>
+            💡 <strong>Rewrite Fix:</strong> {ann.suggestion}
+          </div>
+        )}
+
+        {ann.microLesson && (
+          <div style={{ fontSize: '0.73rem', color: '#475569' }}>
+            📘 <strong>Rule to Remember:</strong> {ann.microLesson}
+          </div>
+        )}
+      </div>
+    );
+  };
   const handleTranscribedClick = (e, ann) => {
     e.stopPropagation();
     if (onSelectAnnId) {
@@ -337,6 +401,11 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId, submi
               (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
             const highlightedContent = renderHighlightedParagraph(para);
 
+            const hasActiveAnnInParagraph =
+              activeAnnotation &&
+              activeAnnotation.targetPhrase &&
+              para.toLowerCase().includes(activeAnnotation.targetPhrase.toLowerCase());
+
             return (
               <React.Fragment key={pIdx}>
                 {isHeading ? (
@@ -369,6 +438,8 @@ export const DocumentViewer = ({ evaluation, selectedAnnId, onSelectAnnId, submi
                     {highlightedContent}
                   </p>
                 )}
+
+                {hasActiveAnnInParagraph && renderInlineMicroLessonCard(activeAnnotation)}
 
                 {pIdx === visualInsertIndex && suggestedVisual && renderSuggestedVisualDropdown()}
               </React.Fragment>
