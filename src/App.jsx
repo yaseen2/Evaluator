@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { EvaluationStudio } from './components/EvaluationStudio';
 import { LandingPage } from './components/LandingPage';
+import { PracticeHub } from './components/PracticeHub';
 import { SettingsModal } from './components/SettingsModal';
 import { UploadModal } from './components/UploadModal';
 import { AlertModal } from './components/AlertModal';
@@ -374,6 +375,26 @@ export default function App() {
           onOpenAuth={() => setAuthOpen(true)}
           user={user}
           userProfile={userProfile}
+        />
+      ) : activeView === 'hub' ? (
+        <PracticeHub
+          activeSubject={activeSubject}
+          setActiveSubject={setActiveSubject}
+          onSubmitEvaluation={handleRunEvaluation}
+          isEvaluating={isEvaluating}
+          pipelineProgress={pipelineProgress}
+          evaluationHistory={evaluationHistory}
+          onSelectEvaluation={handleSelectHistoryItem}
+          onDeleteEvaluation={handleDeleteHistoryItem}
+          onTrySample={() => {
+            handleSelectHistoryItem(sampleEssayEvaluation);
+            setActiveView('report');
+          }}
+          user={user}
+          userProfile={userProfile}
+          onOpenPricing={() => setSubscriptionOpen(true)}
+          onOpenAuth={() => setAuthOpen(true)}
+          setActiveView={setActiveView}
         />
       ) : (
         <EvaluationStudio
