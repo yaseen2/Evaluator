@@ -42,7 +42,7 @@ export const LandingPage = ({
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white text-slate-900 hero-glow selection:bg-blue-100 selection:text-blue-900 antialiased" style={{ minHeight: 'calc(100vh - 64px)' }}>
+    <div className="flex-1 overflow-y-auto bg-white text-slate-900 hero-glow selection:bg-blue-100 selection:text-blue-900 antialiased" style={{ minHeight: '100%', height: '100%' }}>
       
       {/* Hero Section */}
       <main className="flex-grow flex flex-col items-center justify-center px-4 pt-12 sm:pt-16 pb-16 text-center relative overflow-hidden">

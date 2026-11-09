@@ -225,7 +225,7 @@ export const PracticeHub = ({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50/60 text-slate-900 selection:bg-blue-100 selection:text-blue-900 min-h-[calc(100vh-64px)] py-8 px-4 sm:px-6 lg:px-8 antialiased">
+    <div className="flex-1 overflow-y-auto bg-slate-50/60 text-slate-900 selection:bg-blue-100 selection:text-blue-900 min-h-full h-full py-8 px-4 sm:px-6 lg:px-8 antialiased">
       <div className="max-w-6xl mx-auto">
         
         {/* Top Header Banner */}

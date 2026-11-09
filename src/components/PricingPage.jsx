@@ -338,7 +338,7 @@ export const PricingPage = ({
   ];
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: '#faf8ff', color: '#131b2e', paddingBottom: '80px', height: 'calc(100vh - 64px)' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: '#faf8ff', color: '#131b2e', paddingBottom: '80px', height: '100%' }}>
       {/* Top Breadcrumb & Heading Section */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px 24px', textAlign: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(29, 110, 242, 0.08)', color: '#1d6ef2', padding: '6px 14px', borderRadius: '9999px', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '16px' }}>

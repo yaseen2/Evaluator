@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { EvaluationStudio } from './components/EvaluationStudio';
 import { LandingPage } from './components/LandingPage';
 import { PracticeHub } from './components/PracticeHub';
@@ -336,7 +336,7 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <Navbar
+      <Sidebar
         activeView={activeView}
         setActiveView={setActiveView}
         activeSubject={activeSubject}
@@ -360,71 +360,73 @@ export default function App() {
         }}
       />
 
-      {activeView === 'landing' ? (
-        <LandingPage
-          onStartEvaluation={() => setActiveView('hub')}
-          onTrySample={(sample) => {
-            handleSelectHistoryItem(sample || sampleEssayEvaluation);
-            setActiveView('report');
-          }}
-          onOpenPricing={() => setActiveView('pricing')}
-          onOpenAuth={() => setAuthOpen(true)}
-          user={user}
-          userProfile={userProfile}
-        />
-      ) : activeView === 'hub' ? (
-        <PracticeHub
-          activeSubject={activeSubject}
-          setActiveSubject={setActiveSubject}
-          onSubmitEvaluation={handleRunEvaluation}
-          isEvaluating={isEvaluating}
-          pipelineProgress={pipelineProgress}
-          evaluationHistory={evaluationHistory}
-          onSelectEvaluation={handleSelectHistoryItem}
-          onDeleteEvaluation={handleDeleteHistoryItem}
-          onTrySample={() => {
-            handleSelectHistoryItem(sampleEssayEvaluation);
-            setActiveView('report');
-          }}
-          user={user}
-          userProfile={userProfile}
-          onOpenPricing={() => setActiveView('pricing')}
-          onOpenAuth={() => setAuthOpen(true)}
-          setActiveView={setActiveView}
-        />
-      ) : activeView === 'pricing' ? (
-        <PricingPage
-          user={user}
-          userProfile={userProfile}
-          onOpenAuth={() => setAuthOpen(true)}
-          setActiveView={setActiveView}
-          onProfileUpdated={async () => {
-            if (user?.uid) {
-              const p = await ensureUserProfile(user);
-              setUserProfile(p);
-            }
-          }}
-        />
-      ) : (
-        <EvaluationStudio
-          activeView={activeView}
-          setActiveView={setActiveView}
-          evaluation={evaluation}
-          activeSubject={activeSubject}
-          setActiveSubject={setActiveSubject}
-          mode={mode}
-          setMode={setMode}
-          isEvaluating={isEvaluating}
-          pipelineProgress={pipelineProgress}
-          submissionImages={currentSubmissionImages}
-          evaluationHistory={evaluationHistory}
-          onSelectEvaluation={handleSelectHistoryItem}
-          onDeleteEvaluation={handleDeleteHistoryItem}
-          onSubmitEvaluation={handleRunEvaluation}
-          user={user}
-          userProfile={userProfile}
-        />
-      )}
+      <main className="app-main-content">
+        {activeView === 'landing' ? (
+          <LandingPage
+            onStartEvaluation={() => setActiveView('hub')}
+            onTrySample={(sample) => {
+              handleSelectHistoryItem(sample || sampleEssayEvaluation);
+              setActiveView('report');
+            }}
+            onOpenPricing={() => setActiveView('pricing')}
+            onOpenAuth={() => setAuthOpen(true)}
+            user={user}
+            userProfile={userProfile}
+          />
+        ) : activeView === 'hub' ? (
+          <PracticeHub
+            activeSubject={activeSubject}
+            setActiveSubject={setActiveSubject}
+            onSubmitEvaluation={handleRunEvaluation}
+            isEvaluating={isEvaluating}
+            pipelineProgress={pipelineProgress}
+            evaluationHistory={evaluationHistory}
+            onSelectEvaluation={handleSelectHistoryItem}
+            onDeleteEvaluation={handleDeleteHistoryItem}
+            onTrySample={() => {
+              handleSelectHistoryItem(sampleEssayEvaluation);
+              setActiveView('report');
+            }}
+            user={user}
+            userProfile={userProfile}
+            onOpenPricing={() => setActiveView('pricing')}
+            onOpenAuth={() => setAuthOpen(true)}
+            setActiveView={setActiveView}
+          />
+        ) : activeView === 'pricing' ? (
+          <PricingPage
+            user={user}
+            userProfile={userProfile}
+            onOpenAuth={() => setAuthOpen(true)}
+            setActiveView={setActiveView}
+            onProfileUpdated={async () => {
+              if (user?.uid) {
+                const p = await ensureUserProfile(user);
+                setUserProfile(p);
+              }
+            }}
+          />
+        ) : (
+          <EvaluationStudio
+            activeView={activeView}
+            setActiveView={setActiveView}
+            evaluation={evaluation}
+            activeSubject={activeSubject}
+            setActiveSubject={setActiveSubject}
+            mode={mode}
+            setMode={setMode}
+            isEvaluating={isEvaluating}
+            pipelineProgress={pipelineProgress}
+            submissionImages={currentSubmissionImages}
+            evaluationHistory={evaluationHistory}
+            onSelectEvaluation={handleSelectHistoryItem}
+            onDeleteEvaluation={handleDeleteHistoryItem}
+            onSubmitEvaluation={handleRunEvaluation}
+            user={user}
+            userProfile={userProfile}
+          />
+        )}
+      </main>
 
       <SettingsModal
         isOpen={settingsOpen}

@@ -122,8 +122,31 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
   background: var(--bg-app);
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    flex-direction: row;
+  }
+}
+
+.app-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+@media (max-width: 767px) {
+  .app-main-content {
+    height: calc(100vh - 56px);
+  }
 }
 
 /* SuperKalam Clean Navbar */

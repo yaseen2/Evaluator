@@ -56,7 +56,7 @@ export const EvaluationStudio = ({
 
   // Active View is REPORT: Render SuperKalam Split Studio / Focus Report
   return (
-    <div style={{ position: 'relative', flex: 1, height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Report Navigation Ribbon */}
       <div
         style={{
