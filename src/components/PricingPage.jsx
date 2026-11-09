@@ -32,6 +32,7 @@ import {
   fetchUserPaymentRequests,
   redeemSubscriptionVoucher
 } from '../services/firebase';
+import { PLATFORM_PLANS } from '../data/plans';
 
 export const PricingPage = ({
   user,

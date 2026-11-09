@@ -233,7 +233,6 @@ export default function App() {
     if (!activeApiKey) {
       // 2. If no personal BYOK key, check if user is signed in to use Platform Credits
       if (!user) {
-        setUploadOpen(false);
         setAuthOpen(true);
         return;
       }
@@ -242,8 +241,7 @@ export default function App() {
       const availableCredits = Number(userProfile?.credits ?? 0);
 
       if (!isAdmin && availableCredits < preFlight.minRequiredCredits) {
-        setUploadOpen(false);
-        setSubscriptionOpen(true);
+        setActiveView('pricing');
         return;
       }
 
@@ -256,7 +254,6 @@ export default function App() {
         }
         usingPlatformCredits = true;
       } else {
-        setUploadOpen(false);
         showAlert({
           title: 'API Key Setup Required',
           message: isAdmin
@@ -271,7 +268,6 @@ export default function App() {
     }
 
     setIsEvaluating(true);
-    setUploadOpen(false);
     if (submissionData?.imageArray) {
       setCurrentSubmissionImages(submissionData.imageArray);
     } else {

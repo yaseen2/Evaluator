@@ -4,6 +4,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
+import { PLATFORM_PLANS } from '../data/plans';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -47,51 +48,7 @@ export const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const SUBSCRIPTION_PLANS = [
-  {
-    id: 'free',
-    name: 'Starter Trial',
-    pricePKR: 'Free',
-    period: 'on Sign-Up',
-    credits: 30,
-    badge: '30 Free Credits',
-    features: [
-      '30 Token-Synced Credits (~1.25L Weighted Tokens)',
-      'Essay Outline (~4–6 Credits) or 20m Answer (~9 Credits)',
-      'Full 100m English Essay Audit (~18–28 Credits)',
-      '4-Part Micro-Lesson Callouts & Thesis Audit'
-    ]
-  },
-  {
-    id: 'aspirant',
-    name: 'CSS Aspirant Monthly',
-    pricePKR: 'PKR 1,500',
-    period: '/ month',
-    credits: 500,
-    badge: 'Most Popular',
-    highlight: true,
-    features: [
-      '500 Token-Synced Credits (1.25M Weighted Compute Tokens)',
-      '~20–25 Full Essays, ~55 Subjective Answers, or ~110 Outlines',
-      'Exact Token Metering (Pay Less for Shorter Scripts)',
-      '3-Tier PEEL Paragraph Rewrites & Cloud History'
-    ]
-  },
-  {
-    id: 'pro',
-    name: 'CSS Allocation Pro',
-    pricePKR: 'PKR 3,500',
-    period: '/ exam pass',
-    credits: 1500,
-    badge: 'Best Value',
-    features: [
-      '1,500 Token-Synced Credits (3.75M Weighted Compute Tokens)',
-      '~65+ Full Essays or ~160+ Subjective Answers / Outlines',
-      'All 47 Official FPSC Compulsory & Optional Subjects',
-      'Priority Gemini 3.8 Flash Engine & PDF Dossiers'
-    ]
-  }
-];
+export const SUBSCRIPTION_PLANS = PLATFORM_PLANS;
 
 // ─────────────────────────────────────────────────────────────
 // AUTHENTICATION HELPERS
@@ -551,7 +508,7 @@ export const approvePaymentRequest = async (requestId) => {
     const currentCredits = userSnap.exists() ? Number(userSnap.data().credits || 0) : 0;
     const addedCredits = Number(reqData.credits || 30);
     const updatedCredits = currentCredits + addedCredits;
-    const updatedTier = reqData.planId || 'aspirant';
+    const updatedTier = reqData.planId || 'pro';
     const nowIso = new Date().toISOString();
 
     tx.update(reqRef, {

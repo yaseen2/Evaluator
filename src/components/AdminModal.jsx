@@ -441,26 +441,26 @@ export const AdminModal = ({ isOpen, onClose }) => {
                 <button
                   className="btn-minimal"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(100, 'aspirant', 'Starter Pack (100 Credits)')}
+                  onClick={() => handleGenerateVoucher(100, 'pro', 'Starter Boost (100 Credits)')}
                 >
                   <Plus size={13} color="var(--accent-blue)" />
-                  <span>+100 Credits Code</span>
+                  <span>+100 Credits Boost</span>
                 </button>
                 <button
                   className="btn-accent"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(500, 'aspirant', 'CSS Aspirant Monthly (500 Credits)')}
+                  onClick={() => handleGenerateVoucher(500, 'pro', 'Aspirant Pro (500 Credits • Rs. 2,999)')}
                 >
                   <Plus size={13} />
-                  <span>+500 Credits (PKR 1,500)</span>
+                  <span>+500 Credits (Rs. 2,999 - Pro)</span>
                 </button>
                 <button
                   className="btn-accent"
                   disabled={loading}
-                  onClick={() => handleGenerateVoucher(1500, 'pro', 'CSS Allocation Pro (1,500 Credits)')}
+                  onClick={() => handleGenerateVoucher(1500, 'academy', 'Academy Intensive (1,500 Credits • Rs. 6,999)')}
                 >
                   <Plus size={13} />
-                  <span>+1,500 Credits (PKR 3,500)</span>
+                  <span>+1,500 Credits (Rs. 6,999 - Academy)</span>
                 </button>
                 <button className="btn-minimal" onClick={loadData} title="Refresh">
                   <RefreshCw size={13} />
@@ -587,18 +587,18 @@ export const AdminModal = ({ isOpen, onClose }) => {
                           <button
                             className="btn-minimal"
                             disabled={loading}
-                            onClick={() => handleDirectGrant(c.uid, 500, 'aspirant')}
+                            onClick={() => handleDirectGrant(c.uid, 500, 'pro')}
                             style={{ padding: '4px 8px', fontSize: '0.7rem' }}
                           >
-                            +500 Credits
+                            +500 Pro
                           </button>
                           <button
                             className="btn-accent"
                             disabled={loading}
-                            onClick={() => handleDirectGrant(c.uid, 1500, 'pro')}
+                            onClick={() => handleDirectGrant(c.uid, 1500, 'academy')}
                             style={{ padding: '4px 8px', fontSize: '0.7rem' }}
                           >
-                            +1,500 Pro
+                            +1,500 Academy
                           </button>
                         </div>
                       )}
@@ -676,7 +676,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      Optional Card Checkout URL — CSS Aspirant (Safepay / LemonSqueezy)
+                      Optional Card Checkout URL — Aspirant Pro (Rs. 2,999)
                     </label>
                     <input
                       type="url"
@@ -688,7 +688,7 @@ export const AdminModal = ({ isOpen, onClose }) => {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      Optional Card Checkout URL — Allocation Pro (Safepay / LemonSqueezy)
+                      Optional Card Checkout URL — Academy Intensive (Rs. 6,999)
                     </label>
                     <input
                       type="url"

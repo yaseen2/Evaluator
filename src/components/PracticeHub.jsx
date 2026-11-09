@@ -20,7 +20,7 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react';
-import { OFFICIAL_FPSC_SUBJECTS } from './SearchableSubjectSelect';
+import { OFFICIAL_FPSC_SUBJECTS } from '../data/fpscSubjects';
 import { estimateCreditsPreFlight } from '../services/geminiApi';
 import { CamScannerLoadingOverlay } from './CamScannerLoadingOverlay';
 import sampleEssayEvaluation from '../data/evaluations/sample-essay-evaluation.json';
@@ -130,8 +130,11 @@ export const PracticeHub = ({
   const [isDragging, setIsDragging] = useState(false);
   const [searchSubject, setSearchSubject] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [uploadWarning, setUploadWarning] = useState(null);
+  const [previewModalImage, setPreviewModalImage] = useState(null);
 
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const searchWrapperRef = useRef(null);
 
   // Close search dropdown on click outside
@@ -170,11 +173,27 @@ export const PracticeHub = ({
   };
 
   const handleFiles = async (filesList) => {
-    const files = Array.from(filesList || []).filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
+    setUploadWarning(null);
+    const rawFiles = Array.from(filesList || []);
+    if (!rawFiles.length) return;
+
+    const pdfFiles = rawFiles.filter(
+      (f) => f.type === 'application/pdf' || f.name?.toLowerCase().endsWith('.pdf')
+    );
+    if (pdfFiles.length > 0) {
+      setUploadWarning(
+        'PDF file detected: To ensure highest OCR precision and FPSC examiner rubric evaluation, please upload or take JPG/PNG photos of your answer sheets (in CamScanner, tap "Share" → "Share JPG").'
+      );
+    }
+
+    const imageFiles = rawFiles.filter(
+      (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)
+    );
+    if (!imageFiles.length) return;
+
     setIsCompressing(true);
     try {
-      const compressedList = await Promise.all(files.map((file) => compressImageFile(file)));
+      const compressedList = await Promise.all(imageFiles.map((file) => compressImageFile(file)));
       const valid = compressedList.filter((item) => item.dataUrl);
       setUploadedFiles((prev) => [...prev, ...valid]);
     } finally {
@@ -561,6 +580,27 @@ export const PracticeHub = ({
             {inputType === 'image' ? (
               <div className="space-y-6">
                 
+                {/* PDF or Format Guidance Alert */}
+                {uploadWarning && (
+                  <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex items-start justify-between gap-3 text-amber-900 shadow-xs animate-fadeIn">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs sm:text-[13px] leading-relaxed">
+                        <strong className="font-semibold block mb-0.5 text-amber-950">Image Upload Recommendation</strong>
+                        {uploadWarning}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUploadWarning(null)}
+                      className="text-amber-700 hover:text-amber-950 p-1 rounded-lg hover:bg-amber-100/60 transition-colors"
+                      title="Dismiss"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                )}
+
                 {/* Drag and Drop Zone */}
                 <div
                   onDragOver={(e) => {
@@ -569,40 +609,81 @@ export const PracticeHub = ({
                   }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all cursor-pointer relative group ${
+                  className={`border-2 border-dashed rounded-3xl p-8 sm:p-10 text-center transition-all relative ${
                     isDragging
                       ? 'border-[#1d6ef2] bg-blue-50/50 ring-4 ring-blue-100'
                       : 'border-slate-200/90 hover:border-[#1d6ef2] bg-slate-50/40 hover:bg-blue-50/20'
                   }`}
                 >
+                  {/* Hidden Multi-file input for photo library / desktop files */}
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,.pdf"
+                    accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf"
                     className="hidden"
-                    onChange={(e) => handleFiles(e.target.files)}
+                    onChange={(e) => {
+                      handleFiles(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+
+                  {/* Hidden Single-file capture input for camera snapping */}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      handleFiles(e.target.files);
+                      e.target.value = '';
+                    }}
                   />
 
                   <div className="max-w-md mx-auto flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#1d6ef2] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-xs">
+                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#1d6ef2] flex items-center justify-center mb-4 transition-transform shadow-xs">
                       <Camera size={30} />
                     </div>
                     <h3 className="font-sans font-bold text-[18px] text-slate-900 mb-1.5">
-                      Drag &amp; Drop multi-page handwritten sheets
+                      Add Multi-Page Handwritten Answer Sheets
                     </h3>
-                    <p className="text-[13.5px] text-slate-500 mb-5 leading-relaxed">
-                      Supports PNG, JPG, or PDF scanned via CamScanner, Genius Scan, or mobile camera.
+                    <p className="text-[13px] text-slate-500 mb-5 leading-relaxed">
+                      Snap pages with your camera or select high-resolution JPG / PNG photos exported from CamScanner.
                     </p>
-                    <button
-                      type="button"
-                      disabled={isCompressing}
-                      className="bg-white border border-slate-200/90 hover:border-[#1d6ef2] text-slate-700 hover:text-[#1d6ef2] px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2"
-                    >
-                      <Upload size={15} />
-                      <span>{isCompressing ? 'Compressing photos...' : 'Browse Files from Device'}</span>
-                    </button>
+
+                    {/* Dual Action Buttons: Snap & Upload */}
+                    <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+                      <button
+                        type="button"
+                        disabled={isCompressing}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cameraInputRef.current?.click();
+                        }}
+                        className="bg-[#1d6ef2] hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <Camera size={16} />
+                        <span>Take Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isCompressing}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="bg-white border border-slate-200/90 hover:border-[#1d6ef2] text-slate-700 hover:text-[#1d6ef2] px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <Upload size={16} />
+                        <span>{isCompressing ? 'Processing photos...' : 'Upload from Device'}</span>
+                      </button>
+                    </div>
+
+                    <span className="text-[11px] text-slate-400 mt-3">
+                      Or drag and drop image files directly onto this zone
+                    </span>
                   </div>
                 </div>
 
@@ -624,15 +705,22 @@ export const PracticeHub = ({
                           key={idx}
                           className="bg-white border border-slate-200/90 hover:border-slate-300 p-3 rounded-2xl flex items-center space-x-3 shadow-xs relative group transition-all"
                         >
-                          {/* Image Thumbnail Preview */}
-                          <div className="w-16 h-20 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center relative">
+                          {/* Image Thumbnail Preview - Click to open Lightbox */}
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModalImage({ url: fileObj.dataUrl, title: `Page ${idx + 1} (${fileObj.name || 'Answer Sheet'})` })}
+                            className="w-16 h-20 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center relative group/thumb cursor-zoom-in"
+                            title="Click to view full image"
+                          >
                             <img
                               src={fileObj.dataUrl}
                               alt={`Page ${idx + 1}`}
                               className="w-full h-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-                          </div>
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
+                              Zoom
+                            </div>
+                          </button>
 
                           {/* Info */}
                           <div className="flex-grow min-w-0">
@@ -873,6 +961,39 @@ export const PracticeHub = ({
         </section>
 
       </div>
+
+      {/* Lightbox / Full-screen Sheet Preview */}
+      {previewModalImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewModalImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
+              <span className="text-sm font-bold text-slate-800">{previewModalImage.title}</span>
+              <button
+                type="button"
+                onClick={() => setPreviewModalImage(null)}
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex items-center justify-center bg-slate-900/5 min-h-[300px]">
+              <img
+                src={previewModalImage.url}
+                alt={previewModalImage.title}
+                className="max-h-[75vh] w-auto max-w-full rounded-lg shadow-sm object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CamScanner Loading Overlay if evaluation running */}
       {isEvaluating && (
