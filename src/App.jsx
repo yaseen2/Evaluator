@@ -357,18 +357,23 @@ export default function App() {
         activeEvaluationId={evaluation?.id}
         onSelectEvaluation={handleSelectHistoryItem}
         onDeleteEvaluation={handleDeleteHistoryItem}
+        onTrySample={() => {
+          handleSelectHistoryItem(sampleEssayEvaluation);
+          setActiveView('report');
+        }}
       />
 
       {activeView === 'landing' ? (
         <LandingPage
           onStartEvaluation={() => setActiveView('hub')}
           onTrySample={(sample) => {
-            handleSelectHistoryItem(sample);
+            handleSelectHistoryItem(sample || sampleEssayEvaluation);
             setActiveView('report');
           }}
           onOpenPricing={() => setSubscriptionOpen(true)}
           onOpenAuth={() => setAuthOpen(true)}
           user={user}
+          userProfile={userProfile}
         />
       ) : (
         <EvaluationStudio
