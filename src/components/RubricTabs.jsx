@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
+import { cleanSimpleText } from '../utils/textUtils';
 
 export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
   const [activeTab, setActiveTab] = useState('callouts');
@@ -195,7 +196,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     <AlertTriangle size={14} color="var(--warning-amber)" style={{ flexShrink: 0, marginTop: '2px' }} />
                   )}
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
-                    {ann.comment}
+                    {cleanSimpleText(ann.comment)}
                   </p>
                 </div>
 

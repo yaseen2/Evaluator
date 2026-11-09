@@ -7,7 +7,8 @@ import {
   FileText,
   ArrowLeft,
   Columns,
-  Maximize2
+  Maximize2,
+  BarChart3
 } from 'lucide-react';
 
 export const EvaluationStudio = ({
@@ -30,6 +31,7 @@ export const EvaluationStudio = ({
 }) => {
   const [selectedAnnId, setSelectedAnnId] = useState(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [mobileTab, setMobileTab] = useState('paper'); // 'paper' | 'scorecard'
 
   // Fallback if no evaluation loaded
   if (!evaluation && !isEvaluating) {
@@ -55,7 +57,10 @@ export const EvaluationStudio = ({
     );
   }
 
-  // Active View is REPORT: Render SuperKalam Split Studio / Focus Report
+  const annotationsCount = evaluation?.annotations?.length || 0;
+  const overallPercentage = evaluation?.overallScore || evaluation?.totalScore || 0;
+
+  // Active View is REPORT: Render Split Studio / Focus Report
   return (
     <div style={{ position: 'relative', flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Report Navigation Ribbon */}
@@ -98,6 +103,36 @@ export const EvaluationStudio = ({
         </div>
       </div>
 
+      {/* Mobile-Only View Switcher (Annotated Script vs Scorecard) */}
+      {evaluation && (
+        <div className="lg:hidden flex items-center justify-center bg-slate-100 p-1 mx-3 my-1 rounded-xl border border-slate-200 shrink-0 z-10">
+          <button
+            type="button"
+            onClick={() => setMobileTab('paper')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              mobileTab === 'paper'
+                ? 'bg-white text-[#1d6ef2] shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FileText size={13} />
+            <span>Annotated Script ({annotationsCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('scorecard')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              mobileTab === 'scorecard'
+                ? 'bg-white text-[#1d6ef2] shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <BarChart3 size={13} />
+            <span>Scorecard ({overallPercentage}%)</span>
+          </button>
+        </div>
+      )}
+
       {isEvaluating && (
         <CamScannerLoadingOverlay
           pipelineProgress={pipelineProgress}
@@ -110,24 +145,39 @@ export const EvaluationStudio = ({
       {evaluation && (
         <div className={`studio-layout ${isFocusMode ? 'focus-mode' : ''}`} style={{ flex: 1, overflow: 'hidden' }}>
           {!isFocusMode && (
-            <DocumentViewer
-              evaluation={evaluation}
-              mode={mode}
-              setMode={setMode}
-              selectedAnnId={selectedAnnId}
-              onSelectAnnId={setSelectedAnnId}
-              submissionImages={submissionImages}
-            />
+            <div
+              className={`viewer-pane ${mobileTab === 'scorecard' ? 'mobile-hidden' : ''}`}
+              style={{ flex: 1, height: '100%', minHeight: 0, overflow: 'hidden' }}
+            >
+              <DocumentViewer
+                evaluation={evaluation}
+                mode={mode}
+                setMode={setMode}
+                selectedAnnId={selectedAnnId}
+                onSelectAnnId={(id) => {
+                  setSelectedAnnId(id);
+                  if (id && mobileTab === 'scorecard') setMobileTab('paper');
+                }}
+                submissionImages={submissionImages}
+              />
+            </div>
           )}
 
-          <div className="panel-right" style={{ flex: 1, overflowY: 'auto' }}>
+          <div
+            className={`panel-right ${mobileTab === 'paper' ? 'mobile-hidden' : ''}`}
+            style={{ flex: 1, overflowY: 'auto' }}
+          >
             <div className="panel-content">
               <ScorecardSummary evaluation={evaluation} />
 
               <RubricTabs
                 evaluation={evaluation}
                 selectedAnnId={selectedAnnId}
-                onSelectAnnId={setSelectedAnnId}
+                onSelectAnnId={(id) => {
+                  setSelectedAnnId(id);
+                  // When user selects a callout in RubricTabs on mobile, flip to paper so they see the anchored popover
+                  if (id) setMobileTab('paper');
+                }}
               />
             </div>
           </div>
