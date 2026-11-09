@@ -1,20 +1,58 @@
 import React, { useState } from 'react';
-import { X, Check, ShieldCheck, Sun, Moon, Monitor } from 'lucide-react';
-import { setStoredApiKey, getStoredApiKey, getStoredModel, setStoredModel, AVAILABLE_MODELS } from '../services/geminiApi';
+import {
+  X,
+  Check,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Monitor,
+  User,
+  Zap,
+  Key,
+  ChevronDown,
+  ChevronUp,
+  CreditCard
+} from 'lucide-react';
+import {
+  setStoredApiKey,
+  getStoredApiKey,
+  getStoredModel,
+  setStoredModel,
+  AVAILABLE_MODELS
+} from '../services/geminiApi';
+import { PLATFORM_PLANS } from '../data/plans';
 
-export const SettingsModal = ({ isOpen, onClose, themeMode, setThemeMode, groundingUsage }) => {
-  const [activeTab, setActiveTab] = useState('api'); // 'api' | 'theme' | 'grounding'
+export const SettingsModal = ({
+  isOpen,
+  onClose,
+  themeMode,
+  setThemeMode,
+  user,
+  userProfile,
+  onOpenPricing
+}) => {
   const [apiKeyInput, setApiKeyInput] = useState(getStoredApiKey());
   const [selectedModel, setSelectedModel] = useState(getStoredModel());
+  const [showAdvancedByok, setShowAdvancedByok] = useState(() => Boolean(getStoredApiKey()));
   const [isSaved, setIsSaved] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSaveApiKey = () => {
+  const isAdmin = userProfile?.role === 'admin';
+  const credits = userProfile?.credits ?? 0;
+  const tierId = userProfile?.tier || 'free';
+  const planObj = PLATFORM_PLANS.find((p) => p.id === tierId) || PLATFORM_PLANS[0];
+  const displayName =
+    userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Guest Visitor';
+
+  const handleSave = () => {
     setStoredApiKey(apiKeyInput);
     setStoredModel(selectedModel);
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+    setTimeout(() => {
+      setIsSaved(false);
+      onClose?.();
+    }, 900);
   };
 
   const handleRemoveApiKey = () => {
@@ -23,86 +61,138 @@ export const SettingsModal = ({ isOpen, onClose, themeMode, setThemeMode, ground
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 antialiased"
+    >
       <div
-        className="modal-card"
-        onClick={e => e.stopPropagation()}
-        style={{
-          width: '92%',
-          maxWidth: '540px',
-          height: 'auto',
-          maxHeight: '88vh',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '1.25rem',
-          boxSizing: 'border-box',
-          overflow: 'hidden'
-        }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white border border-slate-200/90 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
       >
-        {/* FIXED HEADER */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
-          <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>⚙️ Platform Settings</span>
-          </h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900">Account &amp; Preferences</h3>
+            <p className="text-xs text-slate-500">
+              Manage your candidate profile, subscription status, and workspace appearance
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+          >
             <X size={18} />
           </button>
         </div>
 
-        {/* TAB NAVIGATION */}
-        <div className="nav-tabs" style={{ flexShrink: 0, margin: '0.65rem 0 0.75rem 0' }}>
-          <button
-            className={`tab-item ${activeTab === 'api' ? 'active' : ''}`}
-            onClick={() => setActiveTab('api')}
-          >
-            API Key & Model Selection
-          </button>
-          <button
-            className={`tab-item ${activeTab === 'theme' ? 'active' : ''}`}
-            onClick={() => setActiveTab('theme')}
-          >
-            Appearance & Theme
-          </button>
-          <button
-            className={`tab-item ${activeTab === 'grounding' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grounding')}
-          >
-            Usage & Grounding
-          </button>
+        {/* Section 1: Candidate Profile & Plan Status */}
+        {user ? (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#1d6ef2] text-white font-bold text-sm flex items-center justify-center shrink-0">
+                  {displayName.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
+                  <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-[#1d6ef2] border border-blue-200/60 shrink-0">
+                {isAdmin ? 'Admin' : planObj.title}
+              </span>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200/70 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <Zap size={15} className="text-[#1d6ef2] fill-current" />
+                <span>
+                  Balance:{' '}
+                  <strong className="font-mono text-slate-900">
+                    {isAdmin ? '∞ Unlimited' : `${credits} Credits`}
+                  </strong>
+                </span>
+              </div>
+              {!isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose?.();
+                    onOpenPricing?.();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1d6ef2] hover:underline cursor-pointer"
+                >
+                  <CreditCard size={13} />
+                  <span>Upgrade / Top Up</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Section 2: Interface Theme Mode */}
+        <div className="space-y-2.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+            Workspace Theme
+          </label>
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              { id: 'light', label: 'Day Mode', icon: Sun },
+              { id: 'dark', label: 'Night Mode', icon: Moon },
+              { id: 'auto', label: 'System Auto', icon: Monitor }
+            ].map((item) => {
+              const Icon = item.icon;
+              const active = themeMode === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setThemeMode(item.id)}
+                  className={`p-3.5 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                    active
+                      ? 'border-[#1d6ef2] bg-blue-50/70 text-[#1d6ef2] font-bold shadow-2xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <Icon size={20} />
+                  <span className="text-xs">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* SCROLLABLE BODY */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.25rem 2px' }}>
-          
-          {/* TAB 1: API Key & Model Selector */}
-          {activeTab === 'api' && (
-            <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
-                Configure your personal <strong>Google AI Studio Gemini API Key</strong> and select your preferred AI evaluation model.
+        {/* Section 3: Collapsible Advanced Developer BYOK Mode */}
+        <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedByok(!showAdvancedByok)}
+            className="w-full px-4 py-3 bg-slate-50/70 hover:bg-slate-100/70 flex items-center justify-between text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Key size={14} className="text-slate-500" />
+              <span>Advanced: Personal Gemini API Key (Optional Override)</span>
+            </div>
+            {showAdvancedByok ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+
+          {showAdvancedByok && (
+            <div className="p-4 space-y-3.5 bg-white border-t border-slate-200/70">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Active subscribers use platform credits automatically. Only enter a key here if you wish to use your own Google AI Studio API key instead of platform credits.
               </p>
 
-              {/* Gemini Model Selector Dropdown */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                  Target Gemini Model Engine
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Preferred Gemini Model
                 </label>
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.85rem',
-                    fontFamily: 'var(--font-sans)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
                 >
-                  {AVAILABLE_MODELS.map(m => (
+                  {AVAILABLE_MODELS.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
                     </option>
@@ -110,136 +200,60 @@ export const SettingsModal = ({ isOpen, onClose, themeMode, setThemeMode, ground
                 </select>
               </div>
 
-              {/* API Key Input */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 500 }}>
-                  Gemini API Key
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Personal Gemini API Key
                 </label>
                 <input
                   type="password"
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="AIzaSy..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.85rem',
-                    fontFamily: 'var(--font-mono)',
-                    outline: 'none'
-                  }}
+                  placeholder="AIzaSy... (Leave blank to use JawabCheck Platform Credits)"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
                 />
               </div>
 
-              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: 'var(--pass-green)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck size={16} />
-                <span>Keys & model preferences are stored locally in your browser's <code>localStorage</code>.</span>
+              <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-xl p-2.5 flex items-center gap-2 text-[11px] text-emerald-800">
+                <ShieldCheck size={15} className="shrink-0 text-emerald-600" />
+                <span>Stored locally in your browser. Leave empty to use your account credits.</span>
               </div>
             </div>
           )}
-
-          {/* TAB 2: Appearance & Theme Switcher */}
-          {activeTab === 'theme' && (
-            <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
-                Interface Theme Mode
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div
-                  onClick={() => setThemeMode('light')}
-                  style={{
-                    padding: '1.25rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: themeMode === 'light' ? '2px solid var(--accent-gold)' : '1px solid var(--border)',
-                    background: 'var(--bg-card)',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    color: themeMode === 'light' ? 'var(--accent-gold)' : 'var(--text-secondary)'
-                  }}
-                >
-                  <Sun size={24} style={{ marginBottom: '6px' }} />
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>Day Mode</div>
-                </div>
-
-                <div
-                  onClick={() => setThemeMode('dark')}
-                  style={{
-                    padding: '1.25rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: themeMode === 'dark' ? '2px solid var(--accent-gold)' : '1px solid var(--border)',
-                    background: 'var(--bg-card)',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    color: themeMode === 'dark' ? 'var(--accent-gold)' : 'var(--text-secondary)'
-                  }}
-                >
-                  <Moon size={24} style={{ marginBottom: '6px' }} />
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>Night Mode</div>
-                </div>
-
-                <div
-                  onClick={() => setThemeMode('auto')}
-                  style={{
-                    padding: '1.25rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: themeMode === 'auto' ? '2px solid var(--accent-gold)' : '1px solid var(--border)',
-                    background: 'var(--bg-card)',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    color: themeMode === 'auto' ? 'var(--accent-gold)' : 'var(--text-secondary)'
-                  }}
-                >
-                  <Monitor size={24} style={{ marginBottom: '6px' }} />
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>System Auto</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Usage & Grounding */}
-          {activeTab === 'grounding' && (
-            <div>
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Search Grounding Monthly Quota
-                </div>
-                <div style={{ fontSize: '1.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>
-                  {groundingUsage?.count || 0} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ {groundingUsage?.limit || 5000} calls used</span>
-                </div>
-                <div className="metric-line-bg" style={{ height: '6px' }}>
-                  <div
-                    className="metric-line-fill"
-                    style={{
-                      width: `${Math.min(100, (((groundingUsage?.count || 0) / (groundingUsage?.limit || 5000)) * 100))}%`,
-                      background: 'var(--accent-gold)'
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
         </div>
 
-        {/* FIXED FOOTER BUTTONS */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '0.65rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
+        {/* Footer Buttons */}
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
           {getStoredApiKey() && (
-            <button className="btn-minimal" onClick={handleRemoveApiKey} style={{ color: 'var(--fail-red)', marginRight: 'auto' }}>
-              Remove Key
+            <button
+              type="button"
+              onClick={handleRemoveApiKey}
+              className="mr-auto px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+            >
+              Clear Personal Key
             </button>
           )}
-          <button className="btn-minimal" onClick={onClose}>
-            Close
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            Cancel
           </button>
-          <button className="btn-accent" onClick={handleSaveApiKey}>
-            {isSaved ? <><Check size={14} /> Saved!</> : 'Save Settings'}
+          <button
+            type="button"
+            onClick={handleSave}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#1d6ef2] hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+          >
+            {isSaved ? (
+              <>
+                <Check size={14} />
+                <span>Saved!</span>
+              </>
+            ) : (
+              <span>Save Preferences</span>
+            )}
           </button>
         </div>
-
       </div>
     </div>
   );

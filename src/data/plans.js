@@ -1,6 +1,6 @@
 /**
  * Centralized Platform Subscription Plans & Credit Quotas
- * Single source of truth for PricingPage, Firebase Services, AdminModal, and Sidebar.
+ * Single source of truth for PricingPage, Firebase Services, AdminConsole, and Sidebar.
  */
 
 export const PLATFORM_PLANS = [

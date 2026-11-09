@@ -264,7 +264,7 @@ export const redeemSubscriptionVoucher = async (uid, userEmail, rawCode) => {
     const currentCredits = userSnap.exists() ? Number(userSnap.data().credits || 0) : 0;
     const addedCredits = Number(voucher.credits || 30);
     const updatedCredits = currentCredits + addedCredits;
-    const updatedTier = voucher.tier || 'aspirant';
+    const updatedTier = voucher.tier || 'pro';
 
     transaction.update(voucherRef, {
       isRedeemed: true,
@@ -280,7 +280,9 @@ export const redeemSubscriptionVoucher = async (uid, userEmail, rawCode) => {
     });
 
     return {
+      success: true,
       addedCredits,
+      creditsGranted: addedCredits,
       updatedCredits,
       updatedTier,
       planLabel: voucher.label || `${addedCredits} Credits`
@@ -288,7 +290,7 @@ export const redeemSubscriptionVoucher = async (uid, userEmail, rawCode) => {
   });
 };
 
-export const createSubscriptionVoucher = async ({ credits = 30, tier = 'aspirant', label = 'CSS Aspirant Monthly (30 Credits)', customCode = '' }) => {
+export const createSubscriptionVoucher = async ({ credits = 500, tier = 'pro', label = 'Aspirant Pro (500 Credits)', customCode = '' }) => {
   const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
   const code = (customCode || `CSS-${tier.toUpperCase()}-${randomPart}`).trim().toUpperCase();
 

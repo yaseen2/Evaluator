@@ -83,67 +83,8 @@ export const PricingPage = ({
     }
   }, [user?.uid]);
 
-  // Pricing Plan Definitions
-  const plans = [
-    {
-      id: 'free',
-      tierBadge: 'Starter',
-      subBadge: 'No Card Required',
-      title: 'Free Trial',
-      description: 'Test our AI examiner capability with one complete essay evaluation.',
-      pricePKR: 0,
-      priceDisplay: 'Rs. 0',
-      period: '/ forever',
-      credits: 30,
-      features: [
-        { label: '1 Free Evaluation (CSS / PMS)', included: true, bold: true },
-        { label: 'Basic Examiner Feedback', included: true },
-        { label: 'Multi-Agent Deep Rubrics', included: false },
-        { label: '1-on-1 Topper Rewrites', included: false }
-      ],
-      buttonLabel: 'Select Free Tier',
-      isPopular: false
-    },
-    {
-      id: 'pro',
-      tierBadge: 'Pro Aspirant',
-      subBadge: 'Save 30% Annual',
-      popularBadge: 'MOST POPULAR — AI EVALUATOR',
-      title: 'Aspirant Pro',
-      description: 'Designed for serious candidates aiming for top 10 CSS/PMS allocations.',
-      pricePKR: 2999,
-      priceDisplay: 'Rs. 2,999',
-      period: '/ month',
-      credits: 500,
-      features: [
-        { label: '30 Full Essay Evaluations / month', included: true, bold: true },
-        { label: 'Multi-Agent Rubrics (FPSC Standard)', included: true, bold: true },
-        { label: '1-on-1 Topper Rewrites & outlines', included: true, bold: true },
-        { label: 'Detailed Examiner Blueprint PDF', included: true }
-      ],
-      buttonLabel: 'Selected Plan (Pro)',
-      isPopular: true
-    },
-    {
-      id: 'academy',
-      tierBadge: 'Intensive',
-      subBadge: 'VIP Mentorship',
-      title: 'Academy Intensive',
-      description: 'Complete preparation package with live mentor access and unlimited evals.',
-      pricePKR: 6999,
-      priceDisplay: 'Rs. 6,999',
-      period: '/ season',
-      credits: 1500,
-      features: [
-        { label: 'Unlimited Evaluations', included: true, bold: true },
-        { label: 'Priority DAG Pipeline (Zero wait)', included: true, bold: true },
-        { label: 'WhatsApp Mentor Support 24/7', included: true, bold: true },
-        { label: 'Optional CSS Officer Mock Interview', included: true }
-      ],
-      buttonLabel: 'Select Academy Tier',
-      isPopular: false
-    }
-  ];
+  // Unified Pricing Plan Definitions from src/data/plans.js
+  const plans = PLATFORM_PLANS;
 
   const currentPlanObj = plans.find((p) => p.id === selectedPlan) || plans[1];
 
@@ -228,18 +169,23 @@ export const PricingPage = ({
     }
 
     // Firebase database voucher check
-    if (user?.uid) {
-      try {
-        const res = await redeemSubscriptionVoucher(code, user.uid);
-        if (res?.success) {
-          setVoucherApplied({ code, message: `✓ Code redeemed: ${res.creditsGranted} credits added immediately!` });
-          onProfileUpdated?.();
-          return;
-        }
-      } catch (err) {
-        setVoucherError(err.message || 'Invalid or expired voucher code.');
+    if (!user?.uid) {
+      setVoucherError('Please sign in to your candidate account to activate this voucher code.');
+      onOpenAuth?.();
+      return;
+    }
+
+    try {
+      const res = await redeemSubscriptionVoucher(user.uid, user.email, code);
+      if (res?.success || res?.addedCredits) {
+        const granted = res.creditsGranted || res.addedCredits;
+        setVoucherApplied({ code, message: `✓ Code redeemed: +${granted} credits added to your account immediately!` });
+        onProfileUpdated?.();
         return;
       }
+    } catch (err) {
+      setVoucherError(err.message || 'Invalid or expired voucher code.');
+      return;
     }
 
     setVoucherError('Invalid promo code. Please check and try again.');

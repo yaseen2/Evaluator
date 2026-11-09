@@ -116,7 +116,7 @@ export const Sidebar = ({
 
         {/* Brand */}
         <div
-          onClick={() => handleNavClick('landing')}
+          onClick={() => handleNavClick('dashboard')}
           className="flex items-center gap-2 cursor-pointer select-none"
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 via-[#1d6ef2] to-blue-500 flex items-center justify-center text-white shadow-xs">
@@ -191,15 +191,15 @@ export const Sidebar = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleNavClick('landing')}
+                  onClick={() => handleNavClick('dashboard')}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    activeView === 'landing'
+                    activeView === 'dashboard'
                       ? 'bg-blue-50 text-[#1d6ef2] border border-blue-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
                   <LayoutDashboard size={18} />
-                  <span>Home</span>
+                  <span>Dashboard</span>
                 </button>
 
                 <button
@@ -278,15 +278,16 @@ export const Sidebar = ({
                 {user && isAdmin && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setMobileDrawerOpen(false);
-                      onOpenAdmin?.();
-                    }}
-                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-amber-50/80 text-amber-900 border border-amber-200/60 hover:bg-amber-100 transition-all"
+                    onClick={() => handleNavClick('admin')}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      activeView === 'admin'
+                        ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                        : 'bg-amber-50/80 text-amber-900 border border-amber-200/60 hover:bg-amber-100'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <Shield size={18} className="text-amber-600" />
-                      <span>Admin Review</span>
+                      <span>Admin Console</span>
                     </div>
                     {pendingAdminPayments > 0 && (
                       <span className="text-[10px] font-bold bg-amber-600 text-white px-2 py-0.5 rounded-full">
@@ -305,7 +306,7 @@ export const Sidebar = ({
                   className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
                 >
                   <Settings size={18} />
-                  <span>Settings</span>
+                  <span>Account Preferences</span>
                 </button>
               </nav>
             </div>
@@ -386,7 +387,7 @@ export const Sidebar = ({
             <a
               onClick={(e) => {
                 e.preventDefault();
-                handleNavClick('landing');
+                handleNavClick('dashboard');
               }}
               href="#"
               className="flex items-center gap-3 overflow-hidden focus:outline-none cursor-pointer group"
@@ -427,19 +428,19 @@ export const Sidebar = ({
               </span>
             )}
 
-            {/* Home / Landing */}
+            {/* Candidate Dashboard */}
             <button
               type="button"
-              onClick={() => handleNavClick('landing')}
+              onClick={() => handleNavClick('dashboard')}
               className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl font-medium text-sm transition-all group ${
-                activeView === 'landing'
+                activeView === 'dashboard'
                   ? 'bg-blue-50/90 text-[#1d6ef2] font-semibold border border-blue-200/70 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               } ${isCollapsed ? 'justify-center px-0' : ''}`}
-              title={isCollapsed ? 'Home' : undefined}
+              title={isCollapsed ? 'Dashboard' : undefined}
             >
-              <LayoutDashboard size={20} className={activeView === 'landing' ? 'text-[#1d6ef2]' : 'text-slate-400 group-hover:text-slate-700'} />
-              {!isCollapsed && <span>Home</span>}
+              <LayoutDashboard size={20} className={activeView === 'dashboard' ? 'text-[#1d6ef2]' : 'text-slate-400 group-hover:text-slate-700'} />
+              {!isCollapsed && <span>Dashboard</span>}
             </button>
 
             {/* Evaluate Paper / Practice Hub */}
@@ -654,19 +655,21 @@ export const Sidebar = ({
                 </span>
               )}
 
-              {/* Admin Review (Visible if Admin or has payments) */}
+              {/* Admin Console (Visible only to Admin) */}
               {user && isAdmin && (
                 <button
                   type="button"
-                  onClick={onOpenAdmin}
-                  className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl font-semibold text-sm bg-amber-50/70 text-amber-900 border border-amber-200/60 hover:bg-amber-100 transition-all ${
-                    isCollapsed ? 'justify-center px-0' : 'justify-between'
-                  }`}
-                  title={isCollapsed ? `Admin Review (${pendingAdminPayments} Pending)` : undefined}
+                  onClick={() => handleNavClick('admin')}
+                  className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl font-semibold text-sm text-amber-900 border transition-all ${
+                    activeView === 'admin'
+                      ? 'bg-amber-100 border-amber-300'
+                      : 'bg-amber-50/70 border-amber-200/60 hover:bg-amber-100'
+                  } ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`}
+                  title={isCollapsed ? `Admin Console (${pendingAdminPayments} Pending)` : undefined}
                 >
                   <div className="flex items-center gap-3.5">
                     <Shield size={20} className="text-amber-600 shrink-0" />
-                    {!isCollapsed && <span>Admin Review</span>}
+                    {!isCollapsed && <span>Admin Console</span>}
                   </div>
                   {!isCollapsed && pendingAdminPayments > 0 && (
                     <span className="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded-full">
@@ -683,10 +686,10 @@ export const Sidebar = ({
                 className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl font-medium text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all group mt-1 ${
                   isCollapsed ? 'justify-center px-0' : ''
                 }`}
-                title={isCollapsed ? 'Settings' : undefined}
+                title={isCollapsed ? 'Account Preferences' : undefined}
               >
                 <Settings size={20} className="text-slate-400 group-hover:text-slate-700 shrink-0" />
-                {!isCollapsed && <span>Settings</span>}
+                {!isCollapsed && <span>Account Preferences</span>}
               </button>
             </div>
           </nav>

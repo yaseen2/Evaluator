@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
-import { X, Mail, Lock, User, Sparkles, AlertCircle, LogIn } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Mail, Lock, User, Sparkles, AlertCircle, LogIn, FileCheck } from 'lucide-react';
 import { signInWithGoogle, loginWithEmail, registerWithEmail } from '../services/firebase';
 
-export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+export const AuthModal = ({ isOpen, onClose, onAuthSuccess, initialMode = 'login' }) => {
+  const [mode, setMode] = useState(initialMode); // 'login' | 'register'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen && initialMode) {
+      setMode(initialMode);
+      setError('');
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
@@ -50,52 +57,72 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 antialiased"
+    >
       <div
-        className="modal-card"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: '440px',
-          padding: '1.5rem',
-          gap: '1rem'
-        }}
+        className="bg-white border border-slate-200/90 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 relative animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              {mode === 'login' ? 'Sign In to FPSC Evaluator' : 'Create Candidate Account'}
-            </h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-              Sync your graded scripts in the cloud and access FPSC examiner credits.
-            </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-[#1d6ef2] to-blue-500 text-white flex items-center justify-center shadow-sm shrink-0">
+              <FileCheck size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
+                {mode === 'login' ? 'Welcome Back to JawabCheck' : 'Create Candidate Account'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Sync your graded CSS/PMS papers &amp; examiner credits in the cloud
+              </p>
+            </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Free Sign-Up Credits Banner */}
-        <div
-          style={{
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.28)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.75rem',
-            color: 'var(--pass-green)'
-          }}
-        >
-          <Sparkles size={15} style={{ flexShrink: 0 }} />
+        <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-3.5 flex items-center gap-2.5 text-xs text-emerald-800">
+          <Sparkles size={16} className="text-emerald-600 shrink-0" />
           <span>
-            <strong>New Candidate Bonus:</strong> Get <strong>30 Free Token-Synced Credits</strong> immediately upon sign-up!
+            <strong>New Candidate Bonus:</strong> Receive <strong>30 Free Examiner Credits</strong> immediately upon registration!
           </span>
+        </div>
+
+        {/* Mode Switcher Pills */}
+        <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setError('');
+            }}
+            className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              mode === 'login' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('register');
+              setError('');
+            }}
+            className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              mode === 'register' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Register Free
+          </button>
         </div>
 
         {/* 1-Click Google Sign-In Button */}
@@ -103,22 +130,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={loading}
-          style={{
-            width: '100%',
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-strong)',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            cursor: loading ? 'default' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'all 0.15s'
-          }}
+          className="w-full py-2.5 px-4 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold flex items-center justify-center gap-2.5 shadow-2xs transition-all cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24">
             <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z" />
@@ -129,119 +141,89 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           <span>Continue with Google</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span>OR WITH EMAIL</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span>or with email</span>
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
 
         {/* Email & Password Form */}
-        <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <form onSubmit={handleEmailSubmit} className="space-y-3.5">
           {mode === 'register' && (
             <div>
-              <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
-                Full Name
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Candidate Full Name
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', padding: '7px 10px' }}>
-                <User size={14} color="var(--text-muted)" />
+              <div className="relative">
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="e.g. Ahmed Raza (CSS Aspirant)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#1d6ef2] focus:bg-white transition-all"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               Email Address
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', padding: '7px 10px' }}>
-              <Mail size={14} color="var(--text-muted)" />
+            <div className="relative">
+              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
-                required
-                placeholder="you@example.com"
+                placeholder="candidate@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                required
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#1d6ef2] focus:bg-white transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               Password
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', padding: '7px 10px' }}>
-              <Lock size={14} color="var(--text-muted)" />
+            <div className="relative">
+              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="password"
-                required
-                minLength={6}
-                placeholder="Minimum 6 characters"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                required
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#1d6ef2] focus:bg-white transition-all"
               />
             </div>
           </div>
 
           {error && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '7px 10px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--fail-red)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-3 text-xs font-medium flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
           <button
             type="submit"
-            className="btn-accent"
             disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', padding: '9px', fontSize: '0.82rem', marginTop: '4px' }}
+            className="w-full py-3 px-4 rounded-xl bg-[#1d6ef2] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
-            <LogIn size={14} />
+            <LogIn size={16} />
             <span>
               {loading
-                ? 'Please wait...'
+                ? 'Authenticating...'
                 : mode === 'login'
-                ? 'Sign In'
-                : 'Create Account & Claim 2 Free Credits'}
+                ? 'Sign In to Workspace'
+                : 'Create Account & Claim 30 Credits'}
             </span>
           </button>
         </form>
-
-        {/* Mode Switch Footer */}
-        <div style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-          {mode === 'login' ? (
-            <>
-              New to FPSC Evaluator?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('register'); setError(''); }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--accent-blue)', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Create Free Account
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('login'); setError(''); }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--accent-blue)', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Sign In
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
 };
-

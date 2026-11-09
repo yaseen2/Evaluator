@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DocumentViewer } from './DocumentViewer';
 import { ScorecardSummary } from './ScorecardSummary';
 import { RubricTabs } from './RubricTabs';
+import { CamScannerLoadingOverlay } from './CamScannerLoadingOverlay';
 import {
   FileText,
   ArrowLeft,
