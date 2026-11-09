@@ -20,7 +20,6 @@ export const Navbar = ({
   activeView = 'landing',
   setActiveView,
   onOpenSettings,
-  onOpenUpload,
   onOpenAuth,
   onOpenSubscription,
   onOpenAdmin,
@@ -452,10 +451,7 @@ export const Navbar = ({
           {/* Primary CTA Button: Stitch vibrant blue button */}
           <button
             type="button"
-            onClick={() => {
-              if (setActiveView) setActiveView('hub');
-              else onOpenUpload?.();
-            }}
+            onClick={() => setActiveView?.('hub')}
             disabled={isEvaluating}
             className="relative group overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1d6ef2] hover:bg-[#1558d6] text-white font-semibold text-[13px] sm:text-[14px] transition-all duration-300 shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 active:scale-95 cursor-pointer"
           >
@@ -682,8 +678,7 @@ export const Navbar = ({
                     type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false);
-                      if (setActiveView) setActiveView('hub');
-                      else onOpenUpload?.();
+                      setActiveView?.('hub');
                     }}
                     className="w-full py-3 rounded-xl bg-[#1d6ef2] hover:bg-[#1558d6] text-white text-center font-semibold text-sm shadow-md shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2 active:scale-95"
                   >
@@ -719,8 +714,7 @@ export const Navbar = ({
                     type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false);
-                      if (setActiveView) setActiveView('hub');
-                      else onOpenUpload?.();
+                      setActiveView?.('hub');
                     }}
                     className="w-full py-3 rounded-xl bg-[#1d6ef2] hover:bg-[#1558d6] text-white text-center font-semibold text-sm shadow-md shadow-blue-500/25 transition-all duration-200 active:scale-95"
                   >

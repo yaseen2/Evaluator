@@ -5,10 +5,8 @@ import { LandingPage } from './components/LandingPage';
 import { PracticeHub } from './components/PracticeHub';
 import { PricingPage } from './components/PricingPage';
 import { SettingsModal } from './components/SettingsModal';
-import { UploadModal } from './components/UploadModal';
 import { AlertModal } from './components/AlertModal';
 import { AuthModal } from './components/AuthModal';
-import { SubscriptionModal } from './components/SubscriptionModal';
 import { AdminModal } from './components/AdminModal';
 import { getGroundingUsage, getStoredApiKey, getStoredModel, estimateCreditsPreFlight } from './services/geminiApi';
 import { executeEvaluationPipeline } from './services/evaluationPipeline';
@@ -71,9 +69,7 @@ export default function App() {
 
   // Modals State
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
   // Firebase User & Profile State
@@ -346,9 +342,8 @@ export default function App() {
         activeSubject={activeSubject}
         setActiveSubject={setActiveSubject}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenUpload={() => setUploadOpen(true)}
         onOpenAuth={() => setAuthOpen(true)}
-        onOpenSubscription={() => setSubscriptionOpen(true)}
+        onOpenSubscription={() => setActiveView('pricing')}
         onOpenAdmin={() => setAdminOpen(true)}
         onLogout={handleLogout}
         user={user}
@@ -428,9 +423,6 @@ export default function App() {
           onSubmitEvaluation={handleRunEvaluation}
           user={user}
           userProfile={userProfile}
-          onOpenUpload={() => setUploadOpen(true)}
-          onOpenAuth={() => setAuthOpen(true)}
-          onOpenSubscription={() => setActiveView('pricing')}
         />
       )}
 
@@ -442,15 +434,6 @@ export default function App() {
         groundingUsage={groundingUsage}
       />
 
-      <UploadModal
-        isOpen={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onSubmit={handleRunEvaluation}
-        isEvaluating={isEvaluating}
-        activeSubject={activeSubject}
-        setActiveSubject={setActiveSubject}
-      />
-
       <AuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
@@ -458,15 +441,6 @@ export default function App() {
           setUser(fbUser);
           setUserProfile(profile);
         }}
-      />
-
-      <SubscriptionModal
-        isOpen={subscriptionOpen}
-        onClose={() => setSubscriptionOpen(false)}
-        user={user}
-        userProfile={userProfile}
-        onProfileUpdated={(nextProfile) => setUserProfile(nextProfile)}
-        onOpenAuth={() => setAuthOpen(true)}
       />
 
       <AdminModal

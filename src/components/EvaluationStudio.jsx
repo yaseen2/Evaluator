@@ -2,9 +2,6 @@ import React, { useState } from 'react';
 import { DocumentViewer } from './DocumentViewer';
 import { ScorecardSummary } from './ScorecardSummary';
 import { RubricTabs } from './RubricTabs';
-import { CamScannerLoadingOverlay } from './CamScannerLoadingOverlay';
-import { PracticeHub } from './PracticeHub';
-import sampleEssayEvaluation from '../data/evaluations/sample-essay-evaluation.json';
 import {
   FileText,
   ArrowLeft,
@@ -28,38 +25,10 @@ export const EvaluationStudio = ({
   onDeleteEvaluation,
   onSubmitEvaluation,
   user,
-  userProfile,
-  onOpenUpload,
-  onOpenAuth,
-  onOpenSubscription
+  userProfile
 }) => {
   const [selectedAnnId, setSelectedAnnId] = useState(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
-
-  // If in HUB view, delegate to dedicated PracticeHub (Stitch screen 3d101cd842df4c74adebf0c9139c10c0)
-  if (activeView === 'hub') {
-    return (
-      <PracticeHub
-        activeSubject={activeSubject}
-        setActiveSubject={setActiveSubject}
-        onSubmitEvaluation={onSubmitEvaluation}
-        isEvaluating={isEvaluating}
-        pipelineProgress={pipelineProgress}
-        evaluationHistory={evaluationHistory}
-        onSelectEvaluation={onSelectEvaluation}
-        onDeleteEvaluation={onDeleteEvaluation}
-        onTrySample={() => {
-          onSelectEvaluation?.(sampleEssayEvaluation);
-          setActiveView?.('report');
-        }}
-        user={user}
-        userProfile={userProfile}
-        onOpenPricing={onOpenSubscription}
-        onOpenAuth={onOpenAuth}
-        setActiveView={setActiveView}
-      />
-    );
-  }
 
   // Fallback if no evaluation loaded
   if (!evaluation && !isEvaluating) {
