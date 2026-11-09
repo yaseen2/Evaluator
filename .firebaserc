@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "fpsc-css-evaluator-pk"
+  },
   "targets": {},
   "etags": {}
 }
