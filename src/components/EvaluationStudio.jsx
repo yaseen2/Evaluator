@@ -59,78 +59,41 @@ export const EvaluationStudio = ({
   return (
     <div style={{ position: 'relative', flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Report Navigation Ribbon */}
-      <div
-        style={{
-          height: '42px',
-          background: '#ffffff',
-          borderBottom: '1px solid var(--border)',
-          padding: '0 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-          zIndex: 10
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="h-11 bg-white border-b border-slate-200 px-3 sm:px-4 flex items-center justify-between shrink-0 z-10 gap-2 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 overflow-hidden">
           <button
+            type="button"
             onClick={() => setActiveView?.('hub')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--accent-blue)',
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 6px'
-            }}
+            className="border-none bg-transparent text-[#1d6ef2] text-xs font-semibold cursor-pointer flex items-center gap-1 p-1 shrink-0 hover:underline"
           >
             <ArrowLeft size={14} />
-            <span>Practice Hub</span>
+            <span className="hidden sm:inline">Practice Hub</span>
+            <span className="sm:hidden">Back</span>
           </button>
-          <span style={{ color: 'var(--border)' }}>|</span>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+          <span className="text-slate-200 shrink-0">|</span>
+          <span className="text-[11px] sm:text-xs font-bold text-slate-500 shrink-0">
             {evaluation?.subject}
           </span>
-          <span
-            style={{
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              maxWidth: '380px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
-          >
+          <span className="text-xs font-medium text-slate-800 truncate min-w-0">
             {evaluation?.topic || evaluation?.examQuestion}
           </span>
         </div>
 
         {/* Focus Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2 shrink-0">
           <button
+            type="button"
             onClick={() => setIsFocusMode(!isFocusMode)}
-            style={{
-              border: '1px solid var(--border)',
-              background: isFocusMode ? 'var(--accent-blue-soft)' : '#ffffff',
-              color: isFocusMode ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              padding: '4px 10px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
+            className={`border px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${
+              isFocusMode
+                ? 'bg-blue-50 text-[#1d6ef2] border-blue-200'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
             title={isFocusMode ? 'Switch to side-by-side split view' : 'Focus only on evaluation report'}
           >
-            {isFocusMode ? <Columns size={12} /> : <Maximize2 size={12} />}
-            <span>{isFocusMode ? 'Split View' : 'Focus Report'}</span>
+            {isFocusMode ? <Columns size={13} /> : <Maximize2 size={13} />}
+            <span className="hidden sm:inline">{isFocusMode ? 'Split View' : 'Focus Report'}</span>
+            <span className="sm:hidden">{isFocusMode ? 'Split' : 'Focus'}</span>
           </button>
         </div>
       </div>

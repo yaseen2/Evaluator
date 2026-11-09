@@ -353,18 +353,18 @@ export const AdminConsole = ({ onNavigate }) => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200/90 p-1.5 rounded-2xl shadow-2xs">
+        <div className="flex items-center gap-2 bg-white border border-slate-200/90 p-1.5 rounded-2xl shadow-2xs overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('payments')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'payments'
                 ? 'bg-[#1d6ef2] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <CreditCard size={16} />
-            <span>Payment Verification Queue</span>
+            <span>Payment Queue</span>
             {pendingPaymentsCount > 0 && (
               <span
                 className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
@@ -379,7 +379,7 @@ export const AdminConsole = ({ onNavigate }) => {
           <button
             type="button"
             onClick={() => setActiveTab('candidates')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'candidates'
                 ? 'bg-[#1d6ef2] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -392,27 +392,27 @@ export const AdminConsole = ({ onNavigate }) => {
           <button
             type="button"
             onClick={() => setActiveTab('vouchers')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'vouchers'
                 ? 'bg-[#1d6ef2] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <Ticket size={16} />
-            <span>Vouchers &amp; Promo Codes ({vouchers.length})</span>
+            <span>Vouchers ({vouchers.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'settings'
                 ? 'bg-[#1d6ef2] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <Key size={16} />
-            <span>Master AI &amp; Bank Settings</span>
+            <span>AI &amp; Bank Settings</span>
           </button>
         </div>
 
@@ -745,7 +745,7 @@ export const AdminConsole = ({ onNavigate }) => {
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono uppercase"
                 />
               </div>
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
                   Credits
                 </label>
@@ -756,7 +756,7 @@ export const AdminConsole = ({ onNavigate }) => {
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono"
                 />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
                   Target Tier
                 </label>
@@ -780,7 +780,7 @@ export const AdminConsole = ({ onNavigate }) => {
                     customVoucherCode
                   )
                 }
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition-colors"
               >
                 Create Custom Code
               </button>

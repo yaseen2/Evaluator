@@ -314,7 +314,7 @@ export const ScorecardSummary = ({ evaluation }) => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))',
               gap: '6px',
               background: 'var(--bg-app)',
               padding: '8px',
