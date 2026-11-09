@@ -158,8 +158,10 @@ export const Navbar = ({
             </button>
             <button
               type="button"
-              onClick={onOpenSubscription}
-              className="hover:text-[#1d6ef2] transition-colors bg-transparent border-0 p-0 cursor-pointer font-semibold text-slate-600"
+              onClick={() => setActiveView?.('pricing')}
+              className={`hover:text-[#1d6ef2] transition-colors bg-transparent border-0 p-0 cursor-pointer font-semibold ${
+                activeView === 'pricing' ? 'text-[#1d6ef2] font-bold border-b-2 border-[#1d6ef2] pb-0.5' : 'text-slate-600'
+              }`}
             >
               Pricing
             </button>
@@ -208,7 +210,19 @@ export const Navbar = ({
               }`}
             >
               <span>📊</span>
-              <span>Evaluation Report</span>
+              <span>Report</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView?.('pricing')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 ${
+                activeView === 'pricing'
+                  ? 'bg-white text-[#1d6ef2] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 bg-transparent border-0'
+              }`}
+            >
+              <span>💎</span>
+              <span>Pricing</span>
             </button>
           </div>
         )}
@@ -631,7 +645,7 @@ export const Navbar = ({
                     type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false);
-                      onOpenSubscription?.();
+                      setActiveView?.('pricing');
                     }}
                     className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:text-[#1d6ef2] hover:bg-blue-50/60 transition-colors"
                   >

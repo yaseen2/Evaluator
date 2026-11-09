@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { EvaluationStudio } from './components/EvaluationStudio';
 import { LandingPage } from './components/LandingPage';
 import { PracticeHub } from './components/PracticeHub';
+import { PricingPage } from './components/PricingPage';
 import { SettingsModal } from './components/SettingsModal';
 import { UploadModal } from './components/UploadModal';
 import { AlertModal } from './components/AlertModal';
@@ -371,7 +372,7 @@ export default function App() {
             handleSelectHistoryItem(sample || sampleEssayEvaluation);
             setActiveView('report');
           }}
-          onOpenPricing={() => setSubscriptionOpen(true)}
+          onOpenPricing={() => setActiveView('pricing')}
           onOpenAuth={() => setAuthOpen(true)}
           user={user}
           userProfile={userProfile}
@@ -392,9 +393,22 @@ export default function App() {
           }}
           user={user}
           userProfile={userProfile}
-          onOpenPricing={() => setSubscriptionOpen(true)}
+          onOpenPricing={() => setActiveView('pricing')}
           onOpenAuth={() => setAuthOpen(true)}
           setActiveView={setActiveView}
+        />
+      ) : activeView === 'pricing' ? (
+        <PricingPage
+          user={user}
+          userProfile={userProfile}
+          onOpenAuth={() => setAuthOpen(true)}
+          setActiveView={setActiveView}
+          onProfileUpdated={async () => {
+            if (user?.uid) {
+              const p = await ensureUserProfile(user);
+              setUserProfile(p);
+            }
+          }}
         />
       ) : (
         <EvaluationStudio
@@ -416,7 +430,7 @@ export default function App() {
           userProfile={userProfile}
           onOpenUpload={() => setUploadOpen(true)}
           onOpenAuth={() => setAuthOpen(true)}
-          onOpenSubscription={() => setSubscriptionOpen(true)}
+          onOpenSubscription={() => setActiveView('pricing')}
         />
       )}
 
