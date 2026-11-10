@@ -482,3 +482,4 @@ export const setAdminClaim = onCall(
     return { success: true, message: `Admin custom claim set on ${callerEmail}` };
   }
 );
+

@@ -191,3 +191,4 @@ export const refundUserCreditsOnFailure = async (db, uid, reservation, jobId, er
     console.error(`[CreditsManager] Failed to refund credits for user ${uid}:`, err);
   }
 };
+
