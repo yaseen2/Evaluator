@@ -54,3 +54,4 @@ export const getSimpleHeadline = (ann) => {
 
   return 'Suggestion';
 };
+

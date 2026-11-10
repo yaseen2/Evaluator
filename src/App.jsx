@@ -12,18 +12,15 @@ import { AlertModal } from './components/AlertModal';
 import { AuthModal } from './components/AuthModal';
 import { Sparkles, Eye } from 'lucide-react';
 import { getGroundingUsage, getStoredApiKey, getStoredModel, estimateCreditsPreFlight } from './services/geminiApi';
-import { executeEvaluationPipeline } from './services/evaluationPipeline';
 import {
   subscribeToAuthChanges,
   ensureUserProfile,
   logoutUser,
-  deductUserCredits,
-  saveEvaluationToFirestore,
   fetchUserEvaluationsFromFirestore,
   deleteEvaluationFromFirestore,
-  getPlatformGeminiConfig,
   subscribeToUserProfile,
-  subscribeToPendingPaymentCount
+  subscribeToPendingPaymentCount,
+  callEvaluateSubmission
 } from './services/firebase';
 
 import sampleEssayEvaluation from './data/evaluations/sample-essay-evaluation.json';
@@ -258,63 +255,39 @@ export default function App() {
       return;
     }
 
-    // 1. Personal BYOK key (Advanced setting) takes precedence over platform credits
-    let activeApiKey = getStoredApiKey();
-    let activeModel = getStoredModel();
-    let usingPlatformCredits = false;
+    const personalApiKey = getStoredApiKey();
+    const activeModel = getStoredModel();
+    const availableCredits = Number(userProfile?.credits ?? 0);
 
-    if (!activeApiKey) {
-      const availableCredits = Number(userProfile?.credits ?? 0);
-
-      if (!isAdmin && availableCredits < preFlight.minRequiredCredits) {
-        showAlert({
-          title: 'Not Enough Credits',
-          message: `This evaluation needs about ${preFlight.minRequiredCredits} credits, but your balance is ${availableCredits}. Top up to continue.`,
-          type: 'warning',
-          actionLabel: 'View Plans',
-          onAction: () => setActiveView('pricing')
-        });
-        return;
-      }
-
-      // 2. Central Platform Gemini Key configured by Admin in Firestore
-      const platformCfg = await getPlatformGeminiConfig();
-      if (platformCfg?.apiKey) {
-        activeApiKey = platformCfg.apiKey;
-        if (platformCfg.defaultModel && activeModel === 'auto') {
-          activeModel = platformCfg.defaultModel;
-        }
-        usingPlatformCredits = true;
-      } else {
-        showAlert({
-          title: isAdmin ? 'Platform AI Key Not Configured' : 'Evaluation Service Unavailable',
-          message: isAdmin
-            ? 'Set the Platform Master Gemini API Key in the Admin Console → Master AI & Bank Settings to activate evaluations for all candidates.'
-            : 'The evaluation engine is temporarily unavailable. Please try again shortly or contact support.',
-          type: 'warning',
-          actionLabel: isAdmin ? 'Open Admin Console' : null,
-          onAction: isAdmin ? () => setActiveView('admin') : null
-        });
-        return;
-      }
+    // Fast client pre-flight check for immediate candidate feedback
+    if (!personalApiKey && !isAdmin && availableCredits < preFlight.minRequiredCredits) {
+      showAlert({
+        title: 'Not Enough Credits',
+        message: `This evaluation needs about ${preFlight.minRequiredCredits} credits, but your balance is ${availableCredits}. Top up to continue.`,
+        type: 'warning',
+        actionLabel: 'View Plans',
+        onAction: () => setActiveView('pricing')
+      });
+      return;
     }
 
     setIsEvaluating(true);
     setCurrentSubmissionImages(submissionData?.imageArray || []);
 
     try {
-      const result = await executeEvaluationPipeline({
+      // Execute via Secure Cloud Function (Server-Side 6-Agent DAG with Atomic Concurrency Lock)
+      const res = await callEvaluateSubmission({
         text: submissionData?.text,
         imageArray: submissionData?.imageArray,
         subject: effectiveSubject,
         essayMode,
         examQuestion: submissionData?.examQuestion || '',
         mode: submissionData?.mode || mode,
-        apiKey: activeApiKey,
-        selectedModel: activeModel,
-        onProgress: (progress) => setPipelineProgress(progress)
+        apiKey: personalApiKey || null,
+        selectedModel: activeModel
       });
 
+      const result = res.evaluation;
       setEvaluation(result);
       setActiveView('report');
       setEvaluationHistory((prev) => {
@@ -323,13 +296,9 @@ export default function App() {
         return nextHistory;
       });
 
-      // Cloud sync & token-synced credit deduction (admins only record telemetry)
-      await saveEvaluationToFirestore(user.uid, result);
-      const actualCredits =
-        result.creditsConsumed || result.tokenUsage?.creditsConsumed || preFlight.estimatedCredits;
-      if (usingPlatformCredits || isAdmin) {
-        const updatedProfile = await deductUserCredits(user.uid, actualCredits, result.tokenUsage);
-        if (updatedProfile) setUserProfile(updatedProfile);
+      // Update local profile with authoritative server balance
+      if (res.remainingCredits !== undefined && userProfile) {
+        setUserProfile((prev) => (prev ? { ...prev, credits: res.remainingCredits } : prev));
       }
 
       setGroundingUsage({ ...getGroundingUsage() });

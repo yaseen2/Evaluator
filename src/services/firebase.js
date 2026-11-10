@@ -4,6 +4,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { PLATFORM_PLANS } from '../data/plans';
 import {
   getAuth,
@@ -44,6 +45,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const functions = getFunctions(app, 'asia-south1');
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -238,6 +240,22 @@ export const deleteEvaluationFromFirestore = async (evalId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// CLOUD FUNCTIONS CALLABLE WRAPPERS (Secure Server-Side Backend)
+// ─────────────────────────────────────────────────────────────
+
+export const callEvaluateSubmission = async (payload) => {
+  const evaluateFn = httpsCallable(functions, 'evaluateSubmission');
+  const res = await evaluateFn(payload);
+  return res.data;
+};
+
+export const callSetAdminClaim = async () => {
+  const claimFn = httpsCallable(functions, 'setAdminClaim');
+  const res = await claimFn({});
+  return res.data;
+};
+
+// ─────────────────────────────────────────────────────────────
 // VOUCHER REDEMPTION, CANDIDATE MANAGEMENT & ADMIN CONFIG
 // ─────────────────────────────────────────────────────────────
 
@@ -246,68 +264,23 @@ export const redeemSubscriptionVoucher = async (uid, userEmail, rawCode) => {
   const cleanCode = (rawCode || '').trim().toUpperCase();
   if (!cleanCode) throw new Error('Please enter a valid activation code.');
 
-  const voucherRef = doc(db, 'vouchers', cleanCode);
-  const userRef = doc(db, 'users', uid);
-
-  return await runTransaction(db, async (transaction) => {
-    const voucherSnap = await transaction.get(voucherRef);
-    if (!voucherSnap.exists()) {
-      throw new Error(`Invalid activation code "${cleanCode}". Please check the code and try again.`);
-    }
-
-    const voucher = voucherSnap.data();
-    if (voucher.isRedeemed) {
-      throw new Error('This activation code has already been redeemed.');
-    }
-
-    const userSnap = await transaction.get(userRef);
-    const currentCredits = userSnap.exists() ? Number(userSnap.data().credits || 0) : 0;
-    const addedCredits = Number(voucher.credits || 30);
-    const updatedCredits = currentCredits + addedCredits;
-    const updatedTier = voucher.tier || 'pro';
-
-    transaction.update(voucherRef, {
-      isRedeemed: true,
-      redeemedByUid: uid,
-      redeemedByEmail: userEmail || '',
-      redeemedAt: new Date().toISOString()
-    });
-
-    transaction.update(userRef, {
-      credits: updatedCredits,
-      tier: updatedTier,
-      updatedAt: new Date().toISOString()
-    });
-
-    return {
-      success: true,
-      addedCredits,
-      creditsGranted: addedCredits,
-      updatedCredits,
-      updatedTier,
-      planLabel: voucher.label || `${addedCredits} Credits`
-    };
-  });
+  try {
+    const redeemFn = httpsCallable(functions, 'redeemVoucher');
+    const res = await redeemFn({ code: cleanCode });
+    return res.data;
+  } catch (err) {
+    throw new Error(err.message || 'Failed to activate voucher code.');
+  }
 };
 
 export const createSubscriptionVoucher = async ({ credits = 500, tier = 'pro', label = 'Aspirant Pro (500 Credits)', customCode = '' }) => {
-  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-  const code = (customCode || `CSS-${tier.toUpperCase()}-${randomPart}`).trim().toUpperCase();
-
-  const voucherData = {
-    code,
-    credits: Number(credits),
-    tier,
-    label,
-    isRedeemed: false,
-    redeemedByEmail: null,
-    redeemedByUid: null,
-    redeemedAt: null,
-    createdAt: new Date().toISOString()
-  };
-
-  await setDoc(doc(db, 'vouchers', code), voucherData);
-  return voucherData;
+  try {
+    const createFn = httpsCallable(functions, 'createVoucher');
+    const res = await createFn({ credits, tier, label, customCode });
+    return res.data?.voucher;
+  } catch (err) {
+    throw new Error(err.message || 'Failed to generate voucher code.');
+  }
 };
 
 export const fetchAllVouchers = async () => {
@@ -327,17 +300,13 @@ export const fetchAllCandidates = async () => {
 };
 
 export const adminGrantCreditsToUser = async (targetUid, addedCredits = 30, tier = 'aspirant') => {
-  const userRef = doc(db, 'users', targetUid);
-  const snap = await getDoc(userRef);
-  if (!snap.exists()) throw new Error('User not found');
-  const current = Number(snap.data().credits || 0);
-  const updatedCredits = current + Number(addedCredits);
-  await updateDoc(userRef, {
-    credits: updatedCredits,
-    tier,
-    updatedAt: new Date().toISOString()
-  });
-  return { ...snap.data(), credits: updatedCredits, tier };
+  try {
+    const grantFn = httpsCallable(functions, 'adminGrantCredits');
+    const res = await grantFn({ targetUid, addedCredits, tier });
+    return res.data;
+  } catch (err) {
+    throw new Error(err.message || 'Failed to grant credits.');
+  }
 };
 
 export const savePlatformGeminiConfig = async ({ apiKey, defaultModel = 'auto' }) => {
@@ -493,67 +462,21 @@ export const fetchAllPaymentRequests = async () => {
 };
 
 export const approvePaymentRequest = async (requestId) => {
-  const reqRef = doc(db, 'payment_requests', requestId);
-
-  return runTransaction(db, async (tx) => {
-    const reqSnap = await tx.get(reqRef);
-    if (!reqSnap.exists()) {
-      throw new Error('Payment request not found.');
-    }
-    const reqData = reqSnap.data();
-    if (reqData.status === 'approved') {
-      throw new Error('This payment request has already been approved.');
-    }
-
-    const userRef = doc(db, 'users', reqData.userId);
-    const userSnap = await tx.get(userRef);
-    const currentCredits = userSnap.exists() ? Number(userSnap.data().credits || 0) : 0;
-    const addedCredits = Number(reqData.credits || 30);
-    const updatedCredits = currentCredits + addedCredits;
-    const updatedTier = reqData.planId || 'pro';
-    const nowIso = new Date().toISOString();
-
-    tx.update(reqRef, {
-      status: 'approved',
-      approvedAt: nowIso,
-      updatedAt: nowIso
-    });
-
-    if (userSnap.exists()) {
-      tx.update(userRef, {
-        credits: updatedCredits,
-        tier: updatedTier,
-        updatedAt: nowIso
-      });
-    } else {
-      tx.set(userRef, {
-        uid: reqData.userId,
-        email: reqData.userEmail || '',
-        displayName: reqData.userName || 'CSS Candidate',
-        role: 'candidate',
-        tier: updatedTier,
-        credits: updatedCredits,
-        evaluationsCount: 0,
-        createdAt: nowIso,
-        updatedAt: nowIso
-      });
-    }
-
-    return {
-      ...reqData,
-      status: 'approved',
-      approvedAt: nowIso,
-      updatedCredits
-    };
-  });
+  try {
+    const approveFn = httpsCallable(functions, 'approvePayment');
+    const res = await approveFn({ requestId });
+    return res.data;
+  } catch (err) {
+    throw new Error(err.message || 'Failed to approve payment request.');
+  }
 };
 
 export const rejectPaymentRequest = async (requestId) => {
-  const reqRef = doc(db, 'payment_requests', requestId);
-  const nowIso = new Date().toISOString();
-  await updateDoc(reqRef, {
-    status: 'rejected',
-    updatedAt: nowIso
-  });
-  return { id: requestId, status: 'rejected', updatedAt: nowIso };
+  try {
+    const rejectFn = httpsCallable(functions, 'rejectPayment');
+    const res = await rejectFn({ requestId });
+    return res.data;
+  } catch (err) {
+    throw new Error(err.message || 'Failed to reject payment request.');
+  }
 };

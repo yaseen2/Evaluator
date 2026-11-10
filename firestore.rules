@@ -4,54 +4,110 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'yaseenwazir953@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'yaseenwazir953@gmail.com'
+      );
     }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CANDIDATE PROFILES: Strict anti-tampering rules
+    // ─────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
+      
+      // Candidate initial profile creation: strictly enforced free tier defaults
       allow create: if isOwner(userId) && (
-        isAdmin() || (request.resource.data.credits <= 30 && request.resource.data.tier == 'free' && request.resource.data.role == 'candidate')
+        isAdmin() || (
+          request.resource.data.role == 'candidate' &&
+          request.resource.data.tier == 'free' &&
+          request.resource.data.credits == 30 &&
+          request.resource.data.creditScaleVersion == 2 &&
+          request.resource.data.evaluationsCount == 0
+        )
       );
+
+      // Candidate updates: strictly blocked from altering credits, tier, role, or usage counters
       allow update: if isAdmin() || (
         isOwner(userId) &&
-        request.resource.data.role == resource.data.role
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'credits',
+          'tier',
+          'role',
+          'evaluationsCount',
+          'totalTokensConsumed',
+          'totalCreditsUsed',
+          'activeJob'
+        ])
       );
+
+      allow delete: if isAdmin();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // EVALUATIONS: Candidates can read/delete, but cannot modify scores
+    // ─────────────────────────────────────────────────────────────
     match /evaluations/{evalId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin(); // Prevents candidates from faking scores/verdicts
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // VOUCHERS: No listing/enumeration for non-admins
+    // ─────────────────────────────────────────────────────────────
     match /vouchers/{voucherCode} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn(); // User can only check a specific known code
+      allow list: if isAdmin();   // Prevent candidates from dumping all voucher codes
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        isSignedIn() &&
-        resource.data.isRedeemed == false &&
-        request.resource.data.isRedeemed == true &&
-        request.resource.data.redeemedByUid == request.auth.uid
-      );
+      allow update: if isAdmin();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // PAYMENT VERIFICATION QUEUE
+    // ─────────────────────────────────────────────────────────────
     match /payment_requests/{reqId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.planId in ['aspirant', 'pro', 'topper'];
       allow update, delete: if isAdmin();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // PLATFORM CONFIGURATION: Zero leak of Gemini API key
+    // ─────────────────────────────────────────────────────────────
     match /platform_config/payment {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    match /platform_config/gemini {
+      allow read, write: if isAdmin(); // Strictly hidden from candidate clients
+    }
+
     match /platform_config/{docId} {
-      allow read: if isSignedIn();
+      allow read, write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // AUDIT LEDGER & REAL-TIME JOBS (Cloud Function Managed)
+    // ─────────────────────────────────────────────────────────────
+    match /credit_ledger/{entryId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
   }
