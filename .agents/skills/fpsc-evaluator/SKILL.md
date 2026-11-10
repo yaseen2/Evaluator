@@ -1,6 +1,6 @@
 ---
 name: fpsc-evaluator
-description: Evaluates CSS answer scripts using the true Graph Engineering DAG architecture (scripts/evaluate_graph.js) inside Antigravity without external API costs.
+description: Evaluates CSS answer scripts and 100-mark English Essays using the true Graph Engineering DAG architecture (scripts/evaluate_graph.js & scripts/evaluate_essay_graph.js) inside Antigravity without external API costs.
 ---
 
 # FPSC CSS 6-Agent DAG Graph Evaluation Skill
@@ -201,6 +201,31 @@ This script programmatically:
 3. Calculates deterministic word counts (total + intro).
 4. Merges all node states into the unified evaluation object.
 5. Writes `src/data/evaluations/eval-graph-latest.json`.
+
+---
+
+## 📝 FPSC CSS 100-Mark English Essay DAG Pipeline
+
+For **English Essay** submissions, a specialized 6-agent pipeline evaluates the 7 official FPSC essay rubrics and enforces strict deal-breakers (e.g. outline-to-body mismatch and forbidden inline headings in the prose body):
+
+```
+.graph_state/essay/
+  ├── node0_transcription.json          ← Deconstruction (Outline, Intro, Body, Conclusion)
+  ├── node1_directive_relevance.json   ← Rubric 1: Topic Decoding & Prompt Relevance (15M)
+  ├── node2_outline_thesis.json         ← Rubric 2 (15M) & Rubric 3: Thesis Statement (10M)
+  ├── node3_intro_conclusion.json       ← Rubric 4: Intro Funnel (15M) & Rubric 6: Synthesis (10M)
+  ├── node4_peel_evidence.json          ← Rubric 5: PEEL Argumentation & Empirical Data (20M)
+  └── node5_grammar_annotations.json    ← Rubric 7: Grammar, Register & Micro-Lessons (15M)
+
+scripts/evaluate_essay_graph.js         ← Programmatic State Reducer & Deal-Breaker Arbiter
+src/data/evaluations/
+  └── eval-essay-graph-latest.json      ← Final merged 100-mark essay evaluation
+```
+
+### Running the Essay State Reducer:
+```bash
+node scripts/evaluate_essay_graph.js
+```
 
 ---
 

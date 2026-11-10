@@ -1,0 +1,257 @@
+{
+  "id": "essay-graph-eval-1794322203611",
+  "type": "graph_dag_evaluation",
+  "subject": "English Essay",
+  "essayMode": "full",
+  "scored": false,
+  "archetypeId": "essay",
+  "archetypeLabel": "FPSC English Essay Diagnostic",
+  "domainLabel": "FPSC English Essay & Argumentation Mentor",
+  "candidateName": "CSS Aspirant Sample",
+  "date": "2026-11-10",
+  "topic": "Artificial Intelligence and the Future of Governance in Developing Nations",
+  "examQuestion": "Artificial Intelligence and the Future of Governance in Developing Nations: Opportunities and Institutional Risks",
+  "evaluatedModelName": "Gemini 3.8 Flash (Essay DAG Task Force)",
+  "overallScore": 60.5,
+  "maxScore": 100,
+  "passingScore": 40,
+  "passStatus": false,
+  "gradeBand": "Distinction Standard (60%+)",
+  "overallReadiness": "Critical Deal-Breakers Present — Needs Structural Overhaul",
+  "wordCount": 403,
+  "introWordCount": 138,
+  "targetIntroWords": 180,
+  "dealBreakerFlags": [
+    {
+      "code": "OUTLINE_BODY_MISMATCH",
+      "severity": "High",
+      "description": "Points listed in the Outline were omitted in the Essay body: Section III-C: Cyber Warfare and National Security (listed in Outline, skipped in Body)"
+    },
+    {
+      "code": "INLINE_HEADINGS_IN_BODY",
+      "severity": "High",
+      "description": "Inline headings/subheadings detected inside essay body. In FPSC English Essay, headings are strictly restricted to the Outline."
+    },
+    {
+      "code": "WEAK_TAUTOLOGICAL_THESIS",
+      "severity": "Medium",
+      "description": "Thesis statement merely mirrors the prompt without asserting a debatable stance."
+    }
+  ],
+  "directiveAnalysis": {
+    "directiveWord": "Analytical / Expository Essay",
+    "targetTimeframe": "Contemporary & Near-Future",
+    "requiredDimensions": "Public Service Delivery, Fiscal Transparency, Institutional Capacity, Digital Divide, and Algorithmic Regulation",
+    "alignmentStatus": "Aligned",
+    "feedback": "The candidate properly anchors the essay in the socio-economic context of developing nations rather than drifting into a generic computer science summary. Opportunities and institutional risks are both addressed, though regulatory frameworks need more depth."
+  },
+  "thesisAudit": {
+    "candidateThesis": "Artificial intelligence has many opportunities and also many institutional risks for governance in developing nations.",
+    "status": "Needs Polish",
+    "critique": "The thesis statement is tautological: it merely mirrors the prompt words without taking an arguable, debatable position or previewing the causal mechanism (HOW and UNDER WHAT CONDITIONS).",
+    "modelTopperThesis": "While Artificial Intelligence offers developing nations a historic leapfrog opportunity in fiscal transparency and citizen service delivery, its dividends remain contingent upon bridging the digital divide and enacting robust institutional safeguards against algorithmic bias and state surveillance."
+  },
+  "outlineAlignment": {
+    "status": "Needs Polish",
+    "summary": "3 of 4 major Outline sections are developed in the body paragraphs, but Section III-C ('Cyber Warfare and National Security') from your Outline is completely absent from the essay prose. Additionally, one standalone heading ('Way Forward:') was inserted inside the essay body.",
+    "missingFromBody": [
+      "Section III-C: Cyber Warfare and National Security (listed in Outline, skipped in Body)"
+    ],
+    "bodyHeadingWarning": "Inline heading 'Way Forward:' detected inside the essay body prose. In FPSC English Essays, headings are strictly restricted to the Outline."
+  },
+  "headerUpgrades": [
+    {
+      "originalHeader": "II. Opportunities",
+      "issue": "Single-Word Noun Dump",
+      "upgradedHeader": "II. Algorithmic Dividends: Transforming Public Sector Efficiency",
+      "rule": "Avoid single-word guidebook labels in an FPSC Outline; use self-explanatory analytical noun phrases that signal your argument."
+    },
+    {
+      "originalHeader": "A. Tax collection can be improved by using AI tools.",
+      "issue": "Full Sentence Breaking Parallelism",
+      "upgradedHeader": "A. Expanding Fiscal Capacity through Automated Tax Analytics",
+      "rule": "Keep sibling sub-points (A, B, C) grammatically parallel—use either all gerund phrases ('Expanding...', 'Targeting...') or all noun phrases."
+    },
+    {
+      "originalHeader": "III. What are the Institutional Risks?",
+      "issue": "Question Format Mixing with Noun Headers",
+      "upgradedHeader": "III. Structural Bottlenecks and Institutional Vulnerabilities in the Global South",
+      "rule": "Maintain grammatical symmetry across Roman-numeral sections—do not mix interrogative questions with noun phrases."
+    }
+  ],
+  "examinerSummary": "Your essay demonstrates solid thematic comprehension of digital public infrastructure and algorithmic risks, avoiding artificial vocabulary bombast. However, two structural issues hinder an authoritative pass: (1) Outline-to-body mismatch—Section III-C ('Cyber Warfare') was promised in the Outline but never written in the body, alongside a forbidden inline heading ('Way Forward:'), and (2) The thesis statement merely echoes the prompt without articulating the critical conditions governing AI success.",
+  "customObservations": [
+    {
+      "category": "Introduction Length & Funnel",
+      "observation": "Your introduction is 138 words (below the 180–250 word target). Expand the contextual bridge between your hook and thesis statement.",
+      "type": "recommendation"
+    },
+    {
+      "category": "Cliché Hook Warning",
+      "observation": "FPSC Examiner Reports repeatedly caution against opening with broad temporal clichés like 'Since the dawn of human civilization'. Open directly with an empirical contrast or paradox.",
+      "type": "concern"
+    },
+    {
+      "category": "PEEL Argumentation",
+      "observation": "Paragraphs effectively demonstrate point-explanation-evidence alignment, grounding abstract governance in concrete institutions (BISP, NADRA).",
+      "type": "strength"
+    },
+    {
+      "category": "Natural Academic Register",
+      "observation": "Sentence structure is clear, direct, and free of artificial 'dictionary bombast'—aligning well with FPSC Examiner Report expectations.",
+      "type": "strength"
+    }
+  ],
+  "thingsToInclude": [
+    "Cite the UN E-Government Development Index (EGDI) or Oxford Insights 'Government AI Readiness Index' to benchmark developing nations empirically.",
+    "Include a balanced counter-argument paragraph addressing 'Automation vs. Public Sector Employment' in labor-surplus developing economies.",
+    "Reference Estonia's 'X-Road' data exchange or India's 'India Stack' as comparative public digital infrastructure models for Pakistan.",
+    "Mention Pakistan's Draft Personal Data Protection Bill and the National AI Policy framework to ground your Way Forward in domestic policy."
+  ],
+  "rewrites": [
+    {
+      "original": "Since the dawn of human civilization, technology has always changed how governments rule their citizens. Today, Artificial Intelligence is transforming bureaucracy across the globe. In developing countries like Pakistan, governance suffers from chronic inefficiency, elite capture, and manual red-tapism. Citizens wait for months to get basic land records or justice in lower courts. The integration of machine learning and automated databases offers a unique window to modernize state institutions. However, jumping into automation without digital literacy and legal frameworks can also create new problems. Artificial intelligence has many opportunities and also many institutional risks for governance in developing nations.",
+      "basic": "Throughout history, technology has reshaped how governments administer public services. Today, Artificial Intelligence is transforming bureaucracy worldwide. In developing countries such as Pakistan, governance often suffers from chronic inefficiency, elite capture, and manual red tape, forcing citizens to wait months for basic land records or lower-court adjudication. Integrating machine learning and automated databases offers a practical opportunity to modernize state institutions. However, adopting automation without digital literacy and legal safeguards can create severe institutional risks.",
+      "cssStandard": "Across the developing world, public administration stands at an inflection point between twentieth-century bureaucratic inertia and twenty-first-century algorithmic governance. In states like Pakistan, where manual red tape and discretionary rent-seeking routinely delay basic land administration and judicial relief, Artificial Intelligence offers a powerful tool for institutional modernization. Yet technology is never deployed in a vacuum. When automated systems are grafted onto fragile digital infrastructure without legal oversight, they risk amplifying exclusion. Thus, while AI provides developing nations a historic opportunity to enhance fiscal and administrative efficiency, realizing its promise requires prior investment in digital inclusion and accountable regulatory frameworks.",
+      "highScorer": "From Rwanda's digitized land registries to India's automated welfare architecture, algorithmic governance is redefining state capacity across the Global South. For developing nations like Pakistan—where manual files, discretionary rent-seeking, and institutional bottlenecks routinely alienate citizens from basic public goods—Artificial Intelligence offers a rare leapfrog mechanism to modernize the state apparatus. Yet technological sophistication cannot compensate for analog institutional decay. Deploying opaque algorithms across populations divided by stark broadband disparities and unprotected by data privacy statutes risks replacing human petty corruption with automated systemic exclusion. Consequently, while Artificial Intelligence holds transformative potential for fiscal transparency and public service delivery in developing states, its dividends remain contingent upon bridging the digital divide and embedding algorithmic accountability within constitutional bounds.",
+      "whatChanged": "Replaced the cliché 'Since the dawn of civilization' hook with concrete Global South examples (Rwanda, India, Pakistan), built a cohesive 3-step funnel (Hook → Institutional Context → Debatable Thesis), and replaced the tautological last sentence with a thesis that specifies exact conditions."
+    },
+    {
+      "original": "Way Forward:\nTo harness AI responsibly, developing nations must first invest in digital public infrastructure and enact statutory data protection authorities before automating high-stakes administrative decisions.",
+      "basic": "To harness AI responsibly, developing nations must first invest in digital public infrastructure and establish statutory data protection authorities before automating high-stakes administrative decisions.",
+      "cssStandard": "Addressing these structural vulnerabilities requires a sequenced policy roadmap that prioritizes foundational digital public infrastructure and independent data protection statutes before automating high-stakes administrative decisions.",
+      "highScorer": "Mitigating these institutional risks requires developing states to adopt a sequenced, rights-based transition toward algorithmic governance. Rather than importing opaque surveillance tools, policymakers must first universalize rural broadband access and standardize interoperable public datasets so machine-learning models reflect the entire citizenry. Simultaneously, parliaments must enact comprehensive Personal Data Protection Acts—modeled on transparent algorithmic auditing standards—to guarantee that automated welfare or tax flags remain subject to human judicial review.",
+      "whatChanged": "Removed the forbidden inline heading ('Way Forward:'), expanded the single-sentence note into a full PEEL paragraph with a transitional Topic Sentence, and added concrete policy mechanisms (interoperable datasets, Data Protection Acts, and human judicial review)."
+    }
+  ],
+  "factCheck": [
+    {
+      "claim": "Pakistan's Benazir Income Support Programme (BISP) and NADRA databases have demonstrated that biometric and algorithmic verification can reduce ghost beneficiaries",
+      "verified": true,
+      "correctedFact": null,
+      "source": "World Bank Social Protection & NADRA Digital ID Case Study (Pakistan)"
+    }
+  ],
+  "suggestedVisual": {
+    "title": "Model FPSC Parallel Essay Outline Blueprint",
+    "description": "Compare your outline with this balanced, grammatically parallel FPSC blueprint where every Roman-numeral section and sub-point follows consistent analytical phrasing.",
+    "insertAfterHeading": "OUTLINE",
+    "diagramText": "MODEL FPSC ESSAY OUTLINE: AI & GOVERNANCE IN DEVELOPING NATIONS\n├── I. Introduction\n│   ├── A. Hook: From manual red-tapism to algorithmic statecraft in the Global South\n│   ├── B. Contextual Bridge: The dual reality of leapfrog efficiency vs. institutional fragility\n│   └── C. Thesis Statement: While AI offers developing states a transformative tool for fiscal\n│          and administrative efficiency, its success depends on digital inclusion and legal safeguards.\n├── II. Algorithmic Dividends: Transforming Public Sector Delivery\n│   ├── A. Widening the Tax Net through Predictive Fiscal Analytics (FBR / Tajir Dost Context)\n│   ├── B. Precision Welfare Targeting via Biometric Registries (NADRA & BISP Case Study)\n│   └── C. Decongesting Lower Courts through Automated Case-Flow Management\n├── III. Institutional Vulnerabilities and Structural Bottlenecks\n│   ├── A. The Rural-Urban Digital Divide: How Incomplete Data Excludes the Marginalized\n│   ├── B. Algorithmic Bias and Opaque Automated Decision-Making\n│   └── C. Surveillance Risks in the Absence of Statutory Data Protection Laws\n├── IV. Sequencing the Transition: A Pragmatic Policy Roadmap\n│   ├── A. Building Universal Digital Public Infrastructure Before High-Stakes Automation\n│   ├── B. Enacting Independent Data Protection Authorities and Algorithmic Audits\n│   └── C. Upskilling Civil Servants (PAS / Secretariat Cadres) in Digital Governance\n└── V. Conclusion\n    ├── A. Restated Thesis: Technology amplifies—rather than replaces—institutional integrity\n    └── B. Closing Synthesis: Balancing innovation with constitutional accountability"
+  },
+  "annotations": [
+    {
+      "id": "ann-essay-1",
+      "targetPhrase": "II. Opportunities",
+      "type": "amber",
+      "category": "Outline Non-Parallelism",
+      "comment": "A single-word header ('Opportunities') looks like a textbook note rather than an FPSC essay blueprint.",
+      "suggestion": "II. Algorithmic Dividends: Transforming Public Sector Efficiency",
+      "microLesson": "Every major Roman-numeral outline header should be a 5–9 word analytical phrase that previews your thesis direction."
+    },
+    {
+      "id": "ann-essay-2",
+      "targetPhrase": "A. Tax collection can be improved by using AI tools.",
+      "type": "amber",
+      "category": "Outline Phrasing",
+      "comment": "This sub-point is written as a full sentence with a period, while sub-points B and C are noun phrases, breaking grammatical parallelism.",
+      "suggestion": "A. Expanding Fiscal Capacity through Automated Tax Analytics",
+      "microLesson": "Keep sibling sub-points (A, B, C) grammatically parallel—use either all gerund phrases ('Expanding...', 'Targeting...') or all noun phrases."
+    },
+    {
+      "id": "ann-essay-3",
+      "targetPhrase": "Since the dawn of human civilization",
+      "type": "amber",
+      "category": "Cliché Opening Hook",
+      "comment": "FPSC Examiner Reports specifically advise against sweeping historical clichés like 'Since the dawn of civilization'. Open directly with a sharp contemporary paradox or empirical reality.",
+      "suggestion": "From Estonia's paperless e-cabinet to predictive welfare registries in South Asia, algorithmic decision-making is rapidly redrawing the boundaries of the modern state.",
+      "microLesson": "Start your essay introduction with a specific contemporary contrast, paradox, or statistic rather than a generic 'since time immemorial' cliché."
+    },
+    {
+      "id": "ann-essay-4",
+      "targetPhrase": "Artificial intelligence has many opportunities and also many institutional risks",
+      "type": "red",
+      "category": "Tautological Thesis",
+      "comment": "Your thesis statement repeats the exact words of the prompt without taking an analytical position on how opportunities and risks interact.",
+      "suggestion": "While Artificial Intelligence offers developing nations a vital leapfrog mechanism to curb bureaucratic discretion and widen the fiscal net, its success depends on prior investment in digital inclusion and statutory data safeguards.",
+      "microLesson": "A strong FPSC thesis must answer 'How' and 'Under what conditions' rather than merely stating that both pros and cons exist."
+    },
+    {
+      "id": "ann-essay-5",
+      "targetPhrase": "Benazir Income Support Programme (BISP) and NADRA databases have demonstrated",
+      "type": "green",
+      "category": "Strong Empirical Case Study",
+      "comment": "Excellent grounding! Anchoring abstract AI concepts in concrete national institutions (BISP and NADRA) immediately elevates the credibility of your body paragraph.",
+      "suggestion": null,
+      "microLesson": "Pair every major theoretical claim in your body paragraphs with a concrete national or international institutional case study."
+    },
+    {
+      "id": "ann-essay-6",
+      "targetPhrase": "Way Forward:",
+      "type": "red",
+      "category": "Forbidden Body Heading",
+      "comment": "You inserted a standalone heading ('Way Forward:') inside the essay prose body. In FPSC English Essays, inline headings are strictly prohibited outside the Outline.",
+      "suggestion": "To bridge these institutional gaps, developing nations must sequence digital infrastructure and statutory data protection ahead of high-stakes automation.",
+      "microLesson": "Never write sub-headings inside the body of an FPSC English Essay; use transitional topic sentences to signal new sections."
+    },
+    {
+      "id": "ann-essay-7",
+      "targetPhrase": "technology cannot substitute for institutional integrity",
+      "type": "green",
+      "category": "Strong Concluding Synthesis",
+      "comment": "Memorable, balanced synthesis that ties your technological argument back to core governance fundamentals.",
+      "suggestion": null,
+      "microLesson": "End your conclusion by synthesizing the human and institutional dimension rather than repeating body paragraph details."
+    }
+  ],
+  "scoreBreakdown": {
+    "topic_relevance": {
+      "name": "1. Topic Decoding & Prompt Relevance",
+      "maxMarks": 15,
+      "status": "Strong",
+      "feedback": "The candidate properly anchors the essay in the socio-economic context of developing nations rather than drifting into a generic computer science summary. Opportunities and institutional risks are both addressed, though regulatory frameworks need more depth.",
+      "score": 11.5
+    },
+    "outline": {
+      "name": "2. Formal Outline & Outline-to-Body Alignment",
+      "maxMarks": 15,
+      "status": "Needs Polish",
+      "feedback": "3 of 4 major Outline sections are developed in the body paragraphs, but Section III-C ('Cyber Warfare and National Security') from your Outline is completely absent from the essay prose. Additionally, one standalone heading ('Way Forward:') was inserted inside the essay body.",
+      "score": 6
+    },
+    "thesis": {
+      "name": "3. Thesis Statement Clarity & Stance",
+      "maxMarks": 10,
+      "status": "Needs Polish",
+      "feedback": "The thesis statement is tautological: it merely mirrors the prompt words without taking an arguable, debatable position or previewing the causal mechanism (HOW and UNDER WHAT CONDITIONS).",
+      "score": 5
+    },
+    "introduction": {
+      "name": "4. Introduction Funnel (Hook → Context → Thesis)",
+      "maxMarks": 15,
+      "status": "Balanced",
+      "feedback": "Introduction contains 138 words (target is 180–250 words). While the contextual bridge is logical, the opening hook relies on an overused cliché ('Since the dawn of human civilization'). Expanding the bridge by 40–50 words will provide greater analytical gravitas.",
+      "score": 7.5
+    },
+    "body_paragraphs": {
+      "name": "5. Body Paragraph Depth (PEEL) & Empirical Evidence",
+      "maxMarks": 20,
+      "status": "Strong",
+      "feedback": "Body paragraphs exhibit strong PEEL progression with analytical topic sentences and grounded Pakistani institutional case studies (BISP, NADRA, tax evasion).",
+      "score": 15
+    },
+    "coherence": {
+      "name": "6. Coherence, Transitions & Concluding Synthesis",
+      "maxMarks": 10,
+      "status": "Needs Polish",
+      "feedback": "Deduction: Forbidden inline headings inserted into essay body prose.",
+      "score": 4
+    },
+    "grammar_syntax": {
+      "name": "7. Language Clarity, Grammar & Natural Register",
+      "maxMarks": 15,
+      "status": "Strong",
+      "feedback": "Lucid, natural academic English free of forced dictionary bombast. Sentence structure is clean and readable.",
+      "score": 11.5
+    }
+  }
+}
