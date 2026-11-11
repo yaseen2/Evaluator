@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   AlertTriangle,
   Compass,
@@ -9,14 +9,21 @@ import {
   BookOpen,
   Sparkles,
   Lightbulb,
-  XCircle
+  XCircle,
+  TrendingUp,
+  Award,
+  Layers,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
 import { cleanSimpleText } from '../utils/textUtils';
 
 export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
-  const [activeTab, setActiveTab] = useState('callouts');
+  // Default to the clean Stitch Diagnostic Report
+  const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts'
+  const [selectedParamId, setSelectedParamId] = useState(null);
   const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'red' | 'amber' | 'green'
   const cardRefs = useRef({});
 
@@ -26,6 +33,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
     essayMode: evaluation.essayMode,
     archetypeId: evaluation.archetypeId
   });
+
   const dealBreakers = profile.dealBreakers || [];
   const factChecks = evaluation.factCheck || [];
   const breakdown = evaluation.scoreBreakdown || {};
@@ -34,6 +42,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
   const rewrites = evaluation.rewrites || [];
   const headerUpgrades = evaluation.headerUpgrades || [];
   const totalUpgradesCount = rewrites.length + headerUpgrades.length;
+  const examinerSummary = evaluation.examinerSummary || null;
 
   const redCount = allAnnotations.filter((a) => a.type === 'red').length;
   const amberCount = allAnnotations.filter((a) => a.type === 'amber').length;
@@ -44,11 +53,9 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
       ? allAnnotations
       : allAnnotations.filter((a) => a.type === calloutFilter);
 
-  // Auto-switch to callouts tab and scroll to card when user clicks a highlight on paper
+  // If candidate clicks an annotation on paper while in callouts tab, scroll to it
   useEffect(() => {
-    if (selectedAnnId) {
-      setActiveTab('callouts');
-      setCalloutFilter('all');
+    if (selectedAnnId && activeTab === 'callouts') {
       setTimeout(() => {
         const targetCard = cardRefs.current[selectedAnnId];
         if (targetCard && typeof targetCard.scrollIntoView === 'function') {
@@ -56,76 +63,436 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         }
       }, 40);
     }
-  }, [selectedAnnId]);
+  }, [selectedAnnId, activeTab]);
 
-  const getTypeColor = (type) => {
-    if (type === 'red') return 'var(--fail-red)';
-    if (type === 'green') return 'var(--pass-green)';
-    return 'var(--warning-amber)';
+  // Compute 2-Column Rubric Breakdown Parameters (Stitch Design)
+  const displayParameters = useMemo(() => {
+    return profile.breakdown.map((comp) => {
+      const saved = breakdown[comp.id] || {};
+      let status = saved.status;
+      if (!status) {
+        if (comp.id === 'introduction') {
+          status = (evaluation.introWordCount || 0) >= (evaluation.targetIntroWords || 100) ? 'Satisfactory' : 'Incomplete';
+        } else if (comp.id === 'grammar_syntax') {
+          status = redCount === 0 ? 'Strong' : redCount > 3 ? 'Needs Polish' : 'Moderate';
+        } else {
+          status = 'Moderate';
+        }
+      }
+
+      let score = typeof saved.score === 'number' ? saved.score : null;
+      if (score === null) {
+        const s = status.toLowerCase();
+        score = s.includes('strong') || s.includes('satisfactory')
+          ? Math.round(comp.maxMarks * 0.75 * 2) / 2
+          : s.includes('partial') || s.includes('moderate') || s.includes('developing') || s.includes('balanced')
+          ? Math.round(comp.maxMarks * 0.5 * 2) / 2
+          : Math.round(comp.maxMarks * 0.25 * 2) / 2;
+      }
+
+      // Clean leading number e.g. "1. Topic Decoding & Prompt Relevance" -> "Topic Relevancy"
+      let cleanName = comp.name.replace(/^[0-9]+[.\-)]\s*/, '');
+      if (cleanName.includes('&')) {
+        const shortPart = cleanName.split('&')[0].trim();
+        if (shortPart.length <= 18) cleanName = shortPart;
+      }
+      if (cleanName.length > 24) {
+        cleanName = cleanName.substring(0, 22) + '...';
+      }
+
+      return {
+        id: comp.id,
+        cleanName,
+        fullName: comp.name,
+        status,
+        score,
+        maxMarks: comp.maxMarks,
+        feedback: saved.feedback || comp.defaultFeedback
+      };
+    });
+  }, [profile.breakdown, breakdown, evaluation, redCount]);
+
+  // Status Badge Styling Helper
+  const getBadgeStyle = (status = '') => {
+    const s = status.toLowerCase();
+    if (s.includes('strong') || s.includes('satisfactory') || s.includes('excellent')) {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+    }
+    if (s.includes('missing') || s.includes('absent') || s.includes('critical') || s.includes('fragmented') || s.includes('deficient')) {
+      return 'bg-rose-50 text-rose-700 border-rose-200/60';
+    }
+    if (s.includes('low') || s.includes('incomplete')) {
+      return 'bg-rose-50 text-rose-700 border-rose-200/60';
+    }
+    if (s.includes('partial') || s.includes('informal') || s.includes('developing') || s.includes('moderate') || s.includes('polish') || s.includes('balanced')) {
+      return 'bg-amber-50 text-amber-700 border-amber-200/60';
+    }
+    return 'bg-slate-100 text-slate-600 border-slate-200';
   };
 
+  // Immediate Remedial Steps (Numbered 1, 2, 3)
+  const remedialSteps = useMemo(() => {
+    const steps = [];
+    if (Array.isArray(evaluation.thingsToInclude) && evaluation.thingsToInclude.length > 0) {
+      evaluation.thingsToInclude.forEach((item) => {
+        const parts = item.split(':');
+        if (parts.length > 1) {
+          steps.push({
+            title: parts[0].trim(),
+            description: parts.slice(1).join(':').trim()
+          });
+        } else {
+          steps.push({
+            title: 'Action Point',
+            description: item.trim()
+          });
+        }
+      });
+    }
+
+    // Add outline or thesis remedial directive if missing
+    if (steps.length < 3 && evaluation.outlineAlignment?.missingFromBody?.length) {
+      steps.push({
+        title: 'Fulfill Outline Sections',
+        description: `Ensure all points promised in your outline are developed in full prose paragraphs (e.g. ${evaluation.outlineAlignment.missingFromBody[0]}).`
+      });
+    }
+    if (steps.length < 3 && evaluation.thesisAudit?.status === 'Needs Polish') {
+      steps.push({
+        title: 'Formulate Explicit Thesis',
+        description: 'Under Introduction, provide a verbatim 2-sentence thesis paragraph outlining your core analytical contention.'
+      });
+    }
+
+    if (steps.length === 0) {
+      steps.push(
+        { title: 'Adopt Rigorous Diction', description: 'Replace informal phraseology with authoritative civil service terminology.' },
+        { title: 'Formulate Explicit Thesis', description: 'Provide a verbatim 2-sentence thesis paragraph outlining your core contention.' },
+        { title: 'Expand Outline Granularity', description: 'Flesh out primary roman numerals into complete, sub-argumentative assertions before commencing full prose.' }
+      );
+    }
+
+    return steps.slice(0, 3);
+  }, [evaluation]);
+
+  const topicTitle = evaluation.topic || evaluation.examQuestion || "Candidate's Answer Script";
+
   return (
-    <div style={{ marginTop: '16px' }}>
-      {/* SuperKalam Rounded Pill Tabs */}
-      <div className="sk-tab-list">
+    <div className="w-full">
+      {/* Clean Pill Tabs Ribbon */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-slate-200/80 mb-5">
         <button
-          className={`sk-tab-pill ${activeTab === 'callouts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('callouts')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'report'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+          onClick={() => setActiveTab('report')}
         >
-          💡 Mistakes & Fixes ({allAnnotations.length})
+          <Layers size={13} />
+          <span>Diagnostic Report</span>
         </button>
+
         <button
-          className={`sk-tab-pill ${activeTab === 'rewrites' ? 'active' : ''}`}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'rewrites'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
           onClick={() => setActiveTab('rewrites')}
         >
-          ✦ {profile.archetypeId === 'essay_outline' ? `Header Upgrades (${totalUpgradesCount})` : `Topper Rewrites (${totalUpgradesCount})`}
+          <Sparkles size={13} className="text-amber-500" />
+          <span>Topper Rewrites ({totalUpgradesCount})</span>
         </button>
-        {profile.archetypeId !== 'essay_outline' && (
+
+        {factChecks.length > 0 && (
           <button
-            className={`sk-tab-pill ${activeTab === 'accuracy' ? 'active' : ''}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'accuracy'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
             onClick={() => setActiveTab('accuracy')}
           >
-            📌 Fact Audit ({factChecks.length})
+            <BookOpen size={13} />
+            <span>Fact Audit ({factChecks.length})</span>
           </button>
         )}
+
         <button
-          className={`sk-tab-pill ${activeTab === 'directive' ? 'active' : ''}`}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'directive'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
           onClick={() => setActiveTab('directive')}
         >
-          📘 Rules & Scope
+          <Compass size={13} />
+          <span>Rules & Scope</span>
+        </button>
+
+        <button
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'callouts'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+          onClick={() => setActiveTab('callouts')}
+        >
+          <Lightbulb size={13} />
+          <span>All Mistakes ({allAnnotations.length})</span>
         </button>
       </div>
 
-      {/* TAB 1: SUPERKALAM #mistakes-yes WARM CREAM CARDS */}
-      {activeTab === 'callouts' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Filter Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <MessageSquare size={13} color="var(--accent-blue)" />
-              <span>Click any card to highlight on answer script:</span>
+      {/* TAB 1: GOOGLE STITCH MINIMAL DIAGNOSTIC REPORT */}
+      {activeTab === 'report' && (
+        <div className="space-y-6">
+          {/* Header Info */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-semibold tracking-wider text-brand-600 uppercase font-sans">
+                Report
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {evaluation.wordCount || 0} words
+              </span>
+            </div>
+            <h2 className="text-xl xl:text-2xl font-academic font-medium text-slate-900 leading-snug">
+              {topicTitle}
+            </h2>
+          </div>
+
+          {/* Rubric Score Matrix (BREAKDOWN) */}
+          <div className="space-y-2.5" data-purpose="rubric-matrix">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-sans">
+                Breakdown
+              </h4>
+              <span className="text-[10px] font-mono text-slate-400">
+                {displayParameters.length} Parameters
+              </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px' }}>
+            {/* 2-Column Responsive Grid */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {displayParameters.map((item) => {
+                const isSelected = selectedParamId === item.id;
+                const badgeClass = getBadgeStyle(item.status);
+                const scoreFormatted =
+                  typeof item.score === 'number'
+                    ? String(Math.round(item.score)).padStart(2, '0')
+                    : '00';
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() =>
+                      setSelectedParamId(isSelected ? null : item.id)
+                    }
+                    className={`p-2.5 bg-slate-50 border rounded-md flex flex-col justify-between transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-brand-500 ring-1 ring-brand-500/30 bg-blue-50/40'
+                        : 'border-slate-200 hover:bg-slate-100/70'
+                    }`}
+                    title={item.fullName}
+                  >
+                    <div className="text-[11px] text-slate-500 font-medium truncate font-sans">
+                      {item.cleanName}
+                    </div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-sm font-semibold text-slate-800 font-mono">
+                        {scoreFormatted}
+                        <span className="text-[10px] font-normal text-slate-400">
+                          /{item.maxMarks}
+                        </span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${badgeClass}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    {/* Expandable feedback when clicked */}
+                    {isSelected && item.feedback && (
+                      <div className="mt-2 pt-2 border-t border-slate-200/80 text-[11px] text-slate-600 font-normal leading-relaxed animate-in fade-in duration-150">
+                        {item.feedback}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Examiner Analytical Critique */}
+          <div className="space-y-2" data-purpose="examiner-critique">
+            <div className="flex items-center space-x-2">
+              <FileText className="w-4 h-4 text-brand-600" />
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
+                Examiner Analytical Critique
+              </h4>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-md p-4 text-slate-600 text-sm leading-relaxed space-y-2 font-academic text-[15px]">
+              <p>
+                {examinerSummary ? (
+                  `"${examinerSummary}"`
+                ) : (
+                  `"The candidate addresses foundational themes across the topic directive. However, structural rigor and analytical precision must be deepened to satisfy FPSC civil service examination benchmark standards."`
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Actionable Directives / Remedial Steps */}
+          <div className="space-y-3 pt-1" data-purpose="actionable-directives">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
+              Immediate Remedial Steps
+            </h4>
+            <ul className="space-y-2.5 text-xs text-slate-600 font-sans">
+              {remedialSteps.map((step, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-50 text-brand-600 font-semibold text-[10px] mr-2.5 flex-shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <span>
+                    <strong>{step.title}:</strong> {step.description}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: TOPPER REWRITES & HEADER UPGRADES */}
+      {activeTab === 'rewrites' && (
+        <div>
+          <ParagraphRewriter
+            rewrites={rewrites}
+            headerUpgrades={headerUpgrades}
+          />
+        </div>
+      )}
+
+      {/* TAB 3: FACT AUDIT */}
+      {activeTab === 'accuracy' && (
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2 mb-2">
+            <BookOpen className="w-4 h-4 text-brand-600" />
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
+              Historical, Institutional & Empirical Audit ({factChecks.length})
+            </h4>
+          </div>
+
+          {factChecks.map((item, idx) => (
+            <div
+              key={idx}
+              className={`p-3.5 rounded-lg border text-xs space-y-1.5 ${
+                item.verified
+                  ? 'bg-emerald-50/50 border-emerald-200 text-slate-700'
+                  : 'bg-rose-50/50 border-rose-200 text-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                    item.verified
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {item.verified ? '✓ Verified Fact' : '✗ Factual Discrepancy'}
+                </span>
+                {item.source && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Source: {item.source}
+                  </span>
+                )}
+              </div>
+              <div className="font-medium text-slate-800 font-academic text-sm">
+                "{item.claim}"
+              </div>
+              {item.correctedFact && (
+                <div className="text-rose-700 font-sans pt-1">
+                  <strong>Correction:</strong> {item.correctedFact}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* TAB 4: RULES & SCOPE */}
+      {activeTab === 'directive' && (
+        <div className="space-y-4 text-xs font-sans">
+          {/* Directive Word & Timeframe */}
+          <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2">
+            <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+              Prompt Qualifier & Scope Alignment
+            </h4>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-slate-400 block text-[10px]">Directive Qualifier</span>
+                <strong className="text-slate-800">
+                  {directiveAnalysis.directiveWord || 'Analytical Examination'}
+                </strong>
+              </div>
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-slate-400 block text-[10px]">Timeframe / Context</span>
+                <strong className="text-slate-800">
+                  {directiveAnalysis.targetTimeframe || 'Contemporary & Historical'}
+                </strong>
+              </div>
+            </div>
+            {directiveAnalysis.feedback && (
+              <p className="text-slate-600 leading-relaxed pt-1">
+                {directiveAnalysis.feedback}
+              </p>
+            )}
+          </div>
+
+          {/* Deal Breakers */}
+          <div className="bg-rose-50/50 border border-rose-200 rounded-lg p-4 space-y-2">
+            <h4 className="font-bold text-rose-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <ShieldAlert size={14} className="text-rose-600" />
+              <span>FPSC Disqualification Deal-Breakers</span>
+            </h4>
+            <ul className="space-y-1.5 text-slate-700">
+              {dealBreakers.map((rule, idx) => (
+                <li key={idx} className="flex items-start gap-1.5">
+                  <span className="text-rose-600 font-bold">•</span>
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: ALL MISTAKES (CALLOUTS LIST) */}
+      {activeTab === 'callouts' && (
+        <div className="space-y-3 font-sans">
+          {/* Filter Pills */}
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
+            <span className="text-xs text-slate-400">
+              Showing {filteredAnnotations.length} annotations:
+            </span>
+            <div className="flex gap-1">
               {[
-                { id: 'all', label: `All (${allAnnotations.length})`, color: 'var(--accent-blue)' },
-                { id: 'red', label: `Mistakes (${redCount})`, color: 'var(--fail-red)' },
-                { id: 'amber', label: `Polish (${amberCount})`, color: 'var(--warning-amber)' },
-                { id: 'green', label: `Strengths (${greenCount})`, color: 'var(--pass-green)' }
+                { id: 'all', label: `All (${allAnnotations.length})` },
+                { id: 'red', label: `Errors (${redCount})` },
+                { id: 'amber', label: `Polish (${amberCount})` },
+                { id: 'green', label: `Strengths (${greenCount})` }
               ].map((f) => (
                 <button
                   key={f.id}
                   onClick={() => setCalloutFilter(f.id)}
-                  style={{
-                    background: calloutFilter === f.id ? 'var(--accent-blue-soft)' : '#ffffff',
-                    border: calloutFilter === f.id ? `1px solid ${f.color}` : '1px solid var(--border)',
-                    color: calloutFilter === f.id ? f.color : 'var(--text-muted)',
-                    fontSize: '0.68rem',
-                    fontWeight: 600,
-                    padding: '3px 9px',
-                    borderRadius: '9999px',
-                    cursor: 'pointer'
-                  }}
+                  className={`text-[11px] px-2 py-0.5 rounded-full border cursor-pointer ${
+                    calloutFilter === f.id
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
                 >
                   {f.label}
                 </button>
@@ -133,210 +500,55 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             </div>
           </div>
 
+          {/* Cards */}
           {filteredAnnotations.map((ann, idx) => {
             const annId = ann.id || `ann-${idx}`;
             const isSelected = selectedAnnId === annId;
-            const accentColor = getTypeColor(ann.type);
-            const isMistake = ann.type === 'red' || ann.type === 'amber';
-
             return (
               <div
                 key={annId}
                 ref={(el) => (cardRefs.current[annId] = el)}
                 onClick={() => onSelectAnnId && onSelectAnnId(annId)}
-                className={isMistake ? 'sk-mistake-card' : ''}
-                style={{
-                  background: isMistake ? 'var(--mistake-bg)' : '#ffffff',
-                  border: isSelected ? `2px solid ${accentColor}` : isMistake ? '1px solid var(--mistake-border)' : '1px solid var(--border)',
-                  boxShadow: isSelected ? '0 0 16px rgba(37, 122, 243, 0.25)' : '0 2px 8px rgba(0,0,0,0.03)',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
+                className={`p-3 bg-white rounded-lg border text-xs space-y-1.5 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-[#007a64] ring-2 ring-[#007a64]/20 shadow-sm'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
               >
-                {/* Header: Category + Target Phrase */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <div className="flex items-center justify-between">
                   <span
-                    style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      color: accentColor,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em'
-                    }}
+                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                      ann.type === 'red'
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : ann.type === 'green'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
                   >
-                    {ann.category || (ann.type === 'red' ? 'Grammar / Logic' : 'Stylistic Polish')}
+                    {ann.category || 'Correction'}
                   </span>
-                  {ann.targetPhrase && (
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        color: 'var(--text-muted)',
-                        fontFamily: 'var(--font-mono)',
-                        maxWidth: '55%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title={ann.targetPhrase}
-                    >
-                      "{ann.targetPhrase}"
+                  <span className="text-[10px] text-slate-400">Click to view on paper</span>
+                </div>
+
+                <div className="font-academic text-[14px] text-slate-800">
+                  <span className="line-through text-red-600 mr-2">
+                    {ann.targetPhrase}
+                  </span>
+                  {ann.suggestion && (
+                    <span className="text-[#007a64] font-semibold">
+                      → {ann.suggestion}
                     </span>
                   )}
                 </div>
 
-                {/* SuperKalam Pattern: ✕ Mistake Explanation */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
-                  {ann.type === 'red' ? (
-                    <XCircle size={14} color="var(--fail-red)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  ) : ann.type === 'green' ? (
-                    <CheckCircle2 size={14} color="var(--pass-green)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  ) : (
-                    <AlertTriangle size={14} color="var(--warning-amber)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  )}
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
+                {ann.comment && (
+                  <p className="text-slate-600 leading-relaxed">
                     {cleanSimpleText(ann.comment)}
                   </p>
-                </div>
-
-                {/* SuperKalam Pattern: 💡 Exact Rewritten Fix */}
-                {ann.suggestion && (
-                  <div
-                    style={{
-                      background: isMistake ? '#ffffff' : 'var(--bg-app)',
-                      border: '1px solid var(--border)',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.76rem',
-                      color: 'var(--accent-blue)',
-                      marginTop: '6px',
-                      lineHeight: 1.45
-                    }}
-                  >
-                    💡 <strong>Correction:</strong> {ann.suggestion}
-                  </div>
-                )}
-
-                {/* SuperKalam Pattern: 📘 Rule to Remember (Pedagogical Lesson) */}
-                {ann.microLesson && (
-                  <div
-                    style={{
-                      marginTop: '6px',
-                      fontSize: '0.72rem',
-                      color: 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '6px',
-                      lineHeight: 1.4
-                    }}
-                  >
-                    <BookOpen size={13} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>
-                      <strong>Rule to Remember:</strong> {ann.microLesson}
-                    </span>
-                  </div>
                 )}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* TAB 2: 3-TIER TOPPER REWRITES */}
-      {activeTab === 'rewrites' && (
-        <ParagraphRewriter rewrites={rewrites} headerUpgrades={headerUpgrades} />
-      )}
-
-      {/* TAB 3: FACT AUDIT */}
-      {activeTab === 'accuracy' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {factChecks.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Verified Claims, Dates, Citations & Empirical Audit ({factChecks.length}):
-              </span>
-              {factChecks.map((fc, idx) => (
-                <div key={idx} style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '12px 14px', borderRadius: '12px', fontSize: '0.8rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontWeight: 600, color: fc.verified ? 'var(--pass-green)' : 'var(--fail-red)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {fc.verified ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
-                    <span>{fc.verified ? 'Claim Verified' : 'Factual / Citation Blunder Detected'}</span>
-                  </div>
-                  <div style={{ color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.45 }}>"{fc.claim}"</div>
-                  {fc.correctedFact && (
-                    <div style={{ color: 'var(--accent-blue)', fontSize: '0.75rem', background: 'var(--bg-app)', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '6px' }}>
-                      <strong>Correction:</strong> {fc.correctedFact}
-                    </div>
-                  )}
-                  {fc.source && (
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      📚 Source: {fc.source}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <CheckCircle2 size={24} color="var(--pass-green)" style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--pass-green)' }}>
-                No Factual Blunders Detected
-              </div>
-              <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                All verifiable claims, dates, and references in this script passed audit.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: RULES & SCOPE */}
-      {activeTab === 'directive' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '14px', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Compass size={16} color="var(--accent-blue)" />
-              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Examiner Directive & Prompt Scope
-              </span>
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-              The prompt focus is <strong>"{directiveAnalysis.directiveWord || 'Analytical'}"</strong>
-              {directiveAnalysis.targetTimeframe ? <> targeting <strong>"{directiveAnalysis.targetTimeframe}"</strong></> : null}.{' '}
-              {directiveAnalysis.feedback}
-            </p>
-          </div>
-
-          {profile.archetypeId !== 'essay_outline' && (
-            <div style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '14px', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <FileText size={16} color="var(--accent-blue)" />
-                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Substantive Introduction Audit (~{profile.targetIntroWords}+ Words Target)
-                </span>
-              </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                {breakdown.introduction?.feedback ||
-                  `Ensure your introduction defines analytical scope, thesis statement, and primary themes in at least ${profile.targetIntroWords} words.`}
-              </p>
-            </div>
-          )}
-
-          {dealBreakers.length > 0 && (
-            <div style={{ background: 'rgba(217, 52, 43, 0.04)', border: '1px solid rgba(217, 52, 43, 0.25)', padding: '14px', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <ShieldAlert size={16} color="var(--fail-red)" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--fail-red)' }}>
-                  FPSC Critical Deal-Breakers ({profile.archetypeLabel})
-                </span>
-              </div>
-              <ul style={{ margin: '0 0 0 1.2rem', padding: 0, fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {dealBreakers.map((db, i) => (
-                  <li key={i} style={{ marginBottom: '4px' }}>{db}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
     </div>

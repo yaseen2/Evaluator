@@ -278,3 +278,4 @@ console.log(`✅ Essay Graph Reduction Finished -> ${outputPath}`);
 console.log(`   Total Score: ${overallScore}/100 | Pass: ${isPassed ? 'YES (Qualified)' : 'NO (Failed Deal Breakers)'}`);
 console.log(`   Words: ${totalWords} (Intro: ${introWords}) | Valid Annotations: ${validAnnotations.length} (Removed: ${removedAnnotations.length})`);
 console.log(`   Deal Breakers Triggered: ${dealBreakerFlags.length > 0 ? dealBreakerFlags.map((d) => d.code).join(', ') : 'None'}\n`);
+

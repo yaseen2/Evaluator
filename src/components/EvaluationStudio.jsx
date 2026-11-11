@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { DocumentViewer } from './DocumentViewer';
-import { ScorecardSummary } from './ScorecardSummary';
 import { RubricTabs } from './RubricTabs';
 import { CamScannerLoadingOverlay } from './CamScannerLoadingOverlay';
 import {
@@ -8,7 +7,8 @@ import {
   ArrowLeft,
   Columns,
   Maximize2,
-  BarChart3
+  BarChart3,
+  Printer
 } from 'lucide-react';
 
 export const EvaluationStudio = ({
@@ -63,55 +63,81 @@ export const EvaluationStudio = ({
   // Active View is REPORT: Render Split Studio / Focus Report
   return (
     <div style={{ position: 'relative', flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Top Report Navigation Ribbon */}
-      <div className="h-11 bg-white border-b border-slate-200 px-3 sm:px-4 flex items-center justify-between shrink-0 z-10 gap-2 overflow-hidden">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 overflow-hidden">
+      {/* Top Report Navigation Ribbon (Stitch Design) */}
+      <header className="h-14 border-b border-slate-200/80 bg-white px-3 sm:px-6 flex items-center justify-between z-20 flex-shrink-0 sticky top-0 font-sans">
+        {/* Left: Breadcrumbs / Navigation */}
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-hidden">
           <button
             type="button"
             onClick={() => setActiveView?.('hub')}
-            className="border-none bg-transparent text-[#1d6ef2] text-xs font-semibold cursor-pointer flex items-center gap-1 p-1 shrink-0 hover:underline"
+            className="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-brand-600 transition-colors py-1 group flex-shrink-0 cursor-pointer"
+            title="Back to Practice Hub"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft className="w-4 h-4 mr-1 text-slate-400 group-hover:text-brand-600 transition-colors" />
             <span className="hidden sm:inline">Practice Hub</span>
-            <span className="sm:hidden">Back</span>
           </button>
-          <span className="text-slate-200 shrink-0">|</span>
-          <span className="text-[11px] sm:text-xs font-bold text-slate-500 shrink-0">
-            {evaluation?.subject}
+          <span className="text-slate-300 hidden sm:inline">/</span>
+          <span className="text-xs font-medium text-slate-500 hidden md:inline truncate">
+            {evaluation?.subject || 'English Essay'}
           </span>
-          <span className="text-xs font-medium text-slate-800 truncate min-w-0">
+          <span className="text-slate-300 hidden md:inline">/</span>
+          <h1 className="text-xs sm:text-sm font-semibold text-slate-900 tracking-tight font-academic italic truncate max-w-[150px] xs:max-w-[180px] sm:max-w-xs md:max-w-md">
             {evaluation?.topic || evaluation?.examQuestion}
+          </h1>
+          <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/70 flex-shrink-0">
+            {evaluation?.essayMode === 'outline_only' || evaluation?.archetypeId === 'essay_outline'
+              ? 'Outline Only'
+              : 'Full Evaluation'}
           </span>
         </div>
 
-        {/* Focus Mode Toggle */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Metrics & Actions */}
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          <div className="hidden sm:flex items-center space-x-2.5 text-xs text-slate-400 border-r border-slate-200 pr-3 font-mono">
+            <span className="inline-flex items-center gap-1 text-slate-600">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              {evaluation?.wordCount || 0}w
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500 hidden lg:inline">
+              {((evaluation?.tokenUsage?.totalTokens || 12000) / 1000).toFixed(1)}k tok
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={() => setIsFocusMode(!isFocusMode)}
-            className={`border px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${
+            className={`hidden md:inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md shadow-xs transition-colors cursor-pointer border ${
               isFocusMode
-                ? 'bg-blue-50 text-[#1d6ef2] border-blue-200'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-blue-50 text-brand-600 border-blue-200'
+                : 'text-slate-600 bg-white hover:bg-slate-50 border-slate-200'
             }`}
             title={isFocusMode ? 'Switch to side-by-side split view' : 'Focus only on evaluation report'}
           >
-            {isFocusMode ? <Columns size={13} /> : <Maximize2 size={13} />}
-            <span className="hidden sm:inline">{isFocusMode ? 'Split View' : 'Focus Report'}</span>
-            <span className="sm:hidden">{isFocusMode ? 'Split' : 'Focus'}</span>
+            {isFocusMode ? <Columns size={13} className="mr-1" /> : <Maximize2 size={13} className="mr-1" />}
+            <span>Focus</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-md shadow-xs transition-colors cursor-pointer"
+          >
+            <Printer size={13} className="sm:mr-1.5" />
+            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Mobile-Only View Switcher (Annotated Script vs Scorecard) */}
       {evaluation && (
-        <div className="lg:hidden flex items-center justify-center bg-slate-100 p-1 mx-3 my-1 rounded-xl border border-slate-200 shrink-0 z-10">
+        <div className="lg:hidden flex items-center justify-center bg-slate-100 p-1 mx-3 my-1 rounded-xl border border-slate-200 shrink-0 z-10 font-sans">
           <button
             type="button"
             onClick={() => setMobileTab('paper')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               mobileTab === 'paper'
-                ? 'bg-white text-[#1d6ef2] shadow-sm font-bold'
+                ? 'bg-white text-brand-600 shadow-sm font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -121,14 +147,14 @@ export const EvaluationStudio = ({
           <button
             type="button"
             onClick={() => setMobileTab('scorecard')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               mobileTab === 'scorecard'
-                ? 'bg-white text-[#1d6ef2] shadow-sm font-bold'
+                ? 'bg-white text-brand-600 shadow-sm font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <BarChart3 size={13} />
-            <span>Scorecard ({overallPercentage}%)</span>
+            <span>Diagnostic Report</span>
           </button>
         </div>
       )}
@@ -167,15 +193,12 @@ export const EvaluationStudio = ({
             className={`panel-right ${mobileTab === 'paper' ? 'mobile-hidden' : ''}`}
             style={{ flex: 1, overflowY: 'auto' }}
           >
-            <div className="panel-content">
-              <ScorecardSummary evaluation={evaluation} />
-
+            <div className="p-4 sm:p-6 lg:p-7 max-w-2xl mx-auto w-full">
               <RubricTabs
                 evaluation={evaluation}
                 selectedAnnId={selectedAnnId}
                 onSelectAnnId={(id) => {
                   setSelectedAnnId(id);
-                  // When user selects a callout in RubricTabs on mobile, flip to paper so they see the anchored popover
                   if (id) setMobileTab('paper');
                 }}
               />

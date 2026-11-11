@@ -12,7 +12,9 @@ import {
   ChevronRight,
   Copy,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Bookmark,
+  EyeOff
 } from 'lucide-react';
 import { cleanSimpleText, getSimpleHeadline } from '../utils/textUtils';
 
@@ -26,11 +28,16 @@ export const DocumentViewer = ({
   const [isVisualExpanded, setIsVisualExpanded] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all'); // 'all' | 'red' | 'amber' | 'green'
   const [copied, setCopied] = useState(false);
+  const [bookmarkedAnnIds, setBookmarkedAnnIds] = useState({});
   const [popoverPos, setPopoverPos] = useState(null);
 
   const containerRef = useRef(null);
   const paperRef = useRef(null);
   const highlightRefs = useRef({});
+
+  const handleToggleBookmark = (id) => {
+    setBookmarkedAnnIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Reset refs when evaluation changes
   useEffect(() => {
@@ -98,15 +105,19 @@ export const DocumentViewer = ({
     const maxLeft = paperRect.width - cardWidth - 8;
     left = Math.max(minLeft, Math.min(left, maxLeft));
 
+    // Calculate pointer arrow notch position pointing directly to the target word
+    const targetCenterOnPaper = targetRect.left - paperRect.left + targetRect.width / 2;
+    const notchLeft = Math.max(16, Math.min(cardWidth - 24, targetCenterOnPaper - left));
+
     // Check vertical clearance
     const spaceBelow = window.innerHeight - targetRect.bottom;
     let placement = 'bottom';
-    if (spaceBelow < 210 && targetRect.top > 230) {
-      top = targetRect.top - paperRect.top - 170;
+    if (spaceBelow < 220 && targetRect.top > 230) {
+      top = targetRect.top - paperRect.top - 180;
       placement = 'top';
     }
 
-    setPopoverPos({ top, left, width: cardWidth, placement });
+    setPopoverPos({ top, left, width: cardWidth, placement, notchLeft });
   }, [selectedAnnId]);
 
   // Update position on selection change, resize, or scroll
@@ -206,6 +217,12 @@ export const DocumentViewer = ({
         const annId = matchedAnn.id || `ann-${matchedAnn.targetPhrase}`;
         const isSelected = selectedAnnId === annId;
         const colorType = matchedAnn.type || 'amber';
+        const underlineClass =
+          colorType === 'red'
+            ? 'mark-error'
+            : colorType === 'green'
+            ? 'mark-good'
+            : 'mark-polish';
 
         return (
           <span
@@ -214,11 +231,12 @@ export const DocumentViewer = ({
               if (el) highlightRefs.current[annId] = el;
             }}
             onClick={(e) => handleTranscribedClick(e, matchedAnn)}
-            className={`paper-underline ${colorType} ${isSelected ? 'active' : ''}`}
+            className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline-block ${
+              isSelected ? 'ring-2 ring-[#007a64] ring-offset-1 rounded-sm' : ''
+            }`}
             title={cleanSimpleText(matchedAnn.comment || matchedAnn.category || '')}
           >
             {part}
-            {isSelected && <span className="quillbot-pin" />}
           </span>
         );
       }
@@ -405,313 +423,264 @@ export const DocumentViewer = ({
           ))}
         </div>
       ) : (
-        /* VIEW 2: AUTHENTIC ANSWER SHEET WITH QUILLBOT-STYLE UNDERLINES & ANCHORED CARD */
-        <div
-          ref={paperRef}
-          className="physical-paper relative"
-          style={{ position: 'relative' }}
-        >
-          {/* Paper Meta Header */}
-          <div className="paper-meta">
-            <div>
-              <strong>Subject:</strong> {evaluation.subject || 'English Essay'}
-            </div>
-            {evaluation.examQuestion && (
-              <div
-                style={{
-                  maxWidth: '420px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-                title={evaluation.examQuestion}
-              >
-                <strong>Topic:</strong> {evaluation.examQuestion}
-              </div>
-            )}
-            <div>
-              <strong>Date:</strong> {evaluation.date || new Date().toISOString().split('T')[0]}
-            </div>
-          </div>
-
-          {/* Formatted Transcribed Paragraphs with Subtle Wavy Underlines */}
-          {paragraphs.map((para, pIdx) => {
-            const trimmed = para.trim();
-            const isHeading =
-              trimmed.length < 90 &&
-              !trimmed.endsWith('.') &&
-              (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
-            const highlightedContent = renderHighlightedParagraph(para);
-
-            return (
-              <React.Fragment key={pIdx}>
-                {isHeading ? (
-                  <h4
-                    style={{
-                      fontFamily: 'Arial, sans-serif',
-                      fontWeight: 700,
-                      fontSize: '1.02rem',
-                      color: '#0f172a',
-                      marginTop: '1.25rem',
-                      marginBottom: '0.55rem',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '4px',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  >
-                    {highlightedContent}
-                  </h4>
-                ) : (
-                  <p
-                    style={{
-                      fontFamily: 'Arial, sans-serif',
-                      fontSize: '0.96rem',
-                      lineHeight: 1.85,
-                      color: '#1e293b',
-                      marginBottom: '1.15rem',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  >
-                    {highlightedContent}
-                  </p>
-                )}
-              </React.Fragment>
-            );
-          })}
-
-          {/* QUILLBOT ANCHORED CONTEXTUAL POPOVER */}
-          {activeAnnotation && popoverPos && (
+        /* VIEW 2: AUTHENTIC ANSWER SHEET WITH GRAMMARLY-STYLE POPOVER & RULED PAPER */
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 lg:p-8 flex justify-center">
+          <article
+            ref={paperRef}
+            className="w-full max-w-2xl bg-paper shadow-xs border border-slate-200/90 rounded-lg p-3 sm:p-6 md:p-8 relative ruled-canvas flex flex-col min-h-[520px] font-academic"
+            style={{ position: 'relative' }}
+          >
+            {/* Classic FPSC Margin Indicator Line */}
             <div
-              className="quillbot-card"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                top: `${popoverPos.top}px`,
-                left: `${popoverPos.left}px`,
-                width: `${popoverPos.width}px`
-              }}
-            >
-              {/* Header: Dot + Simple Title + Dismiss */}
+              aria-hidden="true"
+              className="absolute left-3.5 sm:left-6 top-0 bottom-0 w-[1px] bg-red-400/50 pointer-events-none"
+            />
+
+            {/* Document Meta Header */}
+            <div className="pb-3 border-b border-slate-200/60 mb-4 pl-3 sm:pl-4 font-sans text-xs text-slate-500 flex justify-between items-center">
+              <span>{evaluation.subject || 'FPSC Answer Paper'}</span>
+              <span className="font-mono text-slate-400">
+                {evaluation.date || new Date().toISOString().split('T')[0]}
+              </span>
+            </div>
+
+            {/* Formatted Transcribed Paragraphs with pl-3 sm:pl-4 */}
+            <div className="space-y-4 sm:space-y-5 text-slate-900 leading-8 sm:leading-9 text-base sm:text-[18px] pl-3 sm:pl-4">
+              {paragraphs.map((para, pIdx) => {
+                const trimmed = para.trim();
+                const isHeading =
+                  trimmed.length < 90 &&
+                  !trimmed.endsWith('.') &&
+                  (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
+                const highlightedContent = renderHighlightedParagraph(para);
+
+                return (
+                  <div key={pIdx}>
+                    {isHeading ? (
+                      <p className="font-bold text-slate-900 pt-1 tracking-tight font-academic">
+                        {highlightedContent}
+                      </p>
+                    ) : (
+                      <p className="text-slate-900 leading-relaxed font-normal font-academic">
+                        {highlightedContent}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* GRAMMARLY-STYLE CORRECTION POP-UP CARD */}
+            {activeAnnotation && popoverPos && (
               <div
+                className="grammarly-card animate-in fade-in duration-200 text-left"
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px'
+                  top: `${popoverPos.top}px`,
+                  left: `${popoverPos.left}px`,
+                  width: `${popoverPos.width}px`
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background:
-                        activeAnnotation.type === 'red'
-                          ? '#ef4444'
-                          : activeAnnotation.type === 'green'
-                          ? '#10b981'
-                          : '#f59e0b'
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      color: 'var(--text-primary)'
-                    }}
-                  >
-                    {getSimpleHeadline(activeAnnotation)}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '2px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  title="Close popup"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              {/* Bold Proposed Replacement (QuillBot style) */}
-              {activeAnnotation.suggestion && (
+                {/* Pointer Notch */}
                 <div
-                  style={{
-                    fontSize: '0.98rem',
-                    fontWeight: 700,
-                    color: '#059669',
-                    marginBottom: '6px',
-                    letterSpacing: '-0.01em'
-                  }}
-                >
-                  {activeAnnotation.suggestion}
-                </div>
-              )}
+                  className={
+                    popoverPos.placement === 'top'
+                      ? 'grammarly-pointer-bottom'
+                      : 'grammarly-pointer-top'
+                  }
+                  style={{ left: `${popoverPos.notchLeft || 28}px` }}
+                />
 
-              {/* Inline Diff (~~strikethrough~~ -> green suggestion) */}
-              <div
-                style={{
-                  fontSize: '0.78rem',
-                  lineHeight: 1.45,
-                  color: 'var(--text-secondary)',
-                  marginBottom: '8px',
-                  background: 'var(--bg-card-hover)',
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)'
-                }}
-              >
-                {activeAnnotation.targetPhrase && (
-                  <del
-                    style={{
-                      textDecoration: 'line-through',
-                      color: '#ef4444',
-                      marginRight: '6px',
-                      opacity: 0.85
-                    }}
-                  >
-                    {activeAnnotation.targetPhrase}
-                  </del>
-                )}
-                {activeAnnotation.suggestion && (
-                  <ins
-                    style={{
-                      textDecoration: 'none',
-                      color: '#059669',
-                      fontWeight: 600
-                    }}
-                  >
-                    {activeAnnotation.suggestion}
-                  </ins>
-                )}
-              </div>
-
-              {/* Simple, Direct 1-Sentence Reason (Strictly no jargon, no "FPSC" or "examiner") */}
-              {(activeAnnotation.comment || activeAnnotation.microLesson) && (
-                <p
-                  style={{
-                    fontSize: '0.76rem',
-                    lineHeight: 1.4,
-                    color: 'var(--text-secondary)',
-                    margin: '0 0 10px 0'
-                  }}
-                >
-                  {cleanSimpleText(activeAnnotation.comment || activeAnnotation.microLesson)}
-                </p>
-              )}
-
-              {/* Action Buttons: Accept / Copy Fix + Stepper */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: '6px',
-                  borderTop: '1px solid var(--border)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handleCopyFix}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      background: copied ? '#059669' : '#16a34a',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '5px 12px',
-                      borderRadius: '9999px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'background 0.15s ease'
-                    }}
-                    title="Copy suggestion to clipboard"
-                  >
-                    {copied ? <Check size={13} /> : <Copy size={13} />}
-                    <span>{copied ? 'Copied!' : 'Accept Fix'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.74rem',
-                      cursor: 'pointer',
-                      padding: '4px 6px'
-                    }}
-                  >
-                    Dismiss
-                  </button>
-                </div>
-
-                {/* Micro Stepper Inside Popover */}
-                {filteredAnnotations.length > 1 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)'
-                    }}
-                  >
-                    <span>
-                      {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 1}/
-                      {filteredAnnotations.length}
+                {/* Header: Dot + Category + Close */}
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 font-sans">
+                  <div className="flex items-center space-x-1.5">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 animate-pulse ${
+                        activeAnnotation.type === 'red'
+                          ? 'bg-rose-500'
+                          : activeAnnotation.type === 'green'
+                          ? 'bg-emerald-500'
+                          : 'bg-amber-500'
+                      }`}
+                    />
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      {activeAnnotation.category || getSimpleHeadline(activeAnnotation)}
                     </span>
+                  </div>
+                  <button
+                    aria-label="Close correction card"
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors cursor-pointer"
+                    onClick={() => onSelectAnnId && onSelectAnnId(null)}
+                    type="button"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {/* Main Suggestion: Strikethrough -> Replacement Pill */}
+                {activeAnnotation.suggestion ? (
+                  <div className="flex items-center space-x-2 sm:space-x-3 my-3 font-sans">
+                    {activeAnnotation.targetPhrase && (
+                      <span className="line-through text-red-600 font-serif text-base sm:text-lg font-medium decoration-rose-500 decoration-2">
+                        {activeAnnotation.targetPhrase}
+                      </span>
+                    )}
+                    <span className="text-slate-400 font-semibold text-sm">→</span>
                     <button
+                      className="bg-[#007a64] hover:bg-[#006352] text-white px-3 py-1.5 rounded-lg text-sm sm:text-base font-semibold shadow-sm transition-all inline-flex items-center gap-1.5 active:scale-95 cursor-pointer"
                       type="button"
-                      onClick={handlePrevAnnotation}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      title="Previous issue"
+                      onClick={handleCopyFix}
+                      title="Click to copy / accept suggestion"
                     >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNextAnnotation}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      title="Next issue"
-                    >
-                      <ChevronRight size={14} />
+                      <span>{activeAnnotation.suggestion}</span>
+                      {copied && <Check size={14} className="text-white" />}
                     </button>
                   </div>
+                ) : (
+                  <div className="my-2.5">
+                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 inline-block font-sans">
+                      ✓ Strong Academic Phrasing
+                    </span>
+                  </div>
                 )}
+
+                {/* Contextual Pedagogical Explanation */}
+                {(activeAnnotation.comment || activeAnnotation.microLesson) && (
+                  <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed my-2 font-normal font-sans">
+                    {cleanSimpleText(activeAnnotation.comment || activeAnnotation.microLesson)}
+                  </p>
+                )}
+
+                {/* Action Buttons Row */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-2 font-sans">
+                  <button
+                    onClick={() =>
+                      handleToggleBookmark(
+                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
+                      )
+                    }
+                    className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors border active:scale-95 cursor-pointer ${
+                      bookmarkedAnnIds[
+                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
+                      ]
+                        ? 'bg-[#007a64] text-white border-[#007a64]'
+                        : 'bg-[#007a64]/10 hover:bg-[#007a64]/20 text-[#007a64] border-[#007a64]/30'
+                    }`}
+                    type="button"
+                  >
+                    <Bookmark size={13} />
+                    <span>
+                      {bookmarkedAnnIds[
+                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
+                      ]
+                        ? 'Saved in Mistake Book'
+                        : 'Add to Correction Book'}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => onSelectAnnId && onSelectAnnId(null)}
+                    className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                    type="button"
+                  >
+                    <EyeOff size={13} />
+                    <span>Ignore</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </article>
         </div>
+      )}
+
+      {/* DOCKED ANNOTATION NAVIGATION FOOTER (STITCH STYLE) */}
+      {viewMode === 'transcribed' && allAnnotations.length > 0 && (
+        <footer
+          className="h-14 bg-white border-t border-slate-200/80 px-3 sm:px-6 flex items-center justify-between flex-shrink-0 gap-2 z-10 sticky bottom-0 font-sans no-print"
+          data-purpose="annotation-dock"
+        >
+          {/* Annotation Filter Pills */}
+          <div className="flex items-center space-x-1 sm:space-x-1.5 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveCategoryFilter('all')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors cursor-pointer ${
+                activeCategoryFilter === 'all'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              All ({allAnnotations.length})
+            </button>
+            {redCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('red')}
+                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                  activeCategoryFilter === 'red'
+                    ? 'bg-rose-600 text-white'
+                    : 'text-rose-700 hover:bg-rose-50'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                <span>Errors ({redCount})</span>
+              </button>
+            )}
+            {amberCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('amber')}
+                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                  activeCategoryFilter === 'amber'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                <span>Polish ({amberCount})</span>
+              </button>
+            )}
+            {greenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('green')}
+                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                  activeCategoryFilter === 'green'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                <span>Strengths ({greenCount})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Stepper Controls */}
+          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <button
+              aria-label="Previous Annotation"
+              onClick={handlePrevAnnotation}
+              className="p-2 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+              title="Previous Annotation"
+              type="button"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-mono font-medium text-slate-600 px-1 whitespace-nowrap">
+              {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 1} of {filteredAnnotations.length}
+            </span>
+            <button
+              aria-label="Next Annotation"
+              onClick={handleNextAnnotation}
+              className="p-2 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+              title="Next Annotation"
+              type="button"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </footer>
       )}
 
       {/* PERSISTENT FLOATING BOTTOM CATEGORY & STEPPER DOCK (QUILLBOT STYLE) */}
