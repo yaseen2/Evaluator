@@ -330,7 +330,7 @@ export const DocumentViewer = ({
                 }}
               >
                 <ImageIcon size={13} />
-                <span>Original Photos ({imagePages.length})</span>
+                <span>Original Script ({imagePages.length} {imagePages.length === 1 ? 'Page' : 'Pages'})</span>
               </button>
             </div>
           ) : (

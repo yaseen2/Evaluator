@@ -23,6 +23,7 @@ import {
 import { OFFICIAL_FPSC_SUBJECTS } from '../data/fpscSubjects';
 import { estimateCreditsPreFlight } from '../services/geminiApi';
 import { CamScannerLoadingOverlay } from './CamScannerLoadingOverlay';
+import { convertPdfToImagePages } from '../utils/pdfUtils';
 import sampleEssayEvaluation from '../data/evaluations/sample-essay-evaluation.json';
 
 /**
@@ -180,22 +181,54 @@ export const PracticeHub = ({
     const pdfFiles = rawFiles.filter(
       (f) => f.type === 'application/pdf' || f.name?.toLowerCase().endsWith('.pdf')
     );
-    if (pdfFiles.length > 0) {
-      setUploadWarning(
-        'PDF file detected: To ensure highest OCR precision and FPSC examiner rubric evaluation, please upload or take JPG/PNG photos of your answer sheets (in CamScanner, tap "Share" → "Share JPG").'
-      );
-    }
-
     const imageFiles = rawFiles.filter(
       (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)
     );
-    if (!imageFiles.length) return;
+
+    if (!pdfFiles.length && !imageFiles.length) {
+      setUploadWarning('Please upload valid PDF documents or images (JPG, PNG, WebP, HEIC).');
+      return;
+    }
 
     setIsCompressing(true);
     try {
-      const compressedList = await Promise.all(imageFiles.map((file) => compressImageFile(file)));
-      const valid = compressedList.filter((item) => item.dataUrl);
-      setUploadedFiles((prev) => [...prev, ...valid]);
+      const allExtractedPages = [];
+
+      // 1. Process PDF Files (render each page to crisp high-res image for OCR)
+      if (pdfFiles.length > 0) {
+        for (const pdfFile of pdfFiles) {
+          try {
+            const pages = await convertPdfToImagePages(pdfFile, { maxPages: 14, scale: 1.8 });
+            allExtractedPages.push(...pages);
+          } catch (pdfErr) {
+            console.error('Error processing PDF file:', pdfErr);
+            setUploadWarning(
+              `Could not read PDF "${pdfFile.name}". Please ensure it is not password-protected.`
+            );
+          }
+        }
+      }
+
+      // 2. Process Image Files (compress and resize)
+      if (imageFiles.length > 0) {
+        const compressedList = await Promise.all(imageFiles.map((file) => compressImageFile(file)));
+        const valid = compressedList.filter((item) => item.dataUrl);
+        allExtractedPages.push(...valid);
+      }
+
+      if (allExtractedPages.length > 0) {
+        setUploadedFiles((prev) => {
+          const combined = [...prev, ...allExtractedPages];
+          if (combined.length > 14) {
+            setUploadWarning('Maximum 14 pages allowed per single evaluation. We kept the first 14 pages.');
+            return combined.slice(0, 14);
+          }
+          return combined;
+        });
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setUploadWarning('Failed to process uploaded files. Please try again.');
     } finally {
       setIsCompressing(false);
     }
@@ -644,14 +677,15 @@ export const PracticeHub = ({
                   />
 
                   <div className="max-w-md mx-auto flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#1d6ef2] flex items-center justify-center mb-4 transition-transform shadow-xs">
-                      <Camera size={30} />
+                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#1d6ef2] flex items-center justify-center mb-4 transition-transform shadow-xs gap-1">
+                      <FileText size={24} />
+                      <Camera size={22} className="text-blue-400" />
                     </div>
                     <h3 className="font-sans font-bold text-[18px] text-slate-900 mb-1.5">
-                      Add Multi-Page Handwritten Answer Sheets
+                      Add Handwritten Answer Sheets or PDF Booklet
                     </h3>
                     <p className="text-[13px] text-slate-500 mb-5 leading-relaxed">
-                      Snap pages with your camera or select high-resolution JPG / PNG photos exported from CamScanner.
+                      Upload your multi-page PDF answer booklet or select / snap high-resolution JPG / PNG photos exported from CamScanner or Adobe Scan.
                     </p>
 
                     {/* Dual Action Buttons: Snap & Upload */}
@@ -679,12 +713,12 @@ export const PracticeHub = ({
                         className="bg-white border border-slate-200/90 hover:border-[#1d6ef2] text-slate-700 hover:text-[#1d6ef2] px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2"
                       >
                         <Upload size={16} />
-                        <span>{isCompressing ? 'Processing photos...' : 'Upload from Device'}</span>
+                        <span>{isCompressing ? 'Extracting PDF & photos...' : 'Upload PDF or Photos'}</span>
                       </button>
                     </div>
 
                     <span className="text-[11px] text-slate-400 mt-3">
-                      Or drag and drop image files directly onto this zone
+                      Drag and drop PDF booklets or images directly onto this zone (up to 14 pages)
                     </span>
                   </div>
                 </div>
@@ -732,8 +766,15 @@ export const PracticeHub = ({
                             <div className="text-[11px] text-slate-400 mt-0.5">
                               {formatFileSize(fileObj.size)} • Ready
                             </div>
-                            <div className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                              Page {idx + 1}
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                Page {idx + 1}
+                              </span>
+                              {(fileObj.pageNumber || fileObj.name?.toLowerCase().includes('.pdf')) && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                  PDF
+                                </span>
+                              )}
                             </div>
                           </div>
 
