@@ -5,6 +5,7 @@ import { getAuth } from 'firebase-admin/auth';
 import crypto from 'crypto';
 
 import { executeMultiAgentPipeline } from './src/pipeline/geminiRunner.js';
+import { executeCssEssayPipelineV2 } from './src/rubric/orchestrateEssayPipeline.js';
 import {
   estimateCreditsPreFlight,
   reserveUserCredits,
@@ -60,8 +61,8 @@ export const evaluateSubmission = onCall(
     }
 
     // Input Validation to prevent resource abuse
-    if (imageArray && imageArray.length > 14) {
-      throw new HttpsError('invalid-argument', 'Maximum 14 pages allowed per single evaluation.');
+    if (imageArray && imageArray.length > 16) {
+      throw new HttpsError('invalid-argument', 'Maximum 16 pages allowed per single evaluation.');
     }
 
     const wordCount = text ? text.trim().split(/\s+/).length : 0;
@@ -124,18 +125,29 @@ export const evaluateSubmission = onCall(
       throw new HttpsError('internal', err.message || 'Failed to verify account credits.');
     }
 
-    // 4. Run the 6-Agent DAG Pipeline with Backoff & Retries
+    // 4. Run the Server-Side DAG Pipeline (v2.1 5-Stage Essay Rubric or 6-Agent Subjective Pipeline)
     try {
-      const result = await executeMultiAgentPipeline({
-        text,
-        imageArray,
-        subject,
-        essayMode,
-        examQuestion,
-        mode,
-        apiKey: effectiveKey,
-        selectedModel
-      });
+      const result = isEssay
+        ? await executeCssEssayPipelineV2({
+            text,
+            imageArray,
+            subject,
+            essayMode,
+            examQuestion,
+            mode,
+            apiKey: effectiveKey,
+            selectedModel
+          })
+        : await executeMultiAgentPipeline({
+            text,
+            imageArray,
+            subject,
+            essayMode,
+            examQuestion,
+            mode,
+            apiKey: effectiveKey,
+            selectedModel
+          });
 
       // 5. Atomic Settlement & Cloud Firestore Save
       const evaluationId = result.id || `eval-${Date.now()}`;

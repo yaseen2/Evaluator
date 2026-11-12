@@ -76,3 +76,4 @@ export async function convertPdfToImagePages(pdfFile, options = {}) {
 
   return renderedPages;
 }
+

@@ -10,8 +10,15 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
 
   if (safeRewrites.length === 0 && safeHeaders.length === 0) {
     return (
-      <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-        No rewrites or outline header upgrades generated for this script.
+      <div
+        style={{
+          padding: '1rem',
+          textAlign: 'center',
+          color: 'var(--text-muted)',
+          fontSize: '0.8rem'
+        }}
+      >
+        No surgical rewrites or outline header upgrades generated for this script.
       </div>
     );
   }
@@ -24,12 +31,25 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-      {/* SECTION 1: OUTLINE HEADER PARALLELISM UPGRADES (For Essay & Outline Mode) */}
+      {/* SECTION 1: OUTLINE HEADER PARALLELISM UPGRADES */}
       {safeHeaders.length > 0 && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.65rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '0.65rem'
+            }}
+          >
             <Sparkles size={14} color="var(--accent-blue)" />
-            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span
+              style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)'
+              }}
+            >
               Outline Header Parallelism Upgrades ({safeHeaders.length})
             </span>
           </div>
@@ -45,8 +65,23 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                   padding: '10px 12px'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--warning-amber)', textTransform: 'uppercase' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '5px'
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      color: 'var(--warning-amber)',
+                      textTransform: 'uppercase'
+                    }}
+                  >
                     Flaw: {item.issue || 'Non-Parallel / Vague Header'}
                   </span>
                 </div>
@@ -62,7 +97,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     marginBottom: '6px'
                   }}
                 >
-                  <strong>Original:</strong> "{item.originalHeader}"
+                  <strong>Before:</strong> "{item.originalHeader}"
                 </div>
 
                 <div
@@ -77,7 +112,8 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     border: '1px solid rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  <span style={{ color: 'var(--pass-green)' }}>Topper Header:</span> "{item.upgradedHeader}"
+                  <span style={{ color: 'var(--pass-green)' }}>After (Topper Header):</span> "
+                  {item.upgradedHeader}"
                   <button
                     type="button"
                     onClick={() => handleCopy(item.upgradedHeader, `hdr-${idx}`)}
@@ -92,14 +128,33 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     }}
                     title="Copy header"
                   >
-                    {copiedIdx === `hdr-${idx}` ? <Check size={13} color="var(--pass-green)" /> : <Copy size={13} />}
+                    {copiedIdx === `hdr-${idx}` ? (
+                      <Check size={13} color="var(--pass-green)" />
+                    ) : (
+                      <Copy size={13} />
+                    )}
                   </button>
                 </div>
 
                 {item.rule && (
-                  <div style={{ marginTop: '5px', fontSize: '0.69rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: '5px' }}>
-                    <BookOpen size={12} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span><strong>Rule:</strong> {item.rule}</span>
+                  <div
+                    style={{
+                      marginTop: '5px',
+                      fontSize: '0.69rem',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '5px'
+                    }}
+                  >
+                    <BookOpen
+                      size={12}
+                      color="var(--accent-blue)"
+                      style={{ flexShrink: 0, marginTop: '2px' }}
+                    />
+                    <span>
+                      <strong>Rule:</strong> {item.rule}
+                    </span>
                   </div>
                 )}
               </div>
@@ -108,14 +163,36 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
         </div>
       )}
 
-      {/* SECTION 2: 3-TIER PARAGRAPH REWRITER */}
+      {/* SECTION 2: SURGICAL BEFORE -> AFTER REWRITES */}
       {safeRewrites.length > 0 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              3-Tier Paragraph Rewriter
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.75rem'
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)'
+              }}
+            >
+              Surgical "Before → After" Rewrites ({safeRewrites.length})
             </span>
-            <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-card)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '4px',
+                background: 'var(--bg-card)',
+                padding: '2px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)'
+              }}
+            >
               <button
                 type="button"
                 className={`tab-item ${selectedTier === 'basic' ? 'active' : ''}`}
@@ -138,14 +215,15 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 style={{ padding: '4px 8px', fontSize: '0.68rem' }}
                 onClick={() => setSelectedTier('highScorer')}
               >
-                FPSC Topper
+                70+ Qualifier
               </button>
             </div>
           </div>
 
           {safeRewrites.map((rw, idx) => {
             if (!rw) return null;
-            const currentRewriteText = rw[selectedTier] || rw.highScorer || rw.cssStandard || rw.basic || '';
+            const currentRewriteText =
+              rw[selectedTier] || rw.highScorer || rw.cssStandard || rw.basic || '';
 
             return (
               <div
@@ -158,6 +236,40 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                   padding: '10px 12px'
                 }}
               >
+                {(rw.locationId || rw.issueDiagnosed || rw.targetType) && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginBottom: '6px'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-blue)',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      {rw.locationId || rw.targetType || 'Surgical Upgrade'}
+                    </span>
+                    {rw.issueDiagnosed && (
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          color: 'var(--warning-amber)'
+                        }}
+                      >
+                        {rw.issueDiagnosed}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div
                   style={{
                     fontSize: '0.72rem',
@@ -170,7 +282,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     lineHeight: 1.45
                   }}
                 >
-                  <strong>Your Paragraph:</strong> "{rw.original || ''}"
+                  <strong>Before (Your Draft):</strong> "{rw.original || ''}"
                 </div>
 
                 <div
@@ -185,7 +297,8 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     border: '1px solid rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  "{currentRewriteText}"
+                  <strong style={{ color: 'var(--pass-green)' }}>After (70+ Qualifier):</strong> "
+                  {currentRewriteText}"
                   <button
                     type="button"
                     onClick={() => handleCopy(currentRewriteText, `rw-${idx}`)}
@@ -200,7 +313,11 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     }}
                     title="Copy rewrite"
                   >
-                    {copiedIdx === `rw-${idx}` ? <Check size={14} color="var(--pass-green)" /> : <Copy size={14} />}
+                    {copiedIdx === `rw-${idx}` ? (
+                      <Check size={14} color="var(--pass-green)" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
                   </button>
                 </div>
 
@@ -216,7 +333,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                       border: '1px solid var(--border)'
                     }}
                   >
-                    💡 <strong>Why this works better:</strong> {rw.whatChanged}
+                    💡 <strong>Surgical Technique:</strong> {rw.whatChanged}
                   </div>
                 )}
               </div>
