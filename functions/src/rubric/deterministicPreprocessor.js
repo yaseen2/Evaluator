@@ -402,3 +402,4 @@ export const computeRoleFilteredPacingDecay = (paragraphs = [], paragraphRoleMap
       : `Balanced Pacing: 1st-half substantive body paragraphs avg ${firstHalfAvgWords} words vs. 2nd-half avg ${secondHalfAvgWords} words (${decayPercent >= 0 ? '+' : ''}${decayPercent}%).`
   };
 };
+

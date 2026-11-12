@@ -150,3 +150,4 @@ export const PAKISTAN_2026_BASELINES = `
 - IMF Program Context: 37-month $7 billion Extended Fund Facility (EFF) approved in September 2024 (running 2024–2027). Flag essays claiming Pakistan has "yet to enter the 2023 SBA" as outdated.
 - Outdated Data Rule: If a candidate presents 2018–2022 inflation, GDP growth, circular debt, or literacy figures as "current today" without historical qualification, flag gently with updated 2025–2026 context.
 `;
+
