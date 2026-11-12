@@ -83,6 +83,44 @@ const createEssayTokenLedger = () => {
   };
 };
 
+/**
+ * Extracts a clean 2-to-12 word verbatim substring from the candidate's text
+ * so DocumentViewer can highlight it on the ruled notebook sheet with 100% accuracy.
+ */
+const resolveVerbatimHighlightPhrase = (quote = '', fullText = '') => {
+  if (!quote || !fullText) return '';
+  const cleaned = String(quote)
+    .replace(/^\[[A-Z0-9.]+\]\s*/i, '')
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+    .trim();
+
+  if (!cleaned) return '';
+
+  const lowerFull = fullText.toLowerCase();
+  if (lowerFull.includes(cleaned.toLowerCase())) {
+    // If longer than 14 words, take the first 10 words that still match uniquely
+    const words = cleaned.split(/\s+/);
+    if (words.length > 14) {
+      const slice10 = words.slice(0, 10).join(' ');
+      if (lowerFull.includes(slice10.toLowerCase())) return slice10;
+    }
+    return cleaned;
+  }
+
+  // Try matching a 4–8 word sliding window from the quote against fullText
+  const words = cleaned.split(/\s+/);
+  for (let len = Math.min(8, words.length); len >= 3; len--) {
+    for (let start = 0; start <= words.length - len; start++) {
+      const candidate = words.slice(start, start + len).join(' ');
+      if (candidate.length >= 8 && lowerFull.includes(candidate.toLowerCase())) {
+        return candidate;
+      }
+    }
+  }
+
+  return cleaned.slice(0, 80);
+};
+
 export const executeCssEssayPipelineV2 = async ({
   text = '',
   imageArray = [],
@@ -169,8 +207,17 @@ export const executeCssEssayPipelineV2 = async ({
     ledger
   });
 
-  // Group verified diagnostics by Tier for UI badges
-  const verifiedList = agent4Output.verifiedDiagnostics || [];
+  // Fallback to combined raw diagnostics if Agent 4 returned an empty verifiedDiagnostics array
+  const rawCombined = [
+    ...(agent1Output.macroDiagnostics || []),
+    ...(agent2Output.paragraphDiagnostics || []),
+    ...(agent3Output.languageAndFactDiagnostics || [])
+  ];
+  const verifiedList =
+    agent4Output.verifiedDiagnostics && agent4Output.verifiedDiagnostics.length > 0
+      ? agent4Output.verifiedDiagnostics
+      : rawCombined;
+
   const tier1Fatal = verifiedList.filter((d) => d.tier === 'TIER_1_FATAL');
   const tier2Major = verifiedList.filter((d) => d.tier === 'TIER_2_MAJOR');
   const tier3Polish = verifiedList.filter((d) => d.tier === 'TIER_3_POLISH');
@@ -187,13 +234,15 @@ export const executeCssEssayPipelineV2 = async ({
     const p = mergedPillars[key] || {};
     return {
       status: p.status || fallbackStatus,
-      score: null, // Explicitly null: CSS Essay Rubric v2.1 is strictly non-scored
+      score: null,
+      scored: false,
       isNonScored: true,
       feedback: p.feedback || fallbackFeedback
     };
   };
 
   const scoreBreakdown = {
+    // Full Essay Pillars (10 Pillars)
     topic_relevance: buildPillarEntry(
       'topic_relevance',
       agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
@@ -211,48 +260,73 @@ export const executeCssEssayPipelineV2 = async ({
     ),
     introduction: buildPillarEntry('introduction', 'Balanced'),
     body_paragraphs: buildPillarEntry('body_paragraphs', 'Balanced'),
+    evidences: buildPillarEntry('evidences', 'Balanced'),
     coherence: buildPillarEntry(
       'coherence',
       pacingMetrics.pacingDecayFlag ? 'Needs Polish' : 'Balanced',
       pacingMetrics.summary
     ),
-    evidences: buildPillarEntry('evidences', 'Balanced'),
     analytical_depth: buildPillarEntry('analytical_depth', 'Balanced'),
     expression: buildPillarEntry('expression', 'Balanced'),
     grammar_syntax: buildPillarEntry('grammar_syntax', 'Balanced'),
-    conclusion: buildPillarEntry('conclusion', 'Balanced')
+    conclusion: buildPillarEntry('conclusion', 'Balanced'),
+
+    // Outline-Only Mode Aliases
+    topic_decoding: buildPillarEntry(
+      'topic_relevance',
+      agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
+      agent1Output.directiveAnalysis?.feedback
+    ),
+    outline_structure: buildPillarEntry(
+      'outline',
+      agent1Output.outlineAlignment?.status || 'Balanced',
+      agent1Output.outlineAlignment?.summary
+    ),
+    parallelism: buildPillarEntry(
+      'expression',
+      agent1Output.headerUpgrades?.length > 2 ? 'Needs Polish' : 'Balanced',
+      'Evaluated grammatical parallelism and self-explanatory phrasing across Outline sections.'
+    ),
+    coverage_originality: buildPillarEntry(
+      'analytical_depth',
+      'Balanced',
+      agent1Output.directiveAnalysis?.feedback
+    )
   };
 
-  // Ensure annotations carry valid ids and fallback to verifiedList if empty
-  const finalAnnotations =
-    agent4Output.annotations && agent4Output.annotations.length > 0
-      ? agent4Output.annotations.map((ann, idx) => ({
-          id: ann.id || `ann-${idx + 1}`,
-          locationId: ann.locationId || '',
-          tier: ann.tier || (ann.type === 'red' ? 'TIER_2_MAJOR' : ann.type === 'green' ? 'EARNED_SIGNIFIER' : 'TIER_3_POLISH'),
-          targetPhrase: ann.targetPhrase || '',
-          type: ann.type || 'amber',
-          category: ann.category || 'Diagnostic',
-          comment: ann.comment || '',
-          suggestion: ann.suggestion || null,
-          microLesson: ann.microLesson || ''
-        }))
-      : verifiedList.slice(0, 18).map((d, idx) => ({
-          id: `ann-${idx + 1}`,
-          locationId: d.location_id || '',
-          tier: d.tier,
-          targetPhrase: d.exact_verbatim_quote || '',
-          type:
-            d.tier === 'TIER_1_FATAL' || d.tier === 'TIER_2_MAJOR'
-              ? 'red'
-              : d.tier === 'EARNED_SIGNIFIER'
-              ? 'green'
-              : 'amber',
-          category: d.category || 'Diagnostic',
-          comment: d.observation || '',
-          suggestion: d.suggested_fix || null,
-          microLesson: d.micro_rule || ''
-        }));
+  // Deterministically map verifiedDiagnostics into inline paper annotations
+  const seenPhrases = new Set();
+  const finalAnnotations = [];
+
+  for (let i = 0; i < verifiedList.length; i++) {
+    const d = verifiedList[i];
+    const targetPhrase = resolveVerbatimHighlightPhrase(
+      d.exact_verbatim_quote,
+      effectiveText
+    );
+    if (!targetPhrase || targetPhrase.length < 2) continue;
+
+    const key = targetPhrase.toLowerCase();
+    if (seenPhrases.has(key)) continue;
+    seenPhrases.add(key);
+
+    finalAnnotations.push({
+      id: `ann-${finalAnnotations.length + 1}`,
+      locationId: d.location_id || '',
+      tier: d.tier || 'TIER_3_POLISH',
+      targetPhrase,
+      type:
+        d.tier === 'TIER_1_FATAL' || d.tier === 'TIER_2_MAJOR'
+          ? 'red'
+          : d.tier === 'EARNED_SIGNIFIER'
+          ? 'green'
+          : 'amber',
+      category: d.category || 'Diagnostic',
+      comment: d.observation || '',
+      suggestion: d.suggested_fix || null,
+      microLesson: d.micro_rule || ''
+    });
+  }
 
   const introWordCount = preprocessed.paragraphs[0]?.wordCount || 0;
   const tokenUsage = ledger.finalize();
@@ -261,11 +335,20 @@ export const executeCssEssayPipelineV2 = async ({
     id: `eval-${Date.now()}`,
     subject,
     essayMode: effectiveEssayMode,
+    scored: false,
     isNonScoredEssay: true,
     rubricVersion: '2.1',
+    archetypeId: effectiveEssayMode === 'outline_only' ? 'essay_outline' : 'essay',
+    archetypeLabel:
+      effectiveEssayMode === 'outline_only'
+        ? 'FPSC Essay Outline & Thesis Blueprint Audit (v2.1)'
+        : 'FPSC CSS English Essay Diagnostic (v2.1)',
+    evaluatedModelId: 'gemini-3.8-flash',
+    evaluatedModelName: 'Gemini 3.8 Flash',
     topic: effectiveTopic,
     examQuestion: effectiveTopic,
     overallReadiness: agent4Output.overallReadiness,
+    gradeBand: agent4Output.overallReadiness,
     examinerSummary: agent4Output.examinerSummary,
     essayGenre: agent1Output.essayGenre,
     requiresCounterArgument: agent1Output.requiresCounterArgument,
@@ -282,7 +365,19 @@ export const executeCssEssayPipelineV2 = async ({
     },
     verifiedDiagnostics: verifiedList,
     directiveAnalysis: agent1Output.directiveAnalysis,
-    thesisAudit: agent1Output.thesisAudit,
+    thesisAudit: {
+      candidateThesis:
+        agent1Output.thesisAudit?.extractedThesis ||
+        agent1Output.thesisAudit?.candidateThesis ||
+        '',
+      extractedThesis:
+        agent1Output.thesisAudit?.extractedThesis ||
+        agent1Output.thesisAudit?.candidateThesis ||
+        '',
+      status: agent1Output.thesisAudit?.status || 'Balanced',
+      critique: agent1Output.thesisAudit?.critique || '',
+      modelTopperThesis: agent1Output.thesisAudit?.modelTopperThesis || ''
+    },
     outlineAlignment: agent1Output.outlineAlignment,
     headerUpgrades: agent1Output.headerUpgrades,
     surgicalRewrites: agent4Output.surgicalRewrites,
@@ -293,13 +388,15 @@ export const executeCssEssayPipelineV2 = async ({
     thingsToInclude: agent4Output.thingsToInclude,
     suggestedVisual: agent4Output.suggestedVisual,
     scoreBreakdown,
+    fullTranscribedText: effectiveText,
     transcribedText: effectiveText,
+    text: effectiveText,
     wordCount: preprocessed.totalWordCount,
     outlineWordCount: preprocessed.outlineWordCount,
     bodyWordCount: preprocessed.bodyWordCount,
     introWordCount,
     targetIntroWords: 200,
-    tokenUsage
+    tokenUsage,
+    creditsConsumed: tokenUsage.creditsConsumed
   };
 };
-

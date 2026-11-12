@@ -1,8 +1,11 @@
 /**
- * Resilient JSON Parser & @google/genai Model Caller (v2.1)
+ * Resilient JSON Parser, Unescaped-Quote Repairer & @google/genai Model Caller (v2.1)
  *
- * Ensures Google Search Grounding metadata, markdown code blocks, or minor trailing
- * commas never break JSON.parse during multi-agent execution.
+ * Prevents:
+ *  1. `Expected ',' or '}' after property value in JSON` caused by unescaped inner double quotes
+ *     when agents quote student text containing quotation marks.
+ *  2. Mid-JSON truncation caused by thinking tokens consuming `maxOutputTokens` (raised to 16384).
+ *  3. Search Grounding markdown/citation wrappers breaking `JSON.parse`.
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -15,10 +18,172 @@ export const ESSAY_MODEL_CANDIDATES = [
 ];
 
 /**
+ * State-machine JSON repairer that fixes:
+ *  - Unescaped double quotes inside string values (e.g. "The phrase "doing mistakes" is wrong")
+ *  - Unescaped literal newlines/tabs inside string values
+ *  - Trailing commas before } or ]
+ */
+export const repairMalformedJsonString = (input) => {
+  if (!input || typeof input !== 'string') return '';
+
+  let src = input.trim();
+  const firstBrace = src.indexOf('{');
+  const lastBrace = src.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    src = src.slice(firstBrace, lastBrace + 1);
+  } else if (firstBrace !== -1) {
+    src = src.slice(firstBrace);
+  }
+
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        out += ch;
+      } else {
+        // Look ahead past whitespace to see if this quote is a legitimate closing quote
+        let j = i + 1;
+        while (j < src.length && (src[j] === ' ' || src[j] === '\t' || src[j] === '\r' || src[j] === '\n')) {
+          j++;
+        }
+        const nextSig = src[j];
+
+        let isClosingQuote = false;
+        if (j >= src.length || nextSig === '}' || nextSig === ']') {
+          isClosingQuote = true;
+        } else if (nextSig === ':') {
+          // Valid closing quote of an object key only if followed by a valid JSON value token
+          let k = j + 1;
+          while (k < src.length && (src[k] === ' ' || src[k] === '\t' || src[k] === '\r' || src[k] === '\n')) {
+            k++;
+          }
+          const afterColon = src[k];
+          if (
+            afterColon === '"' ||
+            afterColon === '{' ||
+            afterColon === '[' ||
+            afterColon === 't' ||
+            afterColon === 'f' ||
+            afterColon === 'n' ||
+            afterColon === '-' ||
+            (afterColon >= '0' && afterColon <= '9')
+          ) {
+            isClosingQuote = true;
+          }
+        } else if (nextSig === ',') {
+          // Valid closing quote before a comma ONLY if after the comma comes a JSON key/value/closing bracket
+          // (Prevents prose like `"committing mistakes", which is...` from prematurely closing the string!)
+          let k = j + 1;
+          while (k < src.length && (src[k] === ' ' || src[k] === '\t' || src[k] === '\r' || src[k] === '\n')) {
+            k++;
+          }
+          const afterComma = src[k];
+          if (
+            k >= src.length ||
+            afterComma === '"' ||
+            afterComma === '{' ||
+            afterComma === '[' ||
+            afterComma === '}' ||
+            afterComma === ']'
+          ) {
+            isClosingQuote = true;
+          }
+        }
+
+        if (isClosingQuote) {
+          inString = false;
+          out += ch;
+        } else {
+          // It is an unescaped inner quote inside a string value! Escape it:
+          out += '\\"';
+        }
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (ch === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        continue;
+      }
+      if (ch === '\t') {
+        out += '\\t';
+        continue;
+      }
+    }
+
+    out += ch;
+  }
+
+  // If string was left open due to truncation, close it
+  if (inString) {
+    out += '"';
+  }
+
+  // Remove trailing commas before } or ]
+  out = out.replace(/,\s*([}\]])/g, '$1');
+
+  // Balance any unclosed brackets/braces if truncated
+  const stack = [];
+  let insideStr = false;
+  let esc = false;
+  for (let i = 0; i < out.length; i++) {
+    const c = out[i];
+    if (esc) {
+      esc = false;
+      continue;
+    }
+    if (c === '\\') {
+      esc = true;
+      continue;
+    }
+    if (c === '"') {
+      insideStr = !insideStr;
+      continue;
+    }
+    if (!insideStr) {
+      if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === c) {
+          stack.pop();
+        }
+      }
+    }
+  }
+  while (stack.length > 0) {
+    out += stack.pop();
+  }
+
+  return out;
+};
+
+/**
  * Multi-stage resilient JSON parser that handles:
  *  1. Direct JSON strings
  *  2. Markdown ```json ... ``` code blocks (even with preamble/postamble text from Search Grounding)
- *  3. Balanced { ... } or [ ... ] extraction with trailing-comma and control-character repair
+ *  3. State-machine repair for unescaped inner quotes, literal newlines, trailing commas, and truncation
  */
 export const safeParseJsonWithGrounding = (rawInput) => {
   if (!rawInput) {
@@ -50,37 +215,20 @@ export const safeParseJsonWithGrounding = (rawInput) => {
       return JSON.parse(fencedMatch[1].trim());
     } catch (_) {
       try {
-        const repairedFenced = fencedMatch[1]
-          .trim()
-          .replace(/,\s*([}\]])/g, '$1');
-        return JSON.parse(repairedFenced);
+        return JSON.parse(repairMalformedJsonString(fencedMatch[1]));
       } catch (__) {
         // continue
       }
     }
   }
 
-  // Stage 3: Balanced outer brace { ... } extraction with trailing-comma repair
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const candidate = text.slice(firstBrace, lastBrace + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch (_) {
-      // Repair common LLM/grounding JSON hiccups: trailing commas & unescaped control newlines inside strings
-      const repaired = candidate
-        .replace(/,\s*([}\]])/g, '$1')
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-      try {
-        return JSON.parse(repaired);
-      } catch (err) {
-        throw new Error(`Failed to parse JSON after grounding fallback: ${err.message}`);
-      }
-    }
+  // Stage 3: Full state-machine repair on the outer JSON object
+  const repaired = repairMalformedJsonString(strippedOuter);
+  try {
+    return JSON.parse(repaired);
+  } catch (err) {
+    throw new Error(`Failed to parse JSON after state-machine repair: ${err.message}`);
   }
-
-  throw new Error('Could not locate a valid JSON object in the Gemini agent response.');
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,7 +258,7 @@ export const callGenAiAgentWithFailover = async ({
   imageArray = [],
   enableGoogleSearch = false,
   temperature = 0.2,
-  maxOutputTokens = 6144,
+  maxOutputTokens = 16384,
   preferredModel = 'auto',
   stageName = 'Essay Agent',
   ledger = null
@@ -142,23 +290,21 @@ export const callGenAiAgentWithFailover = async ({
 
   for (const modelName of candidateList) {
     let attempt = 0;
-    const maxRetries = 2;
+    const maxRetries = 1;
+    let useSearchOnThisAttempt = enableGoogleSearch;
 
     while (attempt <= maxRetries) {
       try {
         const config = {
           temperature,
-          maxOutputTokens
+          maxOutputTokens: Math.max(8192, maxOutputTokens)
         };
 
         if (systemInstruction) {
           config.systemInstruction = systemInstruction;
         }
 
-        // Note: In Gemini API, combining tools: [{ googleSearch: {} }] with responseMimeType: 'application/json'
-        // can be rejected on some model endpoints; when enableGoogleSearch is true, we allow text/fenced JSON
-        // and parse with safeParseJsonWithGrounding. When false, we enforce strict application/json.
-        if (enableGoogleSearch) {
+        if (useSearchOnThisAttempt) {
           config.tools = [{ googleSearch: {} }];
         } else {
           config.responseMimeType = 'application/json';
@@ -181,7 +327,6 @@ export const callGenAiAgentWithFailover = async ({
 
         const parsed = safeParseJsonWithGrounding(rawText);
 
-        // Extract grounding sources if Google Search was used
         const groundingChunks =
           response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
         const searchSources = groundingChunks
@@ -223,17 +368,18 @@ export const callGenAiAgentWithFailover = async ({
           msg.includes('UNAVAILABLE') ||
           msg.includes('500');
 
-        // If search grounding tool failed on a specific model/region, retry once on same model without search tool before failing over
-        if (enableGoogleSearch && attempt === 0 && (msg.includes('400') || msg.includes('tool') || msg.includes('search'))) {
-          console.warn(`[GenAI Runner] Search grounding tool unsupported on ${modelName}, retrying without search tool...`);
-          enableGoogleSearch = false;
+        if (useSearchOnThisAttempt && attempt === 0) {
+          console.warn(
+            `[GenAI Runner] ${stageName} on ${modelName} retrying with strict JSON mode (without search tool): ${msg.slice(0, 100)}`
+          );
+          useSearchOnThisAttempt = false;
           attempt++;
           continue;
         }
 
         if (isTransient && attempt < maxRetries) {
           attempt++;
-          const waitMs = Math.min(5000, 900 * Math.pow(2, attempt) + Math.random() * 400);
+          const waitMs = 1200 + Math.random() * 400;
           console.warn(
             `[GenAI Runner] ${stageName} on ${modelName} hit transient error (${msg.slice(0, 80)}). Retrying in ${Math.round(waitMs)}ms...`
           );
@@ -252,4 +398,3 @@ export const callGenAiAgentWithFailover = async ({
     `${stageName} failed across all Gemini models: ${lastError?.message || 'Unknown error'}`
   );
 };
-

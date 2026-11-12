@@ -6,62 +6,81 @@
 export const FPSC_EXAMINER_CRITERIA = {
   essay: {
     id: 'essay',
-    label: 'FPSC English Essay Diagnostic',
+    label: 'FPSC CSS English Essay Diagnostic (v2.1)',
     scored: false,
     passingScore: 40,
     totalScore: 100,
-    targetIntroWords: 180,
+    targetIntroWords: 200,
     allowInlineHeadings: false,
     allowInlineDiagrams: false,
     breakdown: [
       {
         id: 'topic_relevance',
-        name: '1. Topic Decoding & Prompt Relevance',
-        maxMarks: 15,
-        defaultFeedback: 'Evaluates whether you decoded the exact qualifiers of the topic without drifting into pre-memorized generic notes.'
-      },
-      {
-        id: 'outline',
-        name: '2. Formal Outline & Outline-to-Body Alignment',
-        maxMarks: 15,
-        defaultFeedback: 'Checks logical roadmap, parallel phrasing of headers, and whether every outline header is fulfilled in the essay body.'
+        name: '1. Topic Decoding & 80:20 Scope',
+        maxMarks: 10,
+        defaultFeedback: 'Evaluates genre classification, 80:20 relevance ratio, and whether the script avoids pre-memorized theme-dumping.'
       },
       {
         id: 'thesis',
-        name: '3. Thesis Statement Clarity & Stance',
+        name: '2. Thesis Stance & Architecture',
         maxMarks: 10,
-        defaultFeedback: 'Assesses whether your 1–2 sentence thesis takes a clear, debatable stance and signposts your core arguments.'
+        defaultFeedback: 'Audits whether the thesis takes a clear two-dimensional, debatable, or relational stance at the end of the Introduction.'
+      },
+      {
+        id: 'outline',
+        name: '3. Outline Parallelism & 1:1 Sync',
+        maxMarks: 10,
+        defaultFeedback: 'Checks grammatical parallelism, mutually exclusive sub-points, and 1:1 Outline-to-Body synchronization.'
       },
       {
         id: 'introduction',
-        name: '4. Introduction Funnel (Hook → Context → Thesis)',
-        maxMarks: 15,
-        defaultFeedback: 'Checks the opening hook, contextual bridge, and smooth culmination into the thesis statement (~180–250 words).'
+        name: '4. Introduction Funnel & Hook',
+        maxMarks: 10,
+        defaultFeedback: 'Evaluates opening hook, contextual funnel, ~180–250 word proportion, and absence of raw statistical dumps.'
       },
       {
         id: 'body_paragraphs',
-        name: '5. Body Paragraph Depth (PEEL) & Empirical Evidence',
-        maxMarks: 20,
-        defaultFeedback: 'Audits Topic Sentences, analytical reasoning ("Why & How"), authentic data/case studies, and link back to the thesis.'
+        name: '5. Paragraph Unity & Causal Chain',
+        maxMarks: 10,
+        defaultFeedback: 'Audits Topic Sentences, 1-Paragraph-1-Argument unity, Mode-Lock adherence, and absence of grafted middle sentences.'
+      },
+      {
+        id: 'evidences',
+        name: '6. Evidence Quality & Integration',
+        maxMarks: 10,
+        defaultFeedback: 'Evaluates Gondal’s open evidence spectrum, source credibility, and post-evidence analytical integration.'
       },
       {
         id: 'coherence',
-        name: '6. Coherence, Transitions & Concluding Synthesis',
+        name: '7. Transitions, Role Map & Pacing',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates paragraph-to-paragraph transitions, absence of inline body headings, and a balanced, forward-looking conclusion.'
+        defaultFeedback: 'Checks role-filtered 1st-half vs. 2nd-half body pacing decay and organic forward-hook transitions.'
+      },
+      {
+        id: 'analytical_depth',
+        name: '8. Analytical Depth & Counter-Arg',
+        maxMarks: 10,
+        defaultFeedback: 'Audits multi-level causal depth and 50/50 self-contained rebuttal (when requiresCounterArgument is true).'
+      },
+      {
+        id: 'expression',
+        name: '9. Academic Register & Diction',
+        maxMarks: 10,
+        defaultFeedback: 'Evaluates measured civil-service tone, conceptual precision, and upgrades for generic modifiers.'
       },
       {
         id: 'grammar_syntax',
-        name: '7. Language Clarity, Grammar & Natural Register',
-        maxMarks: 15,
-        defaultFeedback: 'Line-by-line audit of grammar, sentence variety, and clear academic prose (prioritizing clarity over forced bombastic words).'
+        name: '10. British Syntax & Pinglish Check',
+        maxMarks: 10,
+        defaultFeedback: 'Line-by-line audit of formal British English syntax, clause punctuation, and Pakistani Urdu-to-English (Pinglish) interference.'
       }
     ],
     dealBreakers: [
-      'Outline-to-Body Mismatch: Writing points in the Outline that are skipped or ignored in the Essay body',
-      'Inserting headings, sub-headings, or diagrams inside the Essay prose body (headings belong strictly in the Outline)',
-      'Missing or tautological Thesis Statement that merely repeats the prompt words without taking a stance',
-      'Forced, unnatural "dictionary bombast" combined with basic subject-verb agreement or sentence fragment errors'
+      'Theme-Dumping / 80:20 Breach: Dedicating less than 75% of the essay to the core dimensions demanded by the prompt',
+      'Grafted / Franken-Paragraphs: Bolting pre-memorized paragraphs from another topic onto a forced first/last sentence',
+      '1:1 Outline-to-Body Desynchronization: Listing points in the Outline that are skipped in the Essay prose body',
+      'CSS Structural Taboos: Inserting inline headings, bullet points, tables, or flowcharts inside the Essay prose body',
+      'Mode-Lock Failure: Spending "Way Forward" paragraphs re-narrating the problem instead of explaining the solution mechanism'
     ]
   },
 

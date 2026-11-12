@@ -22,6 +22,7 @@ const buildAgent2Prompt = ({
   return `
 You are Agent 2: FPSC CSS PARAGRAPH & LOGIC INSPECTOR.
 You audit body paragraph anatomy, internal causal cohesion, evidence integration, and cross-paragraph logic.
+CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 === CONTEXT FROM AGENT 1 (MACRO-ARCHITECT) ===
 - Essay Topic: "${examQuestion}"

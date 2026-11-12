@@ -25,6 +25,7 @@ import {
 
 const buildAgent3Prompt = ({ examQuestion, preprocessed, agent1Output }) => `
 You are Agent 3: FPSC CSS FACT, DISCOURSE & LANGUAGE CRITIC (equipped with Google Search Grounding).
+CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 === CONTEXT ===
 - Essay Topic: "${examQuestion}"

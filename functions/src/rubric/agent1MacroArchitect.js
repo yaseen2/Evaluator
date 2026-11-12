@@ -16,6 +16,7 @@ import { ESSAY_GENRE_PLAYBOOKS, GUARDRAIL_EXCEPTIONS } from './essayRubricConfig
 const buildAgent1Prompt = ({ examQuestion, preprocessed, essayMode = 'full' }) => `
 You are Agent 1: FPSC CSS MACRO-ARCHITECT & TOPIC STRATEGIST.
 You evaluate the macro-architecture of an FPSC CSS English Essay with surgical accuracy, zero sycophancy, and zero hallucinated rules.
+CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 SUBMISSION MODE: ${essayMode === 'outline_only' ? 'OUTLINE & THESIS ONLY' : 'FULL CSS ESSAY'}
 

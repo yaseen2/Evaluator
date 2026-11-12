@@ -73,6 +73,17 @@ Sources: [1] imf.org`;
   console.log('  ✓ Resilient JSON parser cleanly handled Search Grounding wrapper + trailing commas.\n');
   passed++;
 
+  // 2B. Test State-Machine JSON Repair for Unescaped Inner Quotes & Literal Newlines
+  console.log('▶ Test 1B: State-Machine JSON Repair (Unescaped Inner Quotes & Truncation)...');
+  const unescapedInnerQuotesResponse = `{\n  "languageFlags": [\n    {\n      "location_id": "P2.S1",\n      "exact_verbatim_quote": "doing mistakes",\n      "observation": "The candidate wrote "doing mistakes" instead of "making mistakes" or "committing mistakes",\nwhich is a classic Pakistani L1 interference",\n      "fix": "making mistakes"\n    }\n  ]\n}`;
+  const parsedInnerQuotes = safeParseJsonWithGrounding(unescapedInnerQuotesResponse);
+  assertCondition(
+    parsedInnerQuotes.languageFlags?.[0]?.fix === 'making mistakes',
+    'safeParseJsonWithGrounding failed to repair unescaped inner double quotes and literal newlines'
+  );
+  console.log('  ✓ State-Machine JSON Repair fixed unescaped inner quotes & literal newlines.\n');
+  passed++;
+
   // 3. Test Each Golden Sample Essay
   for (const file of files) {
     const sample = JSON.parse(fs.readFileSync(path.join(SAMPLES_DIR, file), 'utf8'));

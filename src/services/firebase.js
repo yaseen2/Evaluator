@@ -244,7 +244,7 @@ export const deleteEvaluationFromFirestore = async (evalId) => {
 // ─────────────────────────────────────────────────────────────
 
 export const callEvaluateSubmission = async (payload) => {
-  const evaluateFn = httpsCallable(functions, 'evaluateSubmission');
+  const evaluateFn = httpsCallable(functions, 'evaluateSubmission', { timeout: 300000 });
   const res = await evaluateFn(payload);
   return res.data;
 };

@@ -5,14 +5,44 @@ export const CamScannerLoadingOverlay = ({ pipelineProgress, subject = 'Islamic 
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const STAGES = [
-    { title: 'Agent 1/6: Vision OCR & Script Digitizer', detail: 'Scanning page margins & transcribing handwritten script...', icon: FileSearch },
-    { title: 'Agent 2/6: Question Directive & Scope Auditor', detail: `Auditing directive alignment for ${subject}...`, icon: ShieldCheck },
-    { title: 'Agent 3/6: Factual & Citation Verifier', detail: 'Verifying claims, scholarly citations, dates, and empirical data...', icon: Cpu },
-    { title: 'Agent 4/6: Structural Causality & FPSC Scorer', detail: 'Evaluating "Why & How" causality & calculating FPSC marks...', icon: ShieldCheck },
-    { title: 'Agent 5/6: Visual Architect & Topper Rewriter', detail: 'Designing schematic diagram & 3-tier paragraph rewrites...', icon: Cpu },
-    { title: 'Agent 6/6: Line-by-Line Error & Strength Highlighter', detail: 'Mapping verbatim Red / Amber / Green callouts across text...', icon: Zap }
-  ];
+  const isEssay = (subject || '').toLowerCase().includes('essay');
+
+  const STAGES = isEssay
+    ? [
+        {
+          title: 'Stage 0: Vision OCR & Deterministic AST Tagger',
+          detail: 'Transcribing pages verbatim & tagging [O1..On] and [P1.S1..PN.SM] coordinates...',
+          icon: FileSearch
+        },
+        {
+          title: 'Stage 1A: Agent 1 — Macro-Architect & Topic Strategist',
+          detail: 'Classifying Essay Genre, requiresCounterArgument, Thesis & ParagraphRoleMap...',
+          icon: ShieldCheck
+        },
+        {
+          title: 'Stage 1A-Post: Role-Filtered Pacing Decay Engine',
+          detail: 'Calculating 1st-half vs. 2nd-half word counts across BODY_MAIN paragraphs...',
+          icon: Cpu
+        },
+        {
+          title: 'Stage 1B: Agents 2 & 3 — Parallel Paragraph & Search-Grounded Critic',
+          detail: 'Auditing Paragraph Unity, Gondal Evidence, 2026 Facts (Google Search) & Pinglish...',
+          icon: ShieldCheck
+        },
+        {
+          title: 'Stage 2: Agent 4 — Chief Examiner QA Verifier & Surgical Coach',
+          detail: 'Pruning false positives, locking 🟢 Earned Signifiers & writing Before → After upgrades...',
+          icon: Zap
+        }
+      ]
+    : [
+        { title: 'Agent 1/6: Vision OCR & Script Digitizer', detail: 'Scanning page margins & transcribing handwritten script...', icon: FileSearch },
+        { title: 'Agent 2/6: Question Directive & Scope Auditor', detail: `Auditing directive alignment for ${subject}...`, icon: ShieldCheck },
+        { title: 'Agent 3/6: Factual & Citation Verifier', detail: 'Verifying claims, scholarly citations, dates, and empirical data...', icon: Cpu },
+        { title: 'Agent 4/6: Structural Causality & FPSC Scorer', detail: 'Evaluating "Why & How" causality & calculating FPSC marks...', icon: ShieldCheck },
+        { title: 'Agent 5/6: Visual Architect & Topper Rewriter', detail: 'Designing schematic diagram & 3-tier paragraph rewrites...', icon: Cpu },
+        { title: 'Agent 6/6: Line-by-Line Error & Strength Highlighter', detail: 'Mapping verbatim Red / Amber / Green callouts across text...', icon: Zap }
+      ];
 
   useEffect(() => {
     const stageInterval = setInterval(() => {

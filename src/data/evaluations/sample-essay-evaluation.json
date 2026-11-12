@@ -4,8 +4,11 @@
   "subject": "English Essay",
   "essayMode": "full",
   "scored": false,
+  "isNonScoredEssay": true,
+  "essayGenre": "RELATIONAL_TWO_CONCEPT",
+  "requiresCounterArgument": false,
   "archetypeId": "essay",
-  "archetypeLabel": "FPSC English Essay Diagnostic",
+  "archetypeLabel": "FPSC CSS English Essay Diagnostic (v2.1)",
   "domainLabel": "FPSC English Essay & Argumentation Mentor",
   "candidateName": "CSS Aspirant Sample",
   "date": "2026-11-07",
@@ -16,6 +19,99 @@
   "wordCount": 512,
   "introWordCount": 138,
   "targetIntroWords": 180,
+  "pacingMetrics": {
+    "firstHalfAvgWords": 108,
+    "secondHalfAvgWords": 94,
+    "pacingDecayPercent": -13,
+    "pacingDecayTriggered": false
+  },
+  "diagnosticTiers": {
+    "tier1DealBreakers": [
+      {
+        "domain": "Domain 1: Macro-Structure & Thesis",
+        "code": "INLINE_BODY_HEADING",
+        "severity": "TIER_1_DEAL_BREAKER",
+        "location_id": "P4.S1",
+        "exact_verbatim_quote": "Way Forward:",
+        "observation": "Standalone heading ('Way Forward:') inserted inside the continuous essay prose body. In FPSC CSS English Essays, headings are strictly restricted to the formal Outline.",
+        "fix": "Replace the standalone heading with a transitional topic sentence: 'To bridge these institutional gaps, developing nations must sequence digital infrastructure ahead of automation.'"
+      }
+    ],
+    "tier2MajorFlaws": [
+      {
+        "domain": "Domain 1: Macro-Structure & Thesis",
+        "code": "TAUTOLOGICAL_THESIS",
+        "severity": "TIER_2_MAJOR_FLAW",
+        "location_id": "P1.S7",
+        "exact_verbatim_quote": "Artificial intelligence has many opportunities and also many institutional risks for governance in developing nations.",
+        "observation": "Thesis statement merely echoes the prompt wording without specifying the causal mechanism connecting AI opportunities and institutional risks.",
+        "fix": "While Artificial Intelligence offers developing nations a historic leapfrog opportunity in fiscal transparency and service delivery, its dividends remain contingent upon bridging the digital divide and enacting statutory safeguards against algorithmic bias."
+      },
+      {
+        "domain": "Domain 1: Macro-Structure & Thesis",
+        "code": "OUTLINE_BODY_DESYNC",
+        "severity": "TIER_2_MAJOR_FLAW",
+        "location_id": "O8",
+        "exact_verbatim_quote": "C. Cyber Warfare and National Security",
+        "observation": "Section III-C ('Cyber Warfare and National Security') is promised in the Outline but skipped in the body paragraphs, violating the 1:1 Outline-to-Body synchronization rule.",
+        "fix": "Either dedicate a body paragraph to state-sponsored cyber vulnerabilities in public infrastructure or remove III-C from the Outline."
+      }
+    ],
+    "tier3Polish": [
+      {
+        "domain": "Domain 2: Paragraph Architecture",
+        "code": "CLICHE_OPENING_HOOK",
+        "severity": "TIER_3_POLISH",
+        "location_id": "P1.S1",
+        "exact_verbatim_quote": "Since the dawn of human civilization, technology has always changed how governments rule their citizens.",
+        "observation": "Sweeping 'since the dawn of civilization' opening hook dilutes academic authority.",
+        "fix": "From Estonia's paperless e-cabinet to biometric welfare registries in South Asia, algorithmic decision-making is rapidly redrawing the boundaries of the modern state."
+      },
+      {
+        "domain": "Domain 1: Macro-Structure & Thesis",
+        "code": "OUTLINE_PARALLELISM",
+        "severity": "TIER_3_POLISH",
+        "location_id": "O4",
+        "exact_verbatim_quote": "A. Tax collection can be improved by using AI tools.",
+        "observation": "Sub-header II-A is written as a full declarative sentence, breaking grammatical parallelism with noun-phrase siblings II-B and II-C.",
+        "fix": "A. Expanding the Fiscal Net through Predictive Tax Analytics"
+      }
+    ],
+    "earnedTopperStrengths": [
+      {
+        "domain": "Domain 3: Evidence & Integration",
+        "code": "EMPIRICAL_CASE_ANCHOR",
+        "severity": "EARNED_STRENGTH",
+        "location_id": "P2.S4",
+        "exact_verbatim_quote": "Benazir Income Support Programme (BISP) and NADRA databases have demonstrated that biometric and algorithmic verification can reduce ghost beneficiaries",
+        "observation": "Anchors abstract algorithmic governance in concrete Pakistani public-sector institutions (BISP and NADRA) with immediate analytical follow-through."
+      },
+      {
+        "domain": "Domain 2: Paragraph Architecture",
+        "code": "CONCLUDING_SYNTHESIS",
+        "severity": "EARNED_STRENGTH",
+        "location_id": "P5.S2",
+        "exact_verbatim_quote": "technology cannot substitute for institutional integrity",
+        "observation": "Balanced, philosophical synthesis in the conclusion that elevates the essay without introducing unargued new data."
+      }
+    ]
+  },
+  "surgicalRewrites": [
+    {
+      "targetLocation": "P1 (Introduction & Thesis Statement)",
+      "flawDiagnosed": "Sweeping cliché hook ('Since the dawn of human civilization') and tautological final thesis sentence that repeats the prompt.",
+      "beforeText": "Since the dawn of human civilization, technology has always changed how governments rule their citizens. Today, Artificial Intelligence is transforming bureaucracy across the globe... Artificial intelligence has many opportunities and also many institutional risks for governance in developing nations.",
+      "afterTopperText": "From Rwanda's digitized land registries to South Asia's biometric welfare architectures, algorithmic governance is redefining state capacity across the Global South. For developing nations like Pakistan—where manual files, discretionary rent-seeking, and institutional bottlenecks routinely alienate citizens from basic public goods—Artificial Intelligence offers a rare leapfrog mechanism to modernize the state apparatus. Yet technological sophistication cannot compensate for analog institutional decay. Consequently, while Artificial Intelligence holds transformative potential for fiscal transparency and public service delivery in developing states, its dividends remain contingent upon bridging the rural-urban digital divide and embedding algorithmic accountability within statutory bounds.",
+      "whyThisWorks": "Replaces the cliché opening with concrete Global South benchmarks, builds a cohesive 3-stage funnel (Hook → Institutional Context → Conditional Thesis), and establishes a clear relational stance."
+    },
+    {
+      "targetLocation": "P4 (Way Forward Paragraph)",
+      "flawDiagnosed": "Contains a forbidden standalone inline heading ('Way Forward:') and compresses an entire policy dimension into a single underdeveloped sentence.",
+      "beforeText": "Way Forward:\nTo harness AI responsibly, developing nations must first invest in digital public infrastructure and enact statutory data protection authorities before automating high-stakes administrative decisions.",
+      "afterTopperText": "Mitigating these institutional vulnerabilities requires developing states to adopt a sequenced, rights-based transition toward algorithmic governance. Rather than importing opaque surveillance tools, policymakers must first universalize rural broadband access and standardize interoperable public datasets so machine-learning models reflect the entire citizenry. Simultaneously, parliaments must enact comprehensive Personal Data Protection Acts—modeled on transparent algorithmic auditing standards—to guarantee that automated welfare or tax flags remain subject to human administrative review.",
+      "whyThisWorks": "Eliminates the forbidden inline heading, opens with a forward-hook Topic Sentence, and explains the concrete institutional mechanism ('How' and 'Why') behind digital infrastructure and statutory oversight."
+    }
+  ],
   "evaluatedModelId": "gemini-3.8-flash",
   "evaluatedModelName": "Gemini 3.8 Flash",
   "creditsConsumed": 12,
@@ -221,46 +317,64 @@
   },
   "scoreBreakdown": {
     "topic_relevance": {
-      "name": "1. Topic Decoding & Prompt Relevance",
+      "name": "1. Topic Decoding & 80:20 Scope",
       "status": "Strong",
       "scored": false,
-      "feedback": "Accurately focuses on governance in developing nations and balances both opportunities and institutional risks."
-    },
-    "outline": {
-      "name": "2. Formal Outline & Outline-to-Body Alignment",
-      "status": "Needs Polish",
-      "scored": false,
-      "feedback": "Mixes single-word labels ('II. Opportunities'), full sentences ('A. Tax collection can be improved...'), and questions ('III. What are the Institutional Risks?'). Section III-C is skipped in the body."
+      "feedback": "Classified as RELATIONAL_TWO_CONCEPT (requiresCounterArgument: false). Accurately links AI opportunities and institutional risks in developing nations."
     },
     "thesis": {
-      "name": "3. Thesis Statement Clarity & Stance",
+      "name": "2. Thesis Stance & Architecture",
       "status": "Needs Polish",
       "scored": false,
-      "feedback": "Current thesis is tautological—it repeats the prompt words without taking a debatable stance on how developing nations can reconcile AI's opportunities and risks."
+      "feedback": "Current thesis is tautological—it repeats the prompt words without stating the conditional relationship between AI efficiency and institutional safeguards."
+    },
+    "outline": {
+      "name": "3. Outline Parallelism & 1:1 Sync",
+      "status": "Needs Polish",
+      "scored": false,
+      "feedback": "Mixes single-word labels ('II. Opportunities'), full sentences ('A. Tax collection can be improved...'), and questions. Section III-C is skipped in the body."
     },
     "introduction": {
-      "name": "4. Introduction Funnel (Hook → Context → Thesis)",
+      "name": "4. Introduction Funnel & Hook",
       "status": "Balanced",
       "scored": false,
-      "feedback": "Clear contextual transition (138 words), though it opens with a generic 'Since the dawn of civilization' cliché and needs ~40–50 more words of analytical framing."
+      "feedback": "Clear contextual transition (138 words), though it opens with a 'Since the dawn of civilization' cliché and needs ~40–50 more words of framing."
     },
     "body_paragraphs": {
-      "name": "5. Body Paragraph Depth (PEEL) & Empirical Evidence",
-      "status": "Strong",
-      "scored": false,
-      "feedback": "Good use of assertive topic sentences and authentic national examples (BISP, NADRA, tax evasion). Adding global index data (UN EGDI / Government AI Readiness Index) will make it outstanding."
-    },
-    "coherence": {
-      "name": "6. Coherence, Transitions & Concluding Synthesis",
+      "name": "5. Paragraph Unity & Causal Chain",
       "status": "Needs Polish",
       "scored": false,
-      "feedback": "Smooth transitions between paragraphs 2 and 3, and a strong conclusion, but includes a forbidden inline heading ('Way Forward:') inside the essay prose body."
+      "feedback": "Paragraphs P2 and P3 maintain strong causal focus, but P4 inserts a forbidden standalone heading ('Way Forward:') and lacks full paragraph development."
     },
-    "grammar_syntax": {
-      "name": "7. Language Clarity, Grammar & Natural Register",
+    "evidences": {
+      "name": "6. Evidence Quality & Integration",
       "status": "Strong",
       "scored": false,
-      "feedback": "Lucid, natural academic English free of forced dictionary bombast. Sentence structure is clean and readable."
+      "feedback": "Strong institutional grounding using Pakistan's BISP and NADRA biometric registries, followed by clear analytical linkage."
+    },
+    "coherence": {
+      "name": "7. Transitions, Role Map & Pacing",
+      "status": "Strong",
+      "scored": false,
+      "feedback": "Balanced pacing between 1st-half (108w avg) and 2nd-half (94w avg) body paragraphs (-13% delta, well within the safe threshold)."
+    },
+    "analytical_depth": {
+      "name": "8. Analytical Depth & Counter-Arg",
+      "status": "Strong",
+      "scored": false,
+      "feedback": "Demonstrates clear causal reasoning on how urban-biased training data excludes rural citizens from automated state welfare."
+    },
+    "expression": {
+      "name": "9. Academic Register & Diction",
+      "status": "Strong",
+      "scored": false,
+      "feedback": "Lucid, measured civil-service register free of artificial thesaurus stuffing or emotional hyperbole."
+    },
+    "grammar_syntax": {
+      "name": "10. British Syntax & Pinglish Check",
+      "status": "Strong",
+      "scored": false,
+      "feedback": "Clean British English syntax and clause structure with zero Pakistani L1 ('Pinglish') interference."
     }
   }
 }
