@@ -94,7 +94,7 @@ export const DocumentViewer = ({
     const targetRect = targetEl.getBoundingClientRect();
     const paperRect = paperRef.current.getBoundingClientRect();
     const isMobile = window.innerWidth < 640;
-    const cardWidth = isMobile ? Math.min(320, window.innerWidth - 32) : 340;
+    const cardWidth = isMobile ? Math.min(320, window.innerWidth - 32) : 360;
 
     // Position relative to paper container
     let top = targetRect.bottom - paperRect.top + 8;
@@ -231,8 +231,8 @@ export const DocumentViewer = ({
               if (el) highlightRefs.current[annId] = el;
             }}
             onClick={(e) => handleTranscribedClick(e, matchedAnn)}
-            className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline-block ${
-              isSelected ? 'ring-2 ring-[#007a64] ring-offset-1 rounded-sm' : ''
+            className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline ${
+              isSelected ? 'ring-2 ring-[#008560] ring-offset-1 rounded-xs' : ''
             }`}
             title={cleanSimpleText(matchedAnn.comment || matchedAnn.category || '')}
           >
@@ -427,25 +427,25 @@ export const DocumentViewer = ({
         <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 lg:p-8 flex justify-center">
           <article
             ref={paperRef}
-            className="w-full max-w-2xl bg-paper shadow-xs border border-slate-200/90 rounded-lg p-3 sm:p-6 md:p-8 relative ruled-canvas flex flex-col min-h-[520px] font-academic"
+            className="w-full max-w-2xl bg-white shadow-xs border border-slate-200/90 rounded-lg p-4 sm:p-7 md:p-8 relative ruled-notebook-paper flex flex-col min-h-[580px] font-academic"
             style={{ position: 'relative' }}
           >
             {/* Classic FPSC Margin Indicator Line */}
             <div
               aria-hidden="true"
-              className="absolute left-3.5 sm:left-6 top-0 bottom-0 w-[1px] bg-red-400/50 pointer-events-none"
+              className="absolute left-6 sm:left-10 top-0 bottom-0 w-[1.5px] bg-red-400/50 pointer-events-none"
             />
 
             {/* Document Meta Header */}
-            <div className="pb-3 border-b border-slate-200/60 mb-4 pl-3 sm:pl-4 font-sans text-xs text-slate-500 flex justify-between items-center">
+            <div className="pb-3 border-b border-slate-200/60 mb-4 pl-6 sm:pl-10 font-sans text-xs text-slate-500 flex justify-between items-center">
               <span>{evaluation.subject || 'FPSC Answer Paper'}</span>
               <span className="font-mono text-slate-400">
                 {evaluation.date || new Date().toISOString().split('T')[0]}
               </span>
             </div>
 
-            {/* Formatted Transcribed Paragraphs with pl-3 sm:pl-4 */}
-            <div className="space-y-4 sm:space-y-5 text-slate-900 leading-8 sm:leading-9 text-base sm:text-[18px] pl-3 sm:pl-4">
+            {/* Formatted Transcribed Paragraphs on Ruled Canvas */}
+            <div className="notebook-ruled-body text-slate-900 pl-6 sm:pl-10 font-academic">
               {paragraphs.map((para, pIdx) => {
                 const trimmed = para.trim();
                 const isHeading =
@@ -455,17 +455,16 @@ export const DocumentViewer = ({
                 const highlightedContent = renderHighlightedParagraph(para);
 
                 return (
-                  <div key={pIdx}>
-                    {isHeading ? (
-                      <p className="font-bold text-slate-900 pt-1 tracking-tight font-academic">
-                        {highlightedContent}
-                      </p>
-                    ) : (
-                      <p className="text-slate-900 leading-relaxed font-normal font-academic">
-                        {highlightedContent}
-                      </p>
-                    )}
-                  </div>
+                  <p
+                    key={pIdx}
+                    className={
+                      isHeading
+                        ? 'font-bold tracking-tight text-slate-950 font-academic'
+                        : 'font-normal text-slate-900 font-academic'
+                    }
+                  >
+                    {highlightedContent}
+                  </p>
                 );
               })}
             </div>
@@ -495,7 +494,7 @@ export const DocumentViewer = ({
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 font-sans">
                   <div className="flex items-center space-x-1.5">
                     <span
-                      className={`w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 animate-pulse ${
+                      className={`w-2 h-2 rounded-full inline-block flex-shrink-0 animate-pulse ${
                         activeAnnotation.type === 'red'
                           ? 'bg-rose-500'
                           : activeAnnotation.type === 'green'
@@ -503,13 +502,13 @@ export const DocumentViewer = ({
                           : 'bg-amber-500'
                       }`}
                     />
-                    <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       {activeAnnotation.category || getSimpleHeadline(activeAnnotation)}
                     </span>
                   </div>
                   <button
                     aria-label="Close correction card"
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors cursor-pointer"
+                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md transition-colors cursor-pointer"
                     onClick={() => onSelectAnnId && onSelectAnnId(null)}
                     type="button"
                   >
@@ -517,27 +516,68 @@ export const DocumentViewer = ({
                   </button>
                 </div>
 
-                {/* Main Suggestion: Strikethrough -> Replacement Pill */}
+                {/* Main Suggestion: Grammarly Replacement */}
                 {activeAnnotation.suggestion ? (
-                  <div className="flex items-center space-x-2 sm:space-x-3 my-3 font-sans">
-                    {activeAnnotation.targetPhrase && (
-                      <span className="line-through text-red-600 font-serif text-base sm:text-lg font-medium decoration-rose-500 decoration-2">
-                        {activeAnnotation.targetPhrase}
-                      </span>
-                    )}
-                    <span className="text-slate-400 font-semibold text-sm">→</span>
-                    <button
-                      className="bg-[#007a64] hover:bg-[#006352] text-white px-3 py-1.5 rounded-lg text-sm sm:text-base font-semibold shadow-sm transition-all inline-flex items-center gap-1.5 active:scale-95 cursor-pointer"
-                      type="button"
-                      onClick={handleCopyFix}
-                      title="Click to copy / accept suggestion"
-                    >
-                      <span>{activeAnnotation.suggestion}</span>
-                      {copied && <Check size={14} className="text-white" />}
-                    </button>
-                  </div>
+                  activeAnnotation.suggestion.length > 25 ? (
+                    /* Multi-line / Sentence Rewrite: Stacked layout with clean accent card */
+                    <div className="my-2.5 space-y-1.5 font-sans">
+                      {activeAnnotation.targetPhrase && (
+                        <div className="text-xs text-slate-400 font-normal">
+                          <span className="line-through decoration-rose-400 decoration-1 text-slate-500">
+                            {activeAnnotation.targetPhrase}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        onClick={handleCopyFix}
+                        className="bg-emerald-50/80 hover:bg-emerald-100/70 border border-emerald-300/80 rounded-lg p-2.5 cursor-pointer transition-all flex items-start justify-between gap-2.5 group"
+                        title="Click to copy / apply suggestion"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-0.5">
+                            Suggested Improvement
+                          </div>
+                          <p className="text-[13px] font-medium text-emerald-950 leading-snug font-academic">
+                            {activeAnnotation.suggestion}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="flex-shrink-0 bg-[#008560] group-hover:bg-[#006e50] text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow-2xs inline-flex items-center gap-1 transition-all"
+                        >
+                          {copied ? (
+                            <>
+                              <Check size={12} />
+                              <span>Applied</span>
+                            </>
+                          ) : (
+                            <span>Apply</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Short Word / Phrase Replacement: Sleek Grammarly emerald pill */
+                    <div className="flex items-center space-x-2 my-2.5 font-sans flex-wrap gap-y-1.5">
+                      {activeAnnotation.targetPhrase && (
+                        <span className="line-through text-slate-400 text-xs sm:text-[13px] font-normal decoration-rose-400 decoration-1">
+                          {activeAnnotation.targetPhrase}
+                        </span>
+                      )}
+                      <span className="text-slate-300 font-semibold text-xs">→</span>
+                      <button
+                        className="bg-[#008560] hover:bg-[#006e50] text-white px-2.5 py-1 rounded-md text-[13px] font-semibold tracking-tight shadow-2xs transition-all inline-flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                        type="button"
+                        onClick={handleCopyFix}
+                        title="Click to copy / apply suggestion"
+                      >
+                        <span>{activeAnnotation.suggestion}</span>
+                        {copied && <Check size={13} className="text-white" />}
+                      </button>
+                    </div>
+                  )
                 ) : (
-                  <div className="my-2.5">
+                  <div className="my-2">
                     <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 inline-block font-sans">
                       ✓ Strong Academic Phrasing
                     </span>
@@ -546,25 +586,25 @@ export const DocumentViewer = ({
 
                 {/* Contextual Pedagogical Explanation */}
                 {(activeAnnotation.comment || activeAnnotation.microLesson) && (
-                  <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed my-2 font-normal font-sans">
+                  <p className="text-xs sm:text-[12.5px] text-slate-600 leading-relaxed my-2 font-normal font-sans">
                     {cleanSimpleText(activeAnnotation.comment || activeAnnotation.microLesson)}
                   </p>
                 )}
 
                 {/* Action Buttons Row */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-2 font-sans">
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2 font-sans">
                   <button
                     onClick={() =>
                       handleToggleBookmark(
                         activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
                       )
                     }
-                    className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors border active:scale-95 cursor-pointer ${
+                    className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-colors border active:scale-95 cursor-pointer ${
                       bookmarkedAnnIds[
                         activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
                       ]
-                        ? 'bg-[#007a64] text-white border-[#007a64]'
-                        : 'bg-[#007a64]/10 hover:bg-[#007a64]/20 text-[#007a64] border-[#007a64]/30'
+                        ? 'bg-[#008560] text-white border-[#008560]'
+                        : 'bg-[#008560]/10 hover:bg-[#008560]/20 text-[#008560] border-[#008560]/30'
                     }`}
                     type="button"
                   >
@@ -580,7 +620,7 @@ export const DocumentViewer = ({
 
                   <button
                     onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                    className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                     type="button"
                   >
                     <EyeOff size={13} />
@@ -593,14 +633,11 @@ export const DocumentViewer = ({
         </div>
       )}
 
-      {/* DOCKED ANNOTATION NAVIGATION FOOTER (STITCH STYLE) */}
+      {/* SINGLE PERSISTENT FLOATING ANNOTATION & STEPPER DOCK (STITCH / GRAMMARLY PILL) */}
       {viewMode === 'transcribed' && allAnnotations.length > 0 && (
-        <footer
-          className="h-14 bg-white border-t border-slate-200/80 px-3 sm:px-6 flex items-center justify-between flex-shrink-0 gap-2 z-10 sticky bottom-0 font-sans no-print"
-          data-purpose="annotation-dock"
-        >
-          {/* Annotation Filter Pills */}
-          <div className="flex items-center space-x-1 sm:space-x-1.5 overflow-x-auto">
+        <div className="floating-annotation-dock no-print font-sans">
+          {/* Category Filter Pills */}
+          <div className="flex items-center space-x-1">
             <button
               type="button"
               onClick={() => setActiveCategoryFilter('all')}
@@ -651,227 +688,34 @@ export const DocumentViewer = ({
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                <span>Strengths ({greenCount})</span>
-              </button>
-            )}
-          </div>
-
-          {/* Stepper Controls */}
-          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-            <button
-              aria-label="Previous Annotation"
-              onClick={handlePrevAnnotation}
-              className="p-2 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Previous Annotation"
-              type="button"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-xs font-mono font-medium text-slate-600 px-1 whitespace-nowrap">
-              {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 1} of {filteredAnnotations.length}
-            </span>
-            <button
-              aria-label="Next Annotation"
-              onClick={handleNextAnnotation}
-              className="p-2 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Next Annotation"
-              type="button"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </footer>
-      )}
-
-      {/* PERSISTENT FLOATING BOTTOM CATEGORY & STEPPER DOCK (QUILLBOT STYLE) */}
-      {viewMode === 'transcribed' && allAnnotations.length > 0 && (
-        <div className="quillbot-bottom-dock no-print">
-          {/* Category Filter Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <button
-              type="button"
-              onClick={() => setActiveCategoryFilter('all')}
-              style={{
-                background:
-                  activeCategoryFilter === 'all'
-                    ? 'var(--accent-blue-soft)'
-                    : 'transparent',
-                color:
-                  activeCategoryFilter === 'all'
-                    ? 'var(--accent-blue)'
-                    : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: '9999px',
-                padding: '4px 9px',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <span>All ({allAnnotations.length})</span>
-            </button>
-
-            {redCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveCategoryFilter('red')}
-                style={{
-                  background:
-                    activeCategoryFilter === 'red'
-                      ? 'rgba(239, 68, 68, 0.12)'
-                      : 'transparent',
-                  color: activeCategoryFilter === 'red' ? '#dc2626' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '4px 8px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#dc2626'
-                  }}
-                />
-                <span>Errors ({redCount})</span>
-              </button>
-            )}
-
-            {amberCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveCategoryFilter('amber')}
-                style={{
-                  background:
-                    activeCategoryFilter === 'amber'
-                      ? 'rgba(245, 158, 11, 0.14)'
-                      : 'transparent',
-                  color:
-                    activeCategoryFilter === 'amber' ? '#d97706' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '4px 8px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#d97706'
-                  }}
-                />
-                <span>Polish ({amberCount})</span>
-              </button>
-            )}
-
-            {greenCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveCategoryFilter('green')}
-                style={{
-                  background:
-                    activeCategoryFilter === 'green'
-                      ? 'rgba(16, 185, 129, 0.14)'
-                      : 'transparent',
-                  color:
-                    activeCategoryFilter === 'green' ? '#059669' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '4px 8px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#059669'
-                  }}
-                />
                 <span>Good ({greenCount})</span>
               </button>
             )}
           </div>
 
-          <div
-            style={{
-              width: '1px',
-              height: '16px',
-              background: 'var(--border)',
-              margin: '0 2px'
-            }}
-          />
+          {/* Divider */}
+          <div className="w-[1px] h-4 bg-slate-200 mx-1" />
 
-          {/* Stepper (‹ 1/6 ›) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {/* Stepper Controls */}
+          <div className="flex items-center space-x-1">
             <button
-              type="button"
+              aria-label="Previous issue"
               onClick={handlePrevAnnotation}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                padding: '4px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center'
-              }}
+              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Previous issue"
+              type="button"
             >
               <ChevronLeft size={16} />
             </button>
-
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                minWidth: '32px',
-                textAlign: 'center'
-              }}
-            >
-              {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 0}/
-              {filteredAnnotations.length}
+            <span className="text-xs font-mono font-medium text-slate-600 px-1 whitespace-nowrap">
+              {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 0} / {filteredAnnotations.length}
             </span>
-
             <button
-              type="button"
+              aria-label="Next issue"
               onClick={handleNextAnnotation}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                padding: '4px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center'
-              }}
+              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Next issue"
+              type="button"
             >
               <ChevronRight size={16} />
             </button>
