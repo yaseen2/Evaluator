@@ -17,6 +17,7 @@ import {
 import { safeParseJsonWithGrounding } from '../functions/src/rubric/safeJsonParser.js';
 import {
   PINGLISH_INTERFERENCE_RULES,
+  PINGLISH_DIRECTION_TEXT,
   PROMPT_DECODING_TRAP_RULES,
   CONCEPTUAL_PRECISION_PAIRS,
   CSS_LANGUAGE_AND_FORMAT_RULES,
@@ -51,14 +52,12 @@ const runDeterministicSuite = () => {
   console.log('▶ Test 0: Pinglish & Guardrail Configuration Invariants...');
   const pinglishString = JSON.stringify(PINGLISH_INTERFERENCE_RULES);
   assertCondition(
-    pinglishString.includes('doing mistakes'),
-    'Pinglish rules must include "doing mistakes".'
+    typeof PINGLISH_DIRECTION_TEXT === 'string' &&
+      PINGLISH_DIRECTION_TEXT.includes('Pinglish') &&
+      pinglishString.includes('making/committing mistakes'),
+    'Pinglish direction and streamlined rules must protect valid "making/committing mistakes".'
   );
-  assertCondition(
-    pinglishString.includes('pass out from college'),
-    'Pinglish rules must scope "pass out" specifically to "pass out from college / pass out from university".'
-  );
-  console.log('  ✓ Pinglish rules verified (valid "committing mistakes" protected; "pass out" scoped to college/university).\n');
+  console.log('  ✓ Pinglish rules verified (open-ended AI direction + valid "making/committing mistakes" protected).\n');
   passed++;
 
   // 2. Test Resilient JSON Parser with Search Grounding Artifacts
@@ -185,7 +184,7 @@ Sources: [1] imf.org`;
     PROMPT_DECODING_TRAP_RULES.length >= 4 &&
       CONCEPTUAL_PRECISION_PAIRS.length >= 5 &&
       CSS_LANGUAGE_AND_FORMAT_RULES.length >= 5 &&
-      SHARED_SAFE_HARBOR_DIRECTIVE.includes('Zero AI-Cliché Penalty'),
+      SHARED_SAFE_HARBOR_DIRECTIVE.includes('Valid Standard Words'),
     'v3 rubric rules and safe harbors must be exported completely.'
   );
 

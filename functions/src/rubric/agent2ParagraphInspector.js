@@ -54,44 +54,42 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 ${preprocessed.fullTaggedTranscript}
 ====================================
 
-YOUR 6 DIAGNOSTIC AUDIT TASKS:
+YOUR 6 DIAGNOSTIC AUDIT TASKS (Use Simple, Student-Friendly Feedback Headings):
 1. ROLE-AWARE PARAGRAPH EVALUATION (Respect paragraphRoleMap!):
    - For paragraphs tagged "TRANSITION_BRIDGE" or "CONTEXT_OVERVIEW":
-     * Evaluate ONLY whether they smoothly connect sections or contextualize the topic.
+     * Evaluate ONLY whether they smoothly connect sections or contextualize the Essay Title.
      * NEVER penalize a "TRANSITION_BRIDGE" or "CONTEXT_OVERVIEW" paragraph for being short (<100 words) or lacking empirical statistics!
    - For paragraphs tagged "BODY_MAIN":
-     * Topic Sentence ([Pk.S1]): Must state a clear analytical claim linked to the prompt. Flag bare textbook definitions, announcements ("In this paragraph..."), or raw facts without an argument.
-     * Paragraph Unity (1 Paragraph = 1 Central Argument): Flag "Laundry-List Paragraphs" that cram 3–4 separate arguments into a single paragraph without analytical depth. (Remember: citing 2 complementary pieces of evidence to prove ONE single argument is 100% valid! Also, a brief Forward Transition Hook in the final clause previewing the next paragraph is 100% valid!)
-     * Causal Chain vs. "Grafted / Franken-Paragraph": Check if the middle sentences [S2..S(m-1)] genuinely develop [S1], or if the candidate bolted a pre-memorized paragraph from another topic onto a forced first/last sentence ("Grafted Paragraph" -> 🔴 TIER_1_FATAL or 🟠 TIER_2_MAJOR).
-     * Mode-Lock Check:
-       - In a "Causes / Drivers" paragraph: Does the paragraph explain HOW the cause impacts the prompt's main subject?
-       - In a "Way Forward / Solutions" paragraph: Does it explain the solution mechanism (HOW to implement + expected outcome), or does it suffer from "Mode-Lock Failure" (spending 80% of the paragraph re-describing the problem and tacking on "Therefore, the government must act" in the last line)?
-     * Natural Analytical Closure (NO "Burger Prison"): Check whether the final sentence [Pk.Sm] synthesizes the paragraph's point back to the prompt/thesis. NEVER demand formulaic words like "Hence," or "Therefore,".
+     * Topic Sentence ([Pk.S1]): Must state a clear point directly answering the Essay Title. Flag bare textbook definitions, announcements ("In this paragraph..."), or raw facts without an argument.
+     * Paragraph Unity (1 Paragraph = 1 Main Idea): Flag overcrowded paragraphs that cram 3–4 separate ideas into a single paragraph without depth. (Remember: citing multiple complementary proofs for ONE single idea is valid, and a brief closing bridge sentence previewing the next paragraph is valid!)
+     * Logical Flow vs. Unrelated Paragraph: Check if the middle sentences [S2..S(m-1)] genuinely develop [S1], or if the student forced a memorized, unrelated paragraph onto a made-up opening/closing sentence (🔴 TIER_1_FATAL or 🟠 TIER_2_MAJOR).
+     * Section Focus Discipline:
+       - In a "Causes / Drivers" paragraph: Does it explain HOW the cause impacts the Essay Title's subject?
+       - In a "Way Forward / Solutions" paragraph: Does it explain HOW to implement the solution and its outcome, rather than wasting most of the paragraph re-explaining the problem and adding one weak closing sentence?
+     * Natural Closing Sentence: Check whether the final sentence [Pk.Sm] ties the paragraph's point back smoothly to the Essay Title/Thesis.
 
-2. GONDAL'S OPEN EVIDENCE PHILOSOPHY & POST-EVIDENCE INTEGRATION:
-   - Anything that verifiably substantiates, illustrates, or proves the claim counts as valid evidence (empirical statistics, historical precedents, constitutional/legal provisions, scholarly books, institutional mechanisms, case studies, comparative models, philosophical deductions, sociological observations).
-   - If essayGenre === "ABSTRACT_PHILOSOPHICAL", NEVER demand Economic Survey GDP stats—welcome philosophical, historical, psychological, literary, and deductive proofs.
-   - Audit Evidence Quality & Integration:
-     * Flag "Hawai Firing" (sweeping assertions with zero substantiation of any kind -> 🟠 TIER_2_MAJOR).
-     * Flag "Heirless / Nameless Proof" ("According to a report...", "Experts say..." with no named source -> 🔵 TIER_3_POLISH or 🟠 TIER_2_MAJOR).
-     * Flag "Dropped / Unintegrated Proof" (citing a quote/stat without 1–2 sentences explaining how it proves the Topic Sentence).
+2. OPEN EVIDENCE PRINCIPLE & EXPLANATION OF PROOF:
+   - Any verifiable proof that substantiates the claim counts (statistics, historical examples, constitutional/legal articles, scholarly books, institutional examples, case studies, or logical reasoning).
+   - If essayGenre === "ABSTRACT_PHILOSOPHICAL", NEVER demand Economic Survey GDP stats—welcome philosophical, historical, literary, psychological, and deductive proofs.
+   - Audit Evidence Quality & Explanation:
+     * Flag Unproved Claims (big sweeping claims with zero supporting example, data, or reasoning -> 🟠 TIER_2_MAJOR).
+     * Flag Unnamed Sources ("According to a report...", "Experts say..." with no named institution, author, or year -> 🔵 TIER_3_POLISH or 🟠 TIER_2_MAJOR).
+     * Flag Unexplained Quotes or Stats (dropping a number or quote without 1–2 sentences explaining how it proves your Topic Sentence).
 
-3. COUNTER-ARGUMENT & REBUTTAL AUDIT (Advisory Only):
-   - NEVER penalize the absence of a Counter-Argument as TIER_1_FATAL or TIER_2_MAJOR (Agent 1 handles optional 🔵 TIER_3_POLISH recommendations where useful).
-   - ONLY if the candidate ACTUALLY WROTE a "COUNTER_ARGUMENT" paragraph: check the 50/50 Self-Contained Rebuttal Rule—did they briefly state the opposing view ("Critics contend...") and immediately refute it inside the SAME paragraph, or did they leave an entire paragraph agreeing with the opposition unrefuted ("Self-Sabotage" -> 🟠 TIER_2_MAJOR)?
+3. COUNTER-ARGUMENT & REBUTTAL CHECK (Optional Advice Only):
+   - NEVER penalize omitting a Counter-Argument as TIER_1_FATAL or TIER_2_MAJOR (Agent 1 handles optional 🔵 TIER_3_POLISH tips where helpful).
+   - ONLY if the candidate ACTUALLY WROTE a "COUNTER_ARGUMENT" paragraph: check that they briefly present the opposing view ("Critics argue...") and clearly refute it in the SAME paragraph rather than agreeing with the opposition unrefuted (🟠 TIER_2_MAJOR).
 
-4. LOGICAL FALLACIES, WRONG REGISTERS & CROSS-PARAGRAPH CONTRADICTIONS:
-   - Scan across P1..P${preprocessed.paragraphs.length} for internal self-contradictions (e.g., arguing in P4 that state institutions are completely paralysed, then claiming in P10 that those same institutions have effortlessly resolved regional crises).
-   - Catch the 6 Classic Logical Fallacies when present:
-     * Correlation vs. Causation, Circular Reasoning, False Dilemma (black-and-white extremes), Hasty Generalization (1 news incident universalized), Strawman Counter-Argument, and Whataboutism ("Even developed countries have corruption").
-   - Catch Wrong Essay Registers (FPSC CE-2018 Warning):
-     * Flag writing like a "Friday Sermon / Moral Preaching" ("we must fear God"), a dry "Bureaucratic Policy Report" list without connective flow, or a "Breaking-News Political Column".
+4. CONTRADICTIONS, REASONING MISTAKES & TONE CHECK:
+   - Scan across P1..P${preprocessed.paragraphs.length} for contradictions across paragraphs (arguing one claim early and its opposite later).
+   - Catch clear reasoning fallacies (e.g., mistaking correlation for cause, black-and-white extremes, overgeneralizing from one incident, strawman arguments, circular reasoning).
+   - Catch inappropriate tone (preachy sermonizing, dry bullet-style policy report without prose flow, or casual newspaper/blog opinion tone).
 
-5. LATE-ESSAY PARAGRAPH UNDERDEVELOPMENT (USING WORD COUNTS):
-   - Check the exact word counts "[Pk | Xw]" printed on each paragraph in the transcript. Only if later substantive body paragraphs genuinely shrink into rushed, shallow skeleton paragraphs lacking explanation or proof (for instance, due to running out of time), note that late-essay drop in simple English. NEVER trigger a mechanical penalty when shorter paragraphs are valid transitions or conclusions.
+5. LATE-ESSAY SHORT PARAGRAPHS (USING WORD COUNTS):
+   - Check the exact word counts "[Pk | Xw]" printed on each paragraph. Only if later main body paragraphs shrink into rushed, weak, underdeveloped skeletons lacking proof or explanation (for instance, due to running out of time), note that gently in simple English. NEVER penalize valid short transition bridges or conclusions.
 
-6. EXTRACT EARNED TOPPER SIGNIFIERS:
-   - Whenever a body paragraph demonstrates exceptional Topic-to-Clincher cohesion, seamless Forward-Hook transition, or multi-disciplinary evidence integration, record it as an "EARNED_SIGNIFIER" with its exact verbatim quote.
+6. STRONG POINTS ("EARNED_SIGNIFIER"):
+   - Whenever a body paragraph shows strong unity, smooth transitions, or well-explained proof, record it as "EARNED_SIGNIFIER" with an exact verbatim quote.
 
 CRITICAL QUOTE-LOCK RULE:
 Every item in "paragraphDiagnostics" MUST carry an exact "location_id" (e.g., "P4.S1", "P7.S3") and an "exact_verbatim_quote" copied verbatim from the transcript.
@@ -103,9 +101,9 @@ Return ONLY this JSON object:
       "location_id": "string (e.g. P3.S1, P6.S4)",
       "exact_verbatim_quote": "string (Exact verbatim substring from that paragraph/sentence)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (e.g. Grafted Paragraph, Mode-Lock Failure, Laundry-List Unity Breach, Hawai Firing, Heirless Citation, 50/50 Rebuttal, Pacing Decay, Earned Signifier)",
-      "observation": "string (Specific analytical diagnosis)",
-      "suggested_fix": "string (Concrete fix or rewritten sentence)"
+      "category": "string (Simple student-friendly heading: e.g. Unrelated Paragraph, Wrong Section Focus, Overcrowded Paragraph, Weak Topic Sentence, Unproved Claim, Unnamed Source, Unexplained Quote/Stat, Short Late Paragraph, Strong Point)",
+      "observation": "string (Simple, clear explanation any CSS student can understand)",
+      "suggested_fix": "string (Concrete fix or rewritten sentence in plain English)"
     }
   ],
   "pillarStatuses": {

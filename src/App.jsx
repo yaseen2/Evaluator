@@ -11,7 +11,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { AlertModal } from './components/AlertModal';
 import { AuthModal } from './components/AuthModal';
 import { Sparkles, Eye } from 'lucide-react';
-import { getGroundingUsage, getStoredApiKey, getStoredModel, estimateCreditsPreFlight } from './services/geminiApi';
+import { getGroundingUsage, getStoredModel, estimateCreditsPreFlight } from './services/geminiApi';
 import {
   subscribeToAuthChanges,
   ensureUserProfile,
@@ -104,10 +104,11 @@ export default function App() {
     setAuthOpen(true);
   };
 
-  // Purge legacy shared-device history cache once
+  // Purge legacy shared-device history cache & deprecated BYOK key once
   useEffect(() => {
     try {
       localStorage.removeItem(LEGACY_HISTORY_KEY);
+      localStorage.removeItem('css_eval_gemini_api_key');
     } catch {}
   }, []);
 
@@ -242,7 +243,17 @@ export default function App() {
     const effectiveSubject = submissionData?.subject || activeSubject;
     const essayMode = submissionData?.essayMode || 'full';
     const isEssay = effectiveSubject.toLowerCase().includes('essay');
-    const typedWords = submissionData?.text ? submissionData.text.trim().split(/\s+/).length : 0;
+    const typedWords = submissionData?.text ? submissionData.text.trim().split(/\s+/).filter(Boolean).length : 0;
+
+    if (submissionData?.mode === 'digital' && typedWords > 4000) {
+      showAlert({
+        title: 'Word Limit Exceeded (Max 4,000 Words)',
+        message: `Your submission is ${typedWords} words. Please keep it under 4,000 words. Remember: FPSC allows a maximum of 3,500 words, while the ideal length for a CSS essay is around 2,500 words.`,
+        type: 'warning'
+      });
+      return;
+    }
+
     const preFlight = estimateCreditsPreFlight({
       isEssay,
       essayMode,
@@ -256,12 +267,11 @@ export default function App() {
       return;
     }
 
-    const personalApiKey = getStoredApiKey();
     const activeModel = getStoredModel();
     const availableCredits = Number(userProfile?.credits ?? 0);
 
     // Fast client pre-flight check for immediate candidate feedback
-    if (!personalApiKey && !isAdmin && availableCredits < preFlight.minRequiredCredits) {
+    if (!isAdmin && availableCredits < preFlight.minRequiredCredits) {
       showAlert({
         title: 'Not Enough Credits',
         message: `This evaluation needs about ${preFlight.minRequiredCredits} credits, but your balance is ${availableCredits}. Top up to continue.`,
@@ -296,7 +306,7 @@ export default function App() {
         essayMode,
         examQuestion: submissionData?.examQuestion || '',
         mode: submissionData?.mode || mode,
-        apiKey: personalApiKey || null,
+        apiKey: null,
         selectedModel: activeModel,
         clientJobId
       });

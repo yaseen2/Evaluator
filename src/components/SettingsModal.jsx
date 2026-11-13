@@ -2,24 +2,12 @@ import React, { useState } from 'react';
 import {
   X,
   Check,
-  ShieldCheck,
   Sun,
   Moon,
   Monitor,
-  User,
   Zap,
-  Key,
-  ChevronDown,
-  ChevronUp,
   CreditCard
 } from 'lucide-react';
-import {
-  setStoredApiKey,
-  getStoredApiKey,
-  getStoredModel,
-  setStoredModel,
-  AVAILABLE_MODELS
-} from '../services/geminiApi';
 import { PLATFORM_PLANS } from '../data/plans';
 
 export const SettingsModal = ({
@@ -31,9 +19,6 @@ export const SettingsModal = ({
   userProfile,
   onOpenPricing
 }) => {
-  const [apiKeyInput, setApiKeyInput] = useState(getStoredApiKey());
-  const [selectedModel, setSelectedModel] = useState(getStoredModel());
-  const [showAdvancedByok, setShowAdvancedByok] = useState(() => Boolean(getStoredApiKey()));
   const [isSaved, setIsSaved] = useState(false);
 
   if (!isOpen) return null;
@@ -46,18 +31,11 @@ export const SettingsModal = ({
     userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Guest Visitor';
 
   const handleSave = () => {
-    setStoredApiKey(apiKeyInput);
-    setStoredModel(selectedModel);
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
       onClose?.();
     }, 900);
-  };
-
-  const handleRemoveApiKey = () => {
-    setStoredApiKey('');
-    setApiKeyInput('');
   };
 
   return (
@@ -163,75 +141,8 @@ export const SettingsModal = ({
           </div>
         </div>
 
-        {/* Section 3: Collapsible Advanced Developer BYOK Mode */}
-        <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowAdvancedByok(!showAdvancedByok)}
-            className="w-full px-4 py-3 bg-slate-50/70 hover:bg-slate-100/70 flex items-center justify-between text-xs font-bold text-slate-700 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Key size={14} className="text-slate-500" />
-              <span>Advanced: Personal Gemini API Key (Optional Override)</span>
-            </div>
-            {showAdvancedByok ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </button>
-
-          {showAdvancedByok && (
-            <div className="p-4 space-y-3.5 bg-white border-t border-slate-200/70">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Active subscribers use platform credits automatically. Only enter a key here if you wish to use your own Google AI Studio API key instead of platform credits.
-              </p>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Preferred Gemini Model
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
-                >
-                  {AVAILABLE_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Personal Gemini API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="AIzaSy... (Leave blank to use JawabCheck Platform Credits)"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
-                />
-              </div>
-
-              <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-xl p-2.5 flex items-center gap-2 text-[11px] text-emerald-800">
-                <ShieldCheck size={15} className="shrink-0 text-emerald-600" />
-                <span>Stored locally in your browser. Leave empty to use your account credits.</span>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Footer Buttons */}
         <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
-          {getStoredApiKey() && (
-            <button
-              type="button"
-              onClick={handleRemoveApiKey}
-              className="mr-auto px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-            >
-              Clear Personal Key
-            </button>
-          )}
           <button
             type="button"
             onClick={onClose}

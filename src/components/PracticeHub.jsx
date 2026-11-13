@@ -160,9 +160,13 @@ export const PracticeHub = ({
     wordCount: typedWords
   });
 
+  const isOverWordLimit = inputType === 'text' && typedWords > 4000;
+  const isAboveFpscMax = inputType === 'text' && typedWords > 3500 && typedWords <= 4000;
+
   const canSubmit =
     !isEvaluating &&
     !isCompressing &&
+    !isOverWordLimit &&
     ((inputType === 'image' && uploadedFiles.length > 0) ||
       (inputType === 'text' && typedText.trim().length > 0));
 
@@ -840,10 +844,28 @@ export const PracticeHub = ({
                   placeholder="Paste or type your complete handwritten transcript, outline, or essay draft here..."
                   className="w-full p-4 bg-slate-50/40 border border-slate-200/90 rounded-2xl text-[14px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1d6ef2] focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all font-mono leading-relaxed resize-y"
                 />
-                <div className="flex justify-between items-center text-xs text-slate-400 font-mono">
-                  <span>{typedWords} Words</span>
-                  <span>Markdown &amp; plain text supported</span>
+                <div className="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 font-mono">
+                  <span className={isOverWordLimit ? 'text-rose-600 font-bold' : isAboveFpscMax ? 'text-amber-600 font-bold' : ''}>
+                    {typedWords} / 4,000 Words
+                  </span>
+                  <span>Ideal CSS length: ~2,500 words (FPSC max: 3,500 | System max: 4,000)</span>
                 </div>
+                {isOverWordLimit && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span>
+                      Maximum allowed is <strong>4,000 words</strong> (currently {typedWords} words). Remember: FPSC&apos;s maximum limit is <strong>3,500 words</strong>, while the ideal CSS essay length is <strong>~2,500 words</strong>.
+                    </span>
+                  </div>
+                )}
+                {isAboveFpscMax && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span>
+                      Reminder: Your draft is over FPSC&apos;s <strong>3,500-word</strong> maximum limit (ideal CSS essay length is <strong>~2,500 words</strong>). You can still submit up to 4,000 words for feedback.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

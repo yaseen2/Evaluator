@@ -78,11 +78,11 @@ YOUR 6 CORE TASKS:
 6. OUTPUT QUOTE-LOCKED "macroDiagnostics" & "headerUpgrades" (IN SIMPLE, CLEAR ENGLISH):
    - Every item in "macroDiagnostics" MUST include an exact "location_id" (e.g., "O3", "P1.S1", "P14.S4") and "exact_verbatim_quote" copied directly from the candidate's text.
    - Populate "outlineAlignment.parallelismStatus": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap".
-   - Tiers:
-     * "TIER_1_FATAL": Off-topic/theme-dumped essay, missing/contradictory thesis, split 50/50 relational essay ignoring the link, literalist metaphor collapse, or incomplete script skipping multiple promised Outline sections.
-     * "TIER_2_MAJOR": Disproportionate outline (<60% on core Essay Title), 80:20 geographic scope violation, skipped Outline points in body / orphan body paragraphs, Conclusion sub-points in Outline, or raw statistical dumps in Intro/Conclusion.
-     * "TIER_3_POLISH": Omitted recommended Counter-Argument on debate topics, outline <12 or >30 points, non-parallel sibling outline phrasing, overloaded AND-coupled outline point, fake "?" headers, minor case mix, Thesis placed early in Intro instead of the ideal very end of P1, 2-paragraph Intro split, suboptimal transition placement, or Intro/Conclusion phrasing overlap.
-     * "EARNED_SIGNIFIER": Genuine topper-level macro skill (e.g., clear Two-Dimensional/Split-Stance Thesis, crisp parallel outline headers following 1-idea unity, or smooth Intro funnel).
+   - Tiers (write all category names and explanations in simple, everyday English any student understands):
+     * "TIER_1_FATAL" (🔴 Serious Mistake): Off-topic essay, missing/contradictory thesis, split 50/50 two-concept essay ignoring the connection, taking a metaphor too literally, or skipping multiple promised Outline sections.
+     * "TIER_2_MAJOR" (🟠 Major Mistake): Disproportionate outline (<60% on core Essay Title), 80:20 geographic scope error, skipped Outline points in body / extra body paragraphs missing from Outline, sub-points under Conclusion in Outline, or dumping raw statistics in Intro/Conclusion.
+     * "TIER_3_POLISH" (🔵 Improvement & Tip): Omitted optional Counter-Argument on debate topics, outline <12 or >30 points, uneven sibling outline phrasing, overloaded two-idea outline point, fake "?" headers, minor capitalization mix, Thesis placed early in Intro instead of at the end of P1, 2-paragraph Intro split, transition placement tips, or repeated Intro/Conclusion wording.
+     * "EARNED_SIGNIFIER" (🟢 Strong Point): Genuine strong work (e.g., clear Thesis answering all parts, uniform 1-idea outline headings, or smooth Intro flow).
 
 Return ONLY this JSON object:
 {
@@ -129,9 +129,9 @@ Return ONLY this JSON object:
       "location_id": "string (e.g. O4, P1.S3, P12.S1)",
       "exact_verbatim_quote": "string (Exact verbatim substring from the submission)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (e.g. 80:20 Outline Ratio, Thesis Architecture, Intro Funnel, Outline-to-Body Sync, Conclusion Synthesis)",
-      "observation": "string (Clear explanation of why this is a flaw or earned topper signifier)",
-      "suggested_fix": "string (Actionable fix or rewrite)"
+      "category": "string (Simple student-friendly heading: e.g. Off-Topic / Imbalanced Outline, Weak Thesis, Weak Introduction, Outline & Essay Mismatch, Weak Conclusion, Strong Point)",
+      "observation": "string (Simple, clear explanation of why this is a mistake or strong point)",
+      "suggested_fix": "string (Actionable fix or rewrite in plain English)"
     }
   ],
   "pillarStatuses": {

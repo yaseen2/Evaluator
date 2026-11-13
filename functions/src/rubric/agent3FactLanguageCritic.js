@@ -12,7 +12,7 @@
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
 import {
-  PINGLISH_INTERFERENCE_RULES,
+  PINGLISH_DIRECTION_TEXT,
   CONCEPTUAL_PRECISION_PAIRS,
   CSS_LANGUAGE_AND_FORMAT_RULES,
   PAKISTAN_2026_BASELINES,
@@ -42,9 +42,9 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 
 RULES FOR FACT & CONCEPT AUDIT:
 1. SELECTIVE GOOGLE SEARCH RULE: Query Google Search ONLY when verifying specific statistics, global index rankings, macroeconomic numbers, constitutional articles, treaties, historical dates, or suspect quotes. Do NOT run search queries for general conceptual prose.
-2. TIME-WARP CHECK: Flag outdated facts presented as current in 2026 (e.g., claiming Pakistan is still on FATF Grey List after Oct 2022 exit, quoting 2017/207M census instead of 2023 Digital Census ~241.5M, citing expired MDGs instead of SDGs, or unmerged FATA/FCR).
-3. EPISTEMIC FAIRNESS ON QUOTES: NEVER accuse a candidate of "fabricating" a quote (especially translated Iqbal/Jinnah/classical quotes) unless Google Search proves it factually false or misattributed. If merely unverified, classify gently as 🔵 "TIER_3_POLISH" ("UNVERIFIED_CITATION").
-4. CONCEPTUAL CONFUSION CHECK: Flag conflating terms from CONCEPTUAL_PRECISION_PAIRS (e.g., calling IMF loans "foreign aid", confusing State vs. Government, Growth vs. Development, Equality vs. Equity, Literacy vs. Education).
+2. 2026 FACT ACCURACY CHECK: Using your general knowledge + Google Search Grounding, flag outdated figures, rankings, or milestones if presented as current reality in 2026.
+3. QUOTE FAIRNESS: NEVER accuse a candidate of "fabricating" a quote (especially translated Iqbal/Jinnah/classical quotes) unless Google Search proves it factually false or misattributed. If merely unverified, classify gently as 🔵 "TIER_3_POLISH" ("UNVERIFIED_CITATION").
+4. CONFUSED TERMS CHECK: Flag conflating terms from CONCEPTUAL_PRECISION_PAIRS (e.g., calling loans "foreign aid", confusing State vs. Government, Growth vs. Development, Equality vs. Equity, Literacy vs. Education).
 
 === FULL TAGGED ESSAY TRANSCRIPT ===
 ${preprocessed.fullTaggedTranscript}
@@ -58,7 +58,7 @@ Return ONLY this JSON object:
       "claim": "string (Exact verbatim claim/stat/quote from the essay)",
       "status": "VERIFIED" | "OUTDATED_2026" | "FACTUAL_DISCREPANCY" | "UNVERIFIED_CITATION",
       "verified": true,
-      "correctedFact": "string or null (Updated 2026 figure, accurate source, or gentle note for unverified quote)",
+      "correctedFact": "string or null (Updated figure, accurate source, or gentle note for unverified quote)",
       "source": "string (Authoritative institution, report, or constitution)"
     }
   ],
@@ -67,10 +67,10 @@ Return ONLY this JSON object:
       "location_id": "string (e.g. P4.S2)",
       "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the candidate's text)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (e.g. Outdated Statistic / Time-Warp, Factual Error, Conceptual Precision, Unverified Citation, Authoritative Evidence)",
-      "observation": "string (Clear explanation referencing 2026 data or social-science terminology)",
-      "suggested_fix": "string (Exact factual or terminological correction)",
-      "micro_rule": "string (1-sentence exam takeaway rule)"
+      "category": "string (Simple heading: e.g. Outdated Fact, Wrong Number / Fact, Wrong Term Choice, Unverified Quote, Strong Evidence)",
+      "observation": "string (Simple, clear explanation referencing accurate data or terminology)",
+      "suggested_fix": "string (Exact factual or word correction in plain English)",
+      "micro_rule": "string (1-sentence simple exam takeaway)"
     }
   ],
   "analyticalDepthStatus": {
@@ -102,8 +102,8 @@ CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string val
   (preprocessed.spotlightZoneIds || []).slice(0, 30)
 )}
 
-=== PAKISTANI "PINGLISH" (URDU-TO-ENGLISH L1 INTERFERENCE) RULES ===
-${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
+=== PAKISTANI "PINGLISH" (URDU-TO-ENGLISH LITERAL TRANSLATIONS) ===
+${PINGLISH_DIRECTION_TEXT}
 
 === CSS FORMATTING & LANGUAGE CONVENTIONS ===
 ${CSS_LANGUAGE_AND_FORMAT_RULES.map((r, i) => `${i + 1}. ${r}`).join('\n')}
@@ -113,22 +113,20 @@ ${SHARED_SAFE_HARBOR_DIRECTIVE}
 ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 
 STRICT CALIBRATION OVERRIDES (NEVER VIOLATE):
-- CRITICAL GRAMMAR PRIORITY: In FPSC CSS English Essay, real English grammar mistakes fail essays. Scan EVERY sentence in the target slice from start to finish so NO genuine grammar error is missed. Classify clear grammar, syntax, subject-verb agreement, tense shift, fragment, comma-splice, preposition, or article errors as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" when recurring/pervasive or breaking sentence meaning).
-- GENERIC MODIFIERS ([WW]): Calling an issue "important", "key", "big", or "huge" is valid standard English. Suggesting academic upgrades ("grave", "chronic", "pervasive") is STRICTLY 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
-- ZERO AI-BUZZWORD PENALTY: NEVER flag or penalize words such as "delve into", "intricate tapestry", "testament to", "beacon of hope", "multifaceted landscape", or "paradigm shift".
-- SLIP VS. DEAL-BREAKER: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for genuine grammar mistakes, pervasive errors, or structural taboos (inline headings, bullets, tables).
-- VALID COLLOCATIONS: NEVER flag "commit a mistake/error" or literal fainting uses of "pass out".
+- CRITICAL GRAMMAR PRIORITY: In FPSC CSS English Essay, real English grammar mistakes fail essays. Scan EVERY sentence in the target slice from start to finish using your full native command of British English so NO genuine grammar error is missed, while NEVER inventing false grammar complaints on valid sentences. Mark clear grammar, syntax, or punctuation errors as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" when repeated or breaking sentence meaning).
+- SIMPLE WORDS ([WW]): Calling an issue "important", "key", "big", or "huge" is valid standard English. Academic upgrades ("grave", "chronic", "pervasive") are STRICTLY 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
+- SLIP VS. SERIOUS MISTAKE: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for genuine grammar mistakes, repeated errors, or structural taboos (inline headings, bullets, tables in body).
 
 === TARGET TEXT SLICE TO AUDIT ===
 ${sliceTranscript}
 =================================
 
 YOUR OUTPUT TASKS:
-Audit EVERY paragraph and EVERY sentence in the target slice using your full native command of formal British English + Pakistani L1 interference detection:
-1. COMPREHENSIVE GRAMMAR & SYNTAX AUDIT (CRITICAL PRIORITY): Scan EVERY sentence from start to finish so you DO NOT miss any grammar or language mistake. Catch subject-verb disagreement, wrong tense shifts, sentence fragments, comma splices/run-on sentences, wrong prepositions, missing/wrong articles, dangling modifiers, unanchored opening pronouns, British spelling inconsistency, and broken syntax. Mark genuine grammar flaws as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" if pervasive or breaking meaning).
-2. Pinglish Interference ("cope up with", "discuss about", "comprise of", "doing corruption/mistakes", "concerned authorities", "avail the opportunity", "pass out from college/university").
-3. CSS Formatting & Style Preferences (Keep strictly 🔵 "TIER_3_POLISH" unless structural taboo): First-mention unexpanded acronyms like IMF/UNO/FBR, unspelled single-digit numbers "4 pillars", monotonous "The government should..." vs Constitutional "must", 80:20 sentence variety, >15-word unpunctuated Subject-Verb separation, topic praise, slashes like "his/her".
-4. Earned Topper Signifiers ("EARNED_SIGNIFIER"): Cite specific verbatim sentences showing clear, natural, accurate English prose (right word in the right place).
+Audit EVERY paragraph and EVERY sentence in the target slice:
+1. COMPREHENSIVE GRAMMAR, SYNTAX & PUNCTUATION (CRITICAL PRIORITY): Using your full natural command of formal British English, scan every sentence from start to finish and catch all genuine grammar, sentence-structure, spelling consistency, or punctuation mistakes—without being limited to a preset list and without hallucinating nitpicks on valid English.
+2. PAKISTANI "PINGLISH" L1 INTERFERENCE: Catch unnatural Urdu-to-English literal translations, broken idioms, redundant prepositions, and worn-out local clichés cleanly using open-ended judgment.
+3. CSS FORMATTING & STYLE TIPS (Keep strictly 🔵 "TIER_3_POLISH" unless inline heading/bullet taboo): First-mention acronym expansion, spelling out single-digit numbers ("one" to "nine") in prose, natural modal verbs, sentence variety, avoiding slashes ("his/her"), and catching inline headings inside the essay body.
+4. STRONG POINTS ("EARNED_SIGNIFIER"): Quote specific verbatim sentences that show clear, natural, accurate English ("right word in the right place").
 
 Return ONLY this JSON object:
 {
@@ -137,10 +135,10 @@ Return ONLY this JSON object:
       "location_id": "string (e.g. O2, P1.S2, P12.S3)",
       "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the slice)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (e.g. Subject-Verb Agreement, Pinglish Interference, Acronym Expansion, Clause Punctuation, Modal Variety, Expression Polish, Earned Signifier)",
-      "observation": "string (Clear British English or CSS convention explanation)",
+      "category": "string (Simple student-friendly heading: e.g. Grammar Mistake, Sentence & Punctuation, Pinglish Phrasing, Acronym Tip, Word Choice, Style Improvement, Strong Point)",
+      "observation": "string (Simple, clear explanation in plain English)",
       "suggested_fix": "string (Exact drop-in replacement phrase/sentence)",
-      "micro_rule": "string (Concise 1-sentence rule)"
+      "micro_rule": "string (1-sentence simple exam takeaway)"
     }
   ],
   "pillarStatuses": {
@@ -157,7 +155,7 @@ CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string val
 Essay Topic: "${examQuestion}"
 
 === PAKISTANI "PINGLISH" & CSS RULES ===
-${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
+${PINGLISH_DIRECTION_TEXT}
 
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
@@ -167,7 +165,7 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 ${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(Empty outline)'}
 ====================
 
-Audit EVERY Outline line [O1..On] thoroughly for British grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if pervasive), Pinglish interference, spelling, unexpanded acronyms, fake question marks, and clarity in simple English. Do NOT invent body-paragraph complaints.
+Audit EVERY Outline line [O1..On] thoroughly for British English grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if repeated), Pinglish phrasing, spelling, unexpanded acronyms, fake question marks, and clarity in simple student-friendly English. Do NOT invent body-paragraph complaints.
 
 Return ONLY this JSON object:
 {

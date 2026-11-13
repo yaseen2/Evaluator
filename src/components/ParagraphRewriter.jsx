@@ -50,7 +50,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 color: 'var(--text-primary)'
               }}
             >
-              Outline Header Parallelism Upgrades ({safeHeaders.length})
+              Outline Heading Improvements ({safeHeaders.length})
             </span>
           </div>
 
@@ -112,7 +112,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     border: '1px solid rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  <span style={{ color: 'var(--pass-green)' }}>After (Topper Header):</span> "
+                  <span style={{ color: 'var(--pass-green)' }}>Improved Heading:</span> "
                   {item.upgradedHeader}"
                   <button
                     type="button"
@@ -181,7 +181,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 color: 'var(--text-primary)'
               }}
             >
-              Surgical "Before → After" Rewrites ({safeRewrites.length})
+              "Before → After" Paragraph &amp; Thesis Improvements ({safeRewrites.length})
             </span>
             <div
               style={{
@@ -254,7 +254,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                         textTransform: 'uppercase'
                       }}
                     >
-                      {rw.locationId || rw.targetType || 'Surgical Upgrade'}
+                      {rw.locationId || rw.targetType || 'Paragraph Improvement'}
                     </span>
                     {rw.issueDiagnosed && (
                       <span
@@ -341,7 +341,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                       border: '1px solid var(--border)'
                     }}
                   >
-                    💡 <strong>Surgical Technique:</strong> {rw.whatChanged}
+                    💡 <strong>What Changed &amp; Why:</strong> {rw.whatChanged}
                   </div>
                 )}
               </div>

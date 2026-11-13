@@ -278,7 +278,7 @@ export const executeCssEssayPipelineV2 = async ({
   reportProgress(9, 86, 'Stage 2 • Chief Examiner QA & Coach', 'Pruning false positives, recalibrating pillars, and drafting Topper rewrites...');
   let agent4Failed = false;
   let agent4Output = {
-    overallReadiness: 'Balanced Draft — Structural Risks to Resolve',
+    overallReadiness: 'Fair Draft — Major Mistakes to Fix',
     examinerSummary: '',
     qaAuditLog: { totalFlagsReviewed: 0, falsePositivesDeleted: 0, deletionNotes: [] },
     recalibratedPillarStatuses: {},
@@ -443,18 +443,72 @@ export const executeCssEssayPipelineV2 = async ({
   const introWordCount = preprocessed.paragraphs[0]?.wordCount || 0;
   const tokenUsage = ledger.finalize();
 
+  const agentTrace = {
+    stage0_ocr: {
+      skipped: Boolean(ocrOutput.skipped),
+      pagesProcessed: imageArray?.length || 0,
+      detectedTitle: ocrOutput.detectedTitle || effectiveTopic,
+      handwritingAudit: ocrOutput.handwritingAudit || null
+    },
+    stage0b_splitter: {
+      outlineCount: preprocessed.outlineNodes.length,
+      paragraphCount: preprocessed.paragraphs.length,
+      outlineWordCount: preprocessed.outlineWordCount,
+      bodyWordCount: preprocessed.bodyWordCount,
+      totalWordCount: preprocessed.totalWordCount,
+      inlineHeadingsCaught: preprocessed.inlineBodyHeadingViolations || [],
+      aiBoundaryAdjusted: Boolean(
+        agent1Output?.aiBoundaryCorrection?.firstBodyParagraphStartQuote
+      )
+    },
+    stage1_macro: {
+      essayGenre: agent1Output.essayGenre,
+      requiresCounterArgument: agent1Output.requiresCounterArgument,
+      genreRationale: agent1Output.genreRationale,
+      thesisAudit: agent1Output.thesisAudit,
+      outlineAlignment: agent1Output.outlineAlignment,
+      paragraphRoleMap: agent1Output.paragraphRoleMap,
+      rawFlagsCount: (agent1Output.macroDiagnostics || []).length,
+      rawFlags: agent1Output.macroDiagnostics || []
+    },
+    stage1post_pacing: pacingMetrics,
+    stage2_paragraphs: {
+      skipped: effectiveEssayMode === 'outline_only',
+      rawFlagsCount: (agent2Output.paragraphDiagnostics || []).length,
+      rawFlags: agent2Output.paragraphDiagnostics || [],
+      pillarStatuses: agent2Output.pillarStatuses || {}
+    },
+    stage3_fact_language: {
+      searchGrounded: Boolean(agent3Output.searchGrounded),
+      searchSources: agent3Output.searchSources || [],
+      factChecksCount: (agent3Output.factChecks || []).length,
+      factChecks: agent3Output.factChecks || [],
+      rawFlagsCount: (agent3Output.languageAndFactDiagnostics || []).length,
+      rawFlags: agent3Output.languageAndFactDiagnostics || [],
+      pillarStatuses: agent3Output.pillarStatuses || {}
+    },
+    stage4_qa_coach: {
+      overallReadiness: agent4Output.overallReadiness,
+      qaAuditLog: agent4Output.qaAuditLog,
+      verifiedFlagsCount: verifiedList.length,
+      rewritesCount: (agent4Output.surgicalRewrites || []).length,
+      recalibratedPillars: agent4Output.recalibratedPillarStatuses || {}
+    },
+    tokenStages: tokenUsage.stages || []
+  };
+
   return {
     id: `eval-${Date.now()}`,
     subject,
     essayMode: effectiveEssayMode,
     scored: false,
     isNonScoredEssay: true,
-    rubricVersion: '3.0',
+    rubricVersion: '3.2',
     archetypeId: effectiveEssayMode === 'outline_only' ? 'essay_outline' : 'essay',
     archetypeLabel:
       effectiveEssayMode === 'outline_only'
-        ? 'FPSC Essay Outline & Thesis Blueprint Audit (v3)'
-        : 'FPSC CSS English Essay Diagnostic (v3)',
+        ? 'FPSC Essay Outline & Thesis Review'
+        : 'FPSC CSS English Essay Evaluation',
     evaluatedModelId: 'gemini-3.8-flash',
     evaluatedModelName: 'Gemini 3.8 Flash',
     topic: effectiveTopic,
@@ -469,6 +523,7 @@ export const executeCssEssayPipelineV2 = async ({
     pacingMetrics,
     spotlightZoneIds: preprocessed.spotlightZoneIds || [],
     qaAuditLog: agent4Output.qaAuditLog,
+    agentTrace,
     handwritingAudit: ocrOutput.handwritingAudit,
     diagnosticTiers: {
       tier1Fatal,

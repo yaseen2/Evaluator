@@ -277,7 +277,7 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 8. **Your Stance vs. Opponent's Stance (For Argumentative / Debate Outlines):**  
      
    * **Your Stance Section:** Comes first and should carry **75% to 85%** of the points (around 10 to 14 points).  
-   * **Opponent's Stance (Counter-Arguments) Section (Recommended Where Helpful, Not Mandatory):** When included after Your Stance, give it **2 to 3 points** (15% to 20%) starting with distancing phrasing like *"Some people argue that..."*. Do NOT treat omitting a Counter-Argument as a mandatory deal-breaker or major risk—recommend it gently where helpful on debatable topics.  
+   * **Opponent's Stance (Counter-Arguments) Section (Recommended Where Helpful, Not Mandatory):** When included after Your Stance, give it **2 to 3 points** (15% to 20%) starting with distancing phrasing like *"Some people argue that..."*. Do NOT treat omitting a Counter-Argument as a serious mistake or major risk—recommend it gently where helpful on debatable topics.  
    * **Way Forward / Solutions in Argumentative Outlines:** Only flag a bolted-on bureaucratic *"Way Forward / Recommendations"* heading if the Essay Title is a pure philosophical or binary choice where policy recommendations make no sense (keep as gentle polish unless excessive).
 
    
@@ -370,7 +370,7 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 
 20. **Strict 1-to-1 Match in Count and Order:**  
     * Every numbered point in the Outline must have its own Body Paragraph in the **exact same order**.  
-    * If a student writes 16 points in the Outline, runs out of time, and either **skips points 14–16** or **combines points 14, 15, and 16 into one rushed paragraph**, flag it as a major deal-breaker\!
+    * If a student writes 16 points in the Outline, runs out of time, and either **skips points 14–16** or **combines points 14, 15, and 16 into one rushed paragraph**, flag it as a serious mistake\!
 
 ---
 
@@ -459,7 +459,7 @@ Here are the **18 specific things** our AI must check across the Introduction, C
 
 9. **Must Be Present & One Single Paragraph (140 to 250 Words):**  
      
-   * A missing Conclusion—or a rushed 3-sentence Conclusion written in the last 2 minutes—is a major deal-breaker that drops a paper to 38–39 marks.  
+   * A missing Conclusion—or a rushed 3-sentence Conclusion written in the last 2 minutes—is a serious mistake that drops a paper to 38–39 marks.  
    * Must be **one continuous paragraph** of **140 to 250 words (10 to 16 sentences)** in CSS (100 to 160 words in PMS Punjab).
 
    
@@ -745,7 +745,7 @@ Here are the **13 specific things** our AI must check about the student's Conten
 
 ---
 
-### D. Checking Analytical Depth & FPSC "Intellectual Signifiers"
+### D. Checking Analytical Depth & Strong CSS Points
 
 8. **Multi-Level Scope (Global \$\\rightarrow\$ Regional \$\\rightarrow\$ National \$\\rightarrow\$ Provincial \$\\rightarrow\$ Local):**  
      
@@ -1027,13 +1027,8 @@ Here are the **28 specific things** our AI must check for Tone, Expression, Gram
 
 ### 1\. The "Time-Warp" Check (Catching Outdated Facts & Expired Laws\!)
 
-* **The Problem:** Many CSS students study from old guidebooks or notes from 2017–2021 and quote outdated facts in **2026/2027** as if they are still true today\! When an examiner sees this, they immediately know the student has crammed an old handout.  
-* **What our AI must catch:**  
-  * Saying *"Pakistan is on the FATF Grey List"* (Pakistan exited the Grey List in October 2022\!).  
-  * Saying *"FATA is governed by the draconian FCR"* as a current issue (FATA was merged into KP under the 25th Amendment in 2018\!).  
-  * Quoting the **1998 or 2017 Census** as the "latest census" instead of the **2023 Digital Census (241.5 million population)**.  
-  * Citing the **Millennium Development Goals (MDGs)** (which expired in 2015\) instead of the **Sustainable Development Goals (SDGs)**.  
-  * Quoting 2016–2018 *Economic Survey* numbers as "current" statistics without updating them.
+* **The Problem:** Many CSS students study from old guidebooks or notes from years ago and quote outdated facts in **2026** as if they are still true today\! When an examiner sees this, they immediately know the student has crammed an old handout.
+* **What our AI checks (Open-Ended via Search Grounding):** The AI knows the current year is **2026** and uses Google Search to verify any dated claims, statistics, laws, censuses, treaties, or ongoing events in Pakistan and the world without relying on a rigid hardcoded list.
 
 ---
 
@@ -1097,20 +1092,20 @@ Examiners immediately spot when a student confuses basic social-science terms th
 
 ---
 
-### 8\. The "ChatGPT-ism / AI Cliché" Detector *(Disabled per Mentor Safe Harbors)*
+### 8\. Neutral Phrasing Calibration *(No AI-Buzzword Penalties)*
 
-* **Calibration Rule:** **Do NOT penalize** phrases often called "AI buzzwords" (such as *"delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, underscore, paradigm shift, double-edged sword"*). Focus strictly on genuine logic, structural, factual, and British English issues.
+* **Calibration Rule:** Do not prompt or instruct the AI to penalize standard polished academic phrases. Focus strictly on genuine logic, structural, factual, and British English issues.
 
 ---
 
-### 9\. Handwritten Page Presentation & Aesthetics (For Image / CamScanner Uploads)
+### 9\. Objective Paper Layout Check (For Handwritten / CamScanner Uploads)
 
-When a student uploads photos/PDFs of their handwritten script, our Vision Agent (Step 1\) can also check the **4 physical presentation rules** taught by Sir Hasnain Jilani (`video_8`, `video_11`) and Jasra (`video_13`):
+When a student uploads photos/PDFs of their handwritten script, our Vision Agent checks only **4 objective paper-layout items** (avoiding subjective judgments about handwriting aesthetics or slant):
 
-1. **Clear Paragraph Indentation:** Starting every new paragraph near the **middle of the page** so the examiner can see paragraph breaks from a distance.  
-2. **At Least One New Paragraph Starting on Every Page** (no single paragraph filling an entire 27-line page from top to bottom).  
-3. **Clean Left Margin Alignment** & **Block Indentation of Quotations** (indenting multi-line quotes in the center with attribution).  
-4. **Handwriting Slant & Spacing Consistency:** Keeping a uniform letter angle (either straight 90° or slanted 60°, not mixing both in the same word) and neat single-line strike-throughs instead of blacked-out scribbles.
+1. **Clear Paragraph Indentation:** Starting every new paragraph with consistent indentation so paragraph breaks are visually distinct.
+2. **Margins Respected:** Keeping text neatly aligned within left and right margins.
+3. **Excessive Scratch-Outs:** Flagging heavy ink cancellations or scribbled-over pages that make a script hard to read.
+4. **Separate Page After Outline:** Checking if the essay body started cleanly after the outline rather than immediately below it on the same page.
 
 ---
 

@@ -52,7 +52,6 @@ export const evaluateSubmission = onCall(
       essayMode = 'full',
       examQuestion = '',
       mode = 'digital',
-      apiKey: userApiKey,
       selectedModel = 'auto',
       clientJobId = null
     } = request.data || {};
@@ -66,9 +65,12 @@ export const evaluateSubmission = onCall(
       throw new HttpsError('invalid-argument', 'Maximum 35 pages allowed per single evaluation.');
     }
 
-    const wordCount = text ? text.trim().split(/\s+/).length : 0;
-    if (wordCount > 9000) {
-      throw new HttpsError('invalid-argument', 'Submission exceeds maximum length of 9,000 words.');
+    const wordCount = text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+    if (wordCount > 4000) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Submission exceeds the maximum limit of 4,000 words. Remember: the FPSC maximum limit is 3,500 words, although the ideal length for a CSS essay is around 2,500 words.'
+      );
     }
 
     const isEssay = (subject || '').toLowerCase().includes('essay');
@@ -78,33 +80,25 @@ export const evaluateSubmission = onCall(
         ? clientJobId
         : `job-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
-    // 1. Determine API Key (BYOK vs Platform Master Key)
-    let effectiveKey = '';
-    let isByok = false;
-
-    if (userApiKey && typeof userApiKey === 'string' && userApiKey.trim().length >= 30) {
-      effectiveKey = userApiKey.trim();
-      isByok = true;
-    } else {
-      // Read platform key securely on server (Never exposed to browser clients)
-      effectiveKey = process.env.GEMINI_API_KEY || '';
-      if (!effectiveKey) {
-        try {
-          const cfgSnap = await db.doc('platform_config/gemini').get();
-          if (cfgSnap.exists && cfgSnap.data()?.apiKey) {
-            effectiveKey = cfgSnap.data().apiKey.trim();
-          }
-        } catch (err) {
-          console.warn('[CloudFunctions] Could not read platform_config/gemini:', err.message);
+    // 1. Read Platform Master Gemini Key strictly on server (student BYOK disabled)
+    const isByok = false;
+    let effectiveKey = process.env.GEMINI_API_KEY || '';
+    if (!effectiveKey) {
+      try {
+        const cfgSnap = await db.doc('platform_config/gemini').get();
+        if (cfgSnap.exists && cfgSnap.data()?.apiKey) {
+          effectiveKey = cfgSnap.data().apiKey.trim();
         }
+      } catch (err) {
+        console.warn('[CloudFunctions] Could not read platform_config/gemini:', err.message);
       }
+    }
 
-      if (!effectiveKey) {
-        throw new HttpsError(
-          'failed-precondition',
-          'The evaluation engine is temporarily unconfigured. Please contact support or configure the platform key in Admin Console.'
-        );
-      }
+    if (!effectiveKey) {
+      throw new HttpsError(
+        'failed-precondition',
+        'The evaluation engine is temporarily unconfigured. Please contact support or configure the platform key in Admin Console.'
+      );
     }
 
     // 2. Pre-Flight Credit Calculation

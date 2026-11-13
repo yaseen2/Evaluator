@@ -48,12 +48,12 @@ export const reserveUserCredits = async (db, uid, estimatedCredits, isByok = fal
     const user = snap.data();
     const isAdmin = user.role === 'admin';
 
-    // 1. Enforce Concurrency Limit (Strictly 1 active evaluation at a time)
+    // 1. Enforce Concurrency Limit (1 active job at a time; auto-clears immediately when finished, 3-min crash safety expiry)
     if (user.activeJob && user.activeJob.startedAt) {
       const elapsed = Date.now() - user.activeJob.startedAt;
-      const TEN_MINUTES = 10 * 60 * 1000;
-      if (elapsed < TEN_MINUTES) {
-        const err = new Error('An evaluation is already running on this account. Please wait for it to complete.');
+      const THREE_MINUTES = 3 * 60 * 1000;
+      if (elapsed < THREE_MINUTES) {
+        const err = new Error('An evaluation is already running on this account. Please wait for it to finish.');
         err.code = 'resource-exhausted';
         throw err;
       }

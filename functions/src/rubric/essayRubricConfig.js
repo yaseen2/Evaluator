@@ -1,18 +1,19 @@
 /**
- * FPSC CSS English Essay Living Modular Rubric Configuration (v2.1)
+ * FPSC CSS English Essay Living Modular Rubric Configuration (v3.2)
  *
  * Strictly Server-Side IP — Never import or bundle into client-side src/.
  *
  * Core Principles:
- * 1. Zero Redundant "Accept" Instructions: Do not instruct the LLM to accept valid English variations
- *    it already accepts by default. Only state explicit Guardrail Exceptions where a strict rule could
- *    otherwise misfire.
- * 2. Non-Scored 4-Tier Diagnostic Verdicts:
- *    - TIER_1_FATAL (🔴 Fatal Deal-Breaker)
- *    - TIER_2_MAJOR (🟠 Structural / Analytical Risk)
- *    - TIER_3_POLISH (🔵 Polish & Topper Upgrade)
- *    - EARNED_SIGNIFIER (🟢 Earned Topper Signifier)
- * 3. Gondal's Open Evidence Philosophy + 1 Paragraph = 1 Central Argument.
+ * 1. Trust Default AI Strengths: What the AI already handles accurately by default (standard vocabulary,
+ *    natural transitions, modern prose styles, general grammar awareness) should NOT be over-specified
+ *    or burdened with narrow prohibition lists. Focus instructions only on FPSC CSS-specific rules and
+ *    hallucination guards.
+ * 2. Plain, Student-Friendly 4-Tier Verdicts:
+ *    - TIER_1_FATAL (🔴 Serious Mistake)
+ *    - TIER_2_MAJOR (🟠 Major Mistake)
+ *    - TIER_3_POLISH (🔵 Improvement & Tip)
+ *    - EARNED_SIGNIFIER (🟢 Strong Point)
+ * 3. Open Evidence Philosophy + 1 Paragraph = 1 Central Argument.
  */
 
 export const ESSAY_GENRE_PLAYBOOKS = {
@@ -95,10 +96,10 @@ export const PARAGRAPH_ROLES = {
   CONCLUSION: 'CONCLUSION'
 };
 
-export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `PLAIN ENGLISH & MENTOR TONE RULES (STRICT):
-1. Simple, Clear English: Write ALL feedback, observations, summaries, Model Thesis statements, and 70+ Rewrites in simple, clear, natural academic English. FPSC examiners reward the right word in the right place—never use pompous, overly sophisticated, or obscure dictionary jargon.
+export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `SIMPLE & CLEAR FEEDBACK RULES (STRICT):
+1. Student-Friendly English Everywhere: Write ALL feedback headings ("category"), "observation", "suggested_fix", "micro_rule", summaries, Model Thesis statements, and Rewrites in simple, everyday English that any Pakistani CSS student immediately understands (use clear category labels like 'Grammar Mistake', 'Wrong Word Choice', 'Missing Proof / Example', 'Weak Topic Sentence', 'Off-Topic Point', 'Outline & Essay Mismatch', 'Outdated Fact', 'Strong Point' — NEVER confusing jargon like 'Deal-Breaker', 'Signifier', 'Mode-Lock', 'Lexical Register', 'Franken-Paragraph', or 'Hawai Firing'). Use clear natural academic English—never artificial thesaurus jargon.
 2. Terminology: Always refer to the exam question as the "Essay Title" or "Topic" (NEVER call it the "prompt").
-3. "Recommended" vs. "Must": Reserve strict "must" commands ONLY for true pass/fail rules (answering the Essay Title, grammatical correctness, writing all promised outline points, and avoiding inline headings/bullets in the essay body). Phrase structural/style best practices as constructive recommendations ("Recommended", "Ideally", "Consider...").`;
+3. "Recommended" vs. "Must": Reserve strict "must" commands ONLY for true pass/fail rules (answering the Essay Title, grammatical correctness, writing all promised outline points, and avoiding inline headings/bullets in the essay body). Phrase structural/style best practices constructively ("Recommended", "Ideally", "Consider...").`;
 
 export const PROMPT_DECODING_TRAP_RULES = [
   'Dual-Choice or Comparative Titles: Use natural comprehension to detect any title weighing two options or claims (e.g., "X or Y", "Not X, but Y", "Myth or Reality?", "Blessing or Curse?"). The candidate should engage substantively with both sides before proving why their chosen position prevails.',
@@ -111,7 +112,7 @@ export const PROMPT_DECODING_TRAP_RULES = [
 export const CONCEPTUAL_PRECISION_PAIRS = [
   {
     pair: 'Foreign Aid vs. External Debt / Loans',
-    distinction: 'IMF Extended Fund Facility (EFF) tranches and bilateral deposits are interest-bearing loans/external debt to be repaid, NOT concessional "foreign aid" or grants.'
+    distinction: 'Interest-bearing bilateral/multilateral loans (such as IMF Extended Fund Facility tranches) are external debt to be repaid, NOT concessional "foreign aid" or grants.'
   },
   {
     pair: 'State vs. Government',
@@ -136,69 +137,31 @@ export const CSS_LANGUAGE_AND_FORMAT_RULES = [
   'Single-Digit Numbers in Words: Spell out standalone single-digit numbers ("one" to "nine") in prose ("four pillars", not "4 pillars"), except percentages, dates, years, constitutional articles, or statistics (TIER_3_POLISH).',
   'Smart Modal Verb Hierarchy: Reserve "must / has to" strictly for binding Constitutional/Statutory obligations (e.g., Article 25-A); use "ought to / should" for policy recommendations and "can / could" for projected dividends. Flag monotonous "The government should..." strings in Solutions (TIER_3_POLISH).',
   '80:20 Sentence Variety & Subject-Verb Proximity: Encourage ~80% crisp simple/complex + ~20% mature compound/embedded-clause sentences; gently flag clumsy >15-word unpunctuated gaps between Subject and Verb (TIER_3_POLISH).',
-  'Topic Praise & Slashes Ban: Never praise or anthropomorphize the prompt ("This topic is very interesting and talks about..."); never use slashes ("his/her", "he/she", "and/or") inside formal essay prose.'
+  'Topic Praise & Slashes Ban: Never praise or anthropomorphize the Essay Title ("This topic is very interesting and talks about..."); never use slashes ("his/her", "he/she", "and/or") inside formal essay prose.'
 ];
 
 export const GUARDRAIL_EXCEPTIONS = [
   'TRANSITION_BRIDGE Guardrail: A 1-to-3 sentence transitional bridge paragraph connecting two major sections of the essay (e.g., shifting from Causes to Consequences or Remedies) is a valid structural device. NEVER penalize a TRANSITION_BRIDGE paragraph for being under 100 words or lacking empirical evidence.',
   'CONTEXT_OVERVIEW Guardrail: A secondary contextual heading in the Outline (e.g., "2. Contextualizing the Crisis in Pakistan") may legitimately map to a single overview paragraph without 1.1/1.2 sub-points. Do not flag it as a missing sub-point error.',
-  'Forward Transition Hook Guardrail: If the final clause or sentence of a BODY_MAIN paragraph briefly previews the theme of the next paragraph (Mentor 4 Forward Hook), do NOT flag it as a Paragraph Unity violation.',
+  'Forward Transition Hook Guardrail: If the final clause or sentence of a BODY_MAIN paragraph briefly previews the theme of the next paragraph, do NOT flag it as a Paragraph Unity violation.',
   'Multiple Complementary Evidences Guardrail: Under "1 Paragraph = 1 Central Argument", a student may cite 1 or multiple complementary pieces of evidence inside a single paragraph as long as they all substantiate that same single central argument.',
   'Counter-Argument Advisory Guardrail: A Counter-Argument & Rebuttal section is recommended (🔵 TIER_3_POLISH) on debatable topics where helpful, and NEVER mandatory or TIER_1/TIER_2 when omitted. When requiresCounterArgument === false (universal truths, proverbs, consensus titles), do not recommend or expect Counter-Arguments at all.',
-  'Valid English & AI-Cliché Safe Harbor: Phrases like "commit a mistake" / "commit an error" are 100% standard formal English. Calling an issue "important", "key", "big", or "huge" is valid English—at most a gentle 🔵 TIER_3_POLISH suggestion (NEVER Tier 1/2). NEVER penalize phrasing as "ChatGPT/AI buzzwords" (delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, paradigm shift).'
+  'Simple Words & Thesis Location Safe Harbor: Common standard words like "important", "key", "big", or "huge" are valid English—any vocabulary upgrade suggestion stays strictly at 🔵 TIER_3_POLISH (NEVER Tier 1/2). Thesis is valid anywhere inside P1 (recommended at the end).'
 ];
 
-export const SHARED_SAFE_HARBOR_DIRECTIVE = `MENTOR SAFE HARBORS (STRICT):
-1. Valid Transitions/Overview: Never penalize TRANSITION_BRIDGE length or a single-paragraph CONTEXT_OVERVIEW; never penalize Mentor 4 forward hooks at the end of paragraphs.
-2. Evidence & Counter-Argument: Accept 1 or multiple complementary proofs per paragraph (Gondal's 54-evidence spectrum). Counter-Arguments are recommended (🔵 TIER_3_POLISH) when helpful on debatable titles, NEVER mandatory or TIER_1/TIER_2 when omitted; never expect one if requiresCounterArgument === false.
-3. Collocation & Generic Modifiers: "commit a mistake/error" is valid formal English; "important / key / big / huge" are valid English and must NEVER be flagged as TIER_1_FATAL or TIER_2_MAJOR (only gentle TIER_3_POLISH).
-4. Zero AI-Cliché Penalty: NEVER penalize words like "delve into", "intricate tapestry", "beacon of hope", "multifaceted landscape", or "paradigm shift".
-5. Thesis Spot, 2-Para Intro & Slips: A Thesis Statement is valid ANYWHERE inside the Introduction (P1), though the very end of P1 is recommended (🔵 TIER_3_POLISH) as the ideal position. Splitting an Intro into 2 paragraphs is at most a gentle 🔵 TIER_3_POLISH tip. Keep 1–2 isolated pronoun/contraction slips as TIER_3_POLISH.`;
+export const SHARED_SAFE_HARBOR_DIRECTIVE = `FPSC RUBRIC SAFE HARBORS (STRICT):
+1. Transitions, Overview & Hooks: Never penalize TRANSITION_BRIDGE length or a single-paragraph CONTEXT_OVERVIEW; never penalize forward transition hooks at paragraph ends.
+2. Evidence & Counter-Argument: Accept 1 or multiple complementary verifiable proofs per paragraph. In ABSTRACT_PHILOSOPHICAL essays, never demand GDP or Economic Survey stats. Counter-Arguments are helpful tips (🔵 TIER_3_POLISH) on debatable topics when omitted, NEVER mandatory or TIER_1/TIER_2.
+3. Valid Standard Words: Calling an issue "important", "key", "big", or "huge" is valid English; upgrade suggestions are strictly 🔵 TIER_3_POLISH (never Tier 1 or Tier 2).
+4. Thesis Spot, 2-Para Intro & Minor Slips: A Thesis Statement is valid ANYWHERE inside the Introduction (P1), though the very end of P1 is recommended as ideal (🔵 TIER_3_POLISH at most if earlier). Splitting an Intro into 2 paragraphs or 1–2 minor contraction/pronoun slips stay strictly 🔵 TIER_3_POLISH.`;
+
+export const PINGLISH_DIRECTION_TEXT =
+  'Catch Pakistani "Pinglish" (unnatural Urdu-to-English literal translations, redundant prepositions after verbs, wrong verb pairings, broken idioms, and overused local clichés cleanly as 🔵 TIER_3_POLISH tips or 🟠 TIER_2_MAJOR if grammatically broken) using your full language understanding, without flagging valid standard English.';
 
 export const PINGLISH_INTERFERENCE_RULES = [
-  {
-    flawedPattern: 'cope up with',
-    correction: 'cope with',
-    explanation: 'In standard British English, the verb is "cope with" (never "cope up with").'
-  },
-  {
-    flawedPattern: 'discuss about / comprise of / emphasize on / stress upon / demand for (as verb) / request for (as verb)',
-    correction: 'discuss / comprise (or "consist of") / emphasize / stress / demand / request',
-    explanation: 'Transitive verbs in formal British English take a direct object without a redundant preposition (note: "is comprised of" is passive Pinglish; use "comprises" or "consists of").'
-  },
-  {
-    flawedPattern: 'doing corruption / doing mistakes / making hurdles',
-    correction: 'engaging in corruption (or perpetrating corruption) / making mistakes (or committing errors/mistakes) / creating impediments (or erecting barriers)',
-    explanation: 'Urdu-to-English calqued verb collocations ("kerna"). Note: "committing mistakes" or "committing errors" IS valid formal English and must NEVER be flagged.'
-  },
-  {
-    flawedPattern: 'concerned authorities / concerned ministry / concerned citizens (when meaning relevant)',
-    correction: 'the authorities concerned / the relevant ministry',
-    explanation: 'Pre-nominal "concerned" means "worried/anxious"; post-nominal "authorities concerned" or "relevant authorities" means "responsible/applicable".'
-  },
-  {
-    flawedPattern: 'avail the opportunity',
-    correction: 'avail oneself of the opportunity / seize the opportunity',
-    explanation: '"Avail" requires a reflexive pronoun + "of" in formal English.'
-  },
-  {
-    flawedPattern: 'pass out from college / pass out from university / pass out from academy',
-    correction: 'graduate from college/university',
-    explanation: 'Strictly when referring to academic graduation, "pass out" is South Asian colloquialism ("pass out" in standard English means to faint/lose consciousness). Never flag "pass out" when used literally for fainting from heat or exhaustion.'
-  },
-  {
-    flawedPattern: 'on war footing basis / need of the hour / by leaps and bounds / each and every',
-    correction: 'as an urgent priority / an immediate imperative / exponentially (or rapidly) / every',
-    explanation: 'Overworn bureaucratic clichés and tautological redundancies weaken civil service academic register (🔵 Tier 3 Polish).'
-  }
+  'Pakistani "Pinglish" L1 Interference: Flag unnatural Urdu-to-English literal translations (such as redundant prepositions, wrong verb collocations like "doing mistakes" vs valid "making/committing mistakes", misplaced referents, broken academic idioms) and bureaucratic clichés without relying on a narrow checklist.'
 ];
 
-export const PAKISTAN_2026_BASELINES = `
-2026 PAKISTAN & GLOBAL VERIFICATION BASELINES (For Selective Search Grounding):
-- Current Year Context: 2026.
-- Population of Pakistan: ~241.5 million (7th Population & Housing Digital Census 2023; ~250M+ by 2026 projections). Flag essays citing "207 million" (2017 Census) or "220 million" as current in 2026.
-- Constitutional Milestones: 26th Constitutional Amendment passed in October 2024 (judicial appointments / constitutional benches). 25th Amendment (2018) merged FATA into KP.
-- IMF Program Context: 37-month $7 billion Extended Fund Facility (EFF) approved in September 2024 (running 2024–2027). Flag essays claiming Pakistan has "yet to enter the 2023 SBA" as outdated.
-- Outdated Data Rule: If a candidate presents 2018–2022 inflation, GDP growth, circular debt, or literacy figures as "current today" without historical qualification, flag gently with updated 2025–2026 context.
-`;
+export const PAKISTAN_2026_BASELINES = `CURRENT YEAR CONTEXT:
+The current year is 2026. Use Google Search Grounding to verify specific statistics, global index rankings, constitutional amendments, treaties, dates, or quotes, and gently flag outdated figures if presented as current reality in 2026.`;
 

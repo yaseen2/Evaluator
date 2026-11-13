@@ -6,7 +6,7 @@
 export const FPSC_EXAMINER_CRITERIA = {
   essay: {
     id: 'essay',
-    label: 'FPSC CSS English Essay Diagnostic (v3)',
+    label: 'FPSC CSS English Essay Evaluation',
     scored: false,
     passingScore: 40,
     totalScore: 100,
@@ -16,83 +16,83 @@ export const FPSC_EXAMINER_CRITERIA = {
     breakdown: [
       {
         id: 'topic_relevance',
-        name: '1. Topic Decoding & 80:20 Scope',
+        name: '1. Topic Understanding & Focus',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates genre classification, 80:20 relevance ratio, Global vs. Pakistan geographic bounds, and scope-drift prevention.'
+        defaultFeedback: 'Checks whether the essay stays focused on the Essay Title (~80%), respects Global vs. Pakistan scope, and avoids drifting off-topic.'
       },
       {
         id: 'thesis',
-        name: '2. Thesis Stance & Architecture',
+        name: '2. Thesis Statement',
         maxMarks: 10,
-        defaultFeedback: 'Audits whether the thesis takes a clear debatable, causal, or relational stance inside the Introduction.'
+        defaultFeedback: 'Checks whether your main claim is clear, debatable, answers all parts of the Essay Title, and sits cleanly inside the Introduction.'
       },
       {
         id: 'outline',
-        name: '3. Outline Parallelism & 1:1 Sync',
+        name: '3. Outline Structure & Following It',
         maxMarks: 10,
-        defaultFeedback: 'Checks grammatical parallelism, mutually exclusive sub-points (no Conclusion sub-points), and 1:1 Outline-to-Body sync.'
+        defaultFeedback: 'Checks uniform outline phrasing, single clear ideas per line (no sub-points under Conclusion), and covering every outline point in the essay.'
       },
       {
         id: 'introduction',
-        name: '4. Introduction Funnel & Hook',
+        name: '4. Introduction Paragraph',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates opening hook, contextual funnel, single-paragraph unity (~180–250 words), and absence of raw statistical dumps.'
+        defaultFeedback: 'Checks opening lines, background flow, single-paragraph structure (~180–250 words), Thesis placement, and avoiding raw statistics lists.'
       },
       {
         id: 'body_paragraphs',
-        name: '5. Paragraph Unity & Causal Chain',
+        name: '5. Body Paragraph Structure',
         maxMarks: 10,
-        defaultFeedback: 'Audits Topic Sentences, 1-Paragraph-1-Argument unity, Mode-Lock adherence, and absence of grafted middle sentences.'
+        defaultFeedback: 'Checks clear opening topic sentences, one main idea per paragraph, logical flow, and staying focused on causes vs. solutions.'
       },
       {
         id: 'evidences',
-        name: '6. Evidence Quality & Integration',
+        name: '6. Proof, Examples & Data',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates Gondal’s 54-type open evidence spectrum, live 2026 factual grounding, and analytical integration.'
+        defaultFeedback: 'Checks whether claims are backed by verifiable facts, historical or real-world examples, and clear explanation linking proof back to your point.'
       },
       {
         id: 'coherence',
-        name: '7. Transitions, Role Map & Pacing',
+        name: '7. Flow & Paragraph Connections',
         maxMarks: 10,
-        defaultFeedback: 'Checks role-filtered 1st-half vs. 2nd-half body pacing decay, valid transition bridge placement, and organic forward hooks.'
+        defaultFeedback: 'Checks smooth transitions between ideas, natural flow across the essay, and well-developed later paragraphs.'
       },
       {
         id: 'analytical_depth',
-        name: '8. Analytical Depth & Counter-Arg',
+        name: '8. Depth of Thought & Counter-Views',
         maxMarks: 10,
-        defaultFeedback: 'Audits multi-level depth, fallacy avoidance, and optional Counter-Argument rebuttal where helpful.'
+        defaultFeedback: 'Checks multi-angle depth (social, economic, political, global), logical consistency, and helpful handling of opposing views.'
       },
       {
         id: 'expression',
-        name: '9. Academic Register & Diction',
+        name: '9. Tone, Clarity & Word Choice',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates impartial critic tone, modal variety, conceptual precision pairs, and Spotlight Zone polish.'
+        defaultFeedback: 'Checks formal, balanced tone, clear standard word choices, and smooth sentence variety.'
       },
       {
         id: 'grammar_syntax',
-        name: '10. British Syntax & Pinglish Check',
+        name: '10. Grammar, Spelling & Pinglish',
         maxMarks: 10,
-        defaultFeedback: 'Audits formal British English syntax, clause punctuation, acronym expansion, and Pakistani Urdu-to-English (Pinglish) interference.'
+        defaultFeedback: 'Checks formal British English grammar, sentence structure, punctuation, acronyms, and Urdu-to-English literal phrasing (Pinglish).'
       },
       {
         id: 'conclusion',
-        name: '11. Conclusion & Synthesis',
+        name: '11. Conclusion Paragraph',
         maxMarks: 10,
-        defaultFeedback: 'Checks fulfilled-tense thesis restatement (60% non-overlap with Intro), holistic synthesis without new data, and measured close.'
+        defaultFeedback: 'Checks fresh restatement of the Thesis (in fulfilled tense), wrapping up key points without adding new data or new arguments.'
       }
     ],
     dealBreakers: [
-      'Theme-Dumping / 80:20 Breach: Dedicating less than 75% of the essay to the core dimensions asked in the Essay Title',
-      'Grafted / Franken-Paragraphs: Bolting pre-memorized paragraphs from another topic onto a forced first/last sentence',
-      '1:1 Outline-to-Body Desynchronization: Listing points in the Outline that are skipped in the Essay prose body (especially missing last points)',
-      'Critical Grammar Errors or CSS Taboos: Recurring broken English grammar, or inserting inline headings, bullet points, or tables inside the Essay prose body',
-      'Mode-Lock Failure: Spending "Way Forward" paragraphs re-narrating the problem instead of explaining the solution mechanism'
+      'Going Off-Topic: Spending less than 75% of the essay answering what the Essay Title actually asked',
+      'Unrelated Memorized Paragraphs: Forcing pre-memorized paragraphs from another topic with only a tweaked opening or closing sentence',
+      'Skipping Outline Points: Listing points in the Outline that are missing from the actual essay body (especially running out of time on last points)',
+      'Serious Grammar Mistakes or Body Headings: Repeated broken English grammar, or inserting inline headings, bullet lists, or tables inside essay paragraphs',
+      'Wrong Focus in Remedies: Writing "Way Forward" paragraphs that mostly repeat causes instead of explaining workable solutions'
     ]
   },
 
   essay_outline: {
     id: 'essay_outline',
-    label: 'FPSC Essay Outline & Thesis Blueprint Audit (v3)',
+    label: 'FPSC Essay Outline & Thesis Review',
     scored: false,
     passingScore: 40,
     totalScore: 100,
@@ -102,40 +102,40 @@ export const FPSC_EXAMINER_CRITERIA = {
     breakdown: [
       {
         id: 'topic_decoding',
-        name: '1. Topic Decoding & Dimensional Scope',
+        name: '1. Understanding the Essay Title',
         maxMarks: 20,
-        defaultFeedback: 'Checks whether your outline addresses exact Essay Title variables, dual/metaphor rules, and 80:20 Global vs. Pakistan scope.'
+        defaultFeedback: 'Checks whether the outline addresses all parts of the Essay Title and respects Global vs. Pakistan scope.'
       },
       {
         id: 'thesis',
-        name: '2. Thesis Statement Debatability & Signposting',
+        name: '2. Thesis Statement Strength',
         maxMarks: 20,
-        defaultFeedback: 'Evaluates whether your thesis statement takes a clear, arguable position and previews the essay roadmap.'
+        defaultFeedback: 'Checks whether your thesis statement takes a clear, arguable stand and previews your essay roadmap.'
       },
       {
         id: 'outline_structure',
-        name: '3. Logical Funneling & Conclusion Hygiene',
+        name: '3. Logical Flow & Outline Rules',
         maxMarks: 20,
-        defaultFeedback: 'Audits section flow (12–20 total points sweet spot), non-overlapping pillars, and ensuring Conclusion has NO sub-points.'
+        defaultFeedback: 'Checks logical order (12–20 total points sweet spot), non-overlapping headings, and ensuring Conclusion has NO sub-points.'
       },
       {
         id: 'parallelism',
-        name: '4. Grammatical Parallelism & Phrasing',
+        name: '4. Uniform Outline Phrasing',
         maxMarks: 20,
-        defaultFeedback: 'Accepts consistent noun phrases OR consistent full declarative sentences; flags mixed/broken phrasing and fake question-mark headers.'
+        defaultFeedback: 'Accepts consistent phrases or complete sentences; flags uneven mixing, single-word headings, and unclear question headings.'
       },
       {
         id: 'coverage_originality',
-        name: '5. Multi-Dimensional Depth & Case-Study Signals',
+        name: '5. Range of Angles & Examples',
         maxMarks: 20,
-        defaultFeedback: 'Evaluates diversity of analytical lenses (political, economic, institutional, social, global) and concrete example cues.'
+        defaultFeedback: 'Checks breadth across political, economic, institutional, social, and global angles with clear example cues.'
       }
     ],
     dealBreakers: [
-      'Single-word generic headers (e.g., "Economy", "Politics") instead of self-explanatory analytical phrases',
-      'Mixing incompatible formats randomly across sibling outline points (e.g., fragments, fake "?" questions, and declarative clauses)',
-      'Writing full paragraph-length prose blocks inside the Outline instead of focused outline points',
-      'Omitting a clear Thesis Statement, adding sub-points under Conclusion, or AND-coupling unrelated ideas'
+      'Single-word headings (e.g., "Economy", "Politics") instead of clear, full-meaning outline points',
+      'Mixing uneven formats randomly inside the same list (fragments, fake "?" questions, and full sentences)',
+      'Writing long prose paragraphs inside the Outline instead of concise outline points',
+      'Omitting a clear Thesis Statement, adding sub-points under Conclusion, or cramming unrelated ideas into one bullet'
     ]
   },
 

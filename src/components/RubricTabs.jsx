@@ -7,7 +7,8 @@ import {
   Sparkles,
   Lightbulb,
   Award,
-  Layers
+  Layers,
+  Activity
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
@@ -21,10 +22,13 @@ const GENRE_LABELS = {
 };
 
 export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
-  const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts'
+  const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts' | 'agent_log'
   const [selectedParamId, setSelectedParamId] = useState(null);
   const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'tier1' | 'tier2' | 'polish' | 'green'
   const cardRefs = useRef({});
+  const agentTrace = evaluation?.agentTrace || null;
+  const tokenStages = evaluation?.tokenUsage?.stages || agentTrace?.tokenStages || [];
+  const hasAgentLog = Boolean(agentTrace || tokenStages.length > 0);
 
   if (!evaluation) return null;
 
@@ -153,7 +157,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
 
   const getBadgeStyle = (status = '') => {
     const s = status.toLowerCase();
-    if (s.includes('strong') || s.includes('satisfactory') || s.includes('excellent') || s.includes('aligned')) {
+    if (s.includes('strong') || s.includes('satisfactory') || s.includes('excellent') || s.includes('aligned') || s.includes('ready')) {
       return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
     }
     if (
@@ -162,7 +166,9 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
       s.includes('critical') ||
       s.includes('fragmented') ||
       s.includes('deficient') ||
-      s.includes('fatal')
+      s.includes('fatal') ||
+      s.includes('weak draft') ||
+      s.includes('serious mistakes')
     ) {
       return 'bg-rose-50 text-rose-700 border-rose-200/60';
     }
@@ -175,7 +181,9 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
       s.includes('developing') ||
       s.includes('moderate') ||
       s.includes('polish') ||
-      s.includes('balanced')
+      s.includes('balanced') ||
+      s.includes('fair draft') ||
+      s.includes('major mistakes')
     ) {
       return 'bg-amber-50 text-amber-700 border-amber-200/60';
     }
@@ -254,7 +262,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           onClick={() => setActiveTab('report')}
         >
           <Layers size={13} />
-          <span>Diagnostic Report</span>
+          <span>Evaluation Report</span>
         </button>
 
         <button
@@ -266,7 +274,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           onClick={() => setActiveTab('rewrites')}
         >
           <Sparkles size={13} className="text-amber-500" />
-          <span>Surgical Rewrites ({totalUpgradesCount})</span>
+          <span>Improved Rewrites ({totalUpgradesCount})</span>
         </button>
 
         {factChecks.length > 0 && (
@@ -279,7 +287,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             onClick={() => setActiveTab('accuracy')}
           >
             <BookOpen size={13} />
-            <span>Fact Audit ({factChecks.length})</span>
+            <span>Fact Check ({factChecks.length})</span>
           </button>
         )}
 
@@ -292,7 +300,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           onClick={() => setActiveTab('directive')}
         >
           <Compass size={13} />
-          <span>Rules & Scope</span>
+          <span>Topic &amp; Rules</span>
         </button>
 
         <button
@@ -304,8 +312,22 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           onClick={() => setActiveTab('callouts')}
         >
           <Lightbulb size={13} />
-          <span>All Callouts ({allAnnotations.length})</span>
+          <span>All Corrections ({allAnnotations.length})</span>
         </button>
+
+        {hasAgentLog && (
+          <button
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'agent_log'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+            onClick={() => setActiveTab('agent_log')}
+          >
+            <Activity size={13} />
+            <span>🔍 Agent Log</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: GOOGLE STITCH MINIMAL DIAGNOSTIC REPORT (NON-SCORED FOR ESSAY) */}
@@ -316,7 +338,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="flex items-center justify-between mb-1 flex-wrap gap-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold tracking-wider text-brand-600 uppercase font-sans">
-                  {isNonScoredEssay ? 'Non-Scored Diagnostic Report' : 'Report'}
+                  {isNonScoredEssay ? 'Essay Feedback Report' : 'Report'}
                 </span>
                 {evaluation.overallReadiness && (
                   <span
@@ -371,46 +393,46 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                 type="button"
                 onClick={() => handleTierFilterJump('tier1')}
                 className="p-2 rounded-md bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200/80 transition-colors cursor-pointer"
-                title="Filter Callouts: Fatal Deal-Breakers"
+                title="Filter Feedback: Serious Mistakes"
               >
                 <div className="text-sm font-bold text-rose-700 font-mono">{tier1Count}</div>
                 <div className="text-[10px] font-semibold text-rose-800 leading-tight">
-                  🔴 Fatal Deal-Breakers
+                  🔴 Serious Mistakes
                 </div>
               </button>
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('tier2')}
                 className="p-2 rounded-md bg-orange-50/70 hover:bg-orange-100/70 border border-orange-200/80 transition-colors cursor-pointer"
-                title="Filter Callouts: Structural Risks"
+                title="Filter Feedback: Major Mistakes"
               >
                 <div className="text-sm font-bold text-orange-700 font-mono">{tier2Count}</div>
                 <div className="text-[10px] font-semibold text-orange-800 leading-tight">
-                  🟠 Structural Risks
+                  🟠 Major Mistakes
                 </div>
               </button>
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('polish')}
                 className="p-2 rounded-md bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 transition-colors cursor-pointer"
-                title="Filter Callouts: Polish & Upgrades"
+                title="Filter Feedback: Improvements & Tips"
               >
                 <div className="text-sm font-bold text-blue-700 font-mono">{tier3Count}</div>
                 <div className="text-[10px] font-semibold text-blue-800 leading-tight">
-                  🔵 Polish & Upgrades
+                  🔵 Improvements & Tips
                 </div>
               </button>
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('green')}
                 className="p-2 rounded-md bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200/80 transition-colors cursor-pointer"
-                title="Filter Callouts: Earned Signifiers"
+                title="Filter Feedback: Strong Points"
               >
                 <div className="text-sm font-bold text-emerald-700 font-mono">
                   {earnedSignifiersList.length}
                 </div>
                 <div className="text-[10px] font-semibold text-emerald-800 leading-tight">
-                  🟢 Earned Signifiers
+                  🟢 Strong Points
                 </div>
               </button>
             </div>
@@ -420,7 +442,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           <div className="space-y-2.5" data-purpose="rubric-matrix">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-sans">
-                {isNonScoredEssay ? 'Qualitative Pillar Readiness (Click to Expand)' : 'Breakdown'}
+                {isNonScoredEssay ? 'Essay Checklist (Click Any Item for Details)' : 'Breakdown'}
               </h4>
               <span className="text-[10px] font-mono text-slate-400">
                 {displayParameters.length} Pillars
@@ -491,7 +513,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="flex items-center space-x-2">
               <FileText className="w-4 h-4 text-brand-600" />
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-                Chief Examiner Analytical Critique
+                Examiner's Overall Feedback
               </h4>
             </div>
             <div className="bg-white border border-slate-200 rounded-md p-4 text-slate-600 text-sm leading-relaxed space-y-2 font-academic text-[15px]">
@@ -509,7 +531,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               <div className="flex items-center space-x-2">
                 <Award className="w-4 h-4 text-emerald-600" />
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-800 font-sans">
-                  🟢 Earned Topper Signifiers ({earnedSignifiersList.length})
+                  🟢 Strong Points ({earnedSignifiersList.length})
                 </h4>
               </div>
               <div className="space-y-2">
@@ -545,7 +567,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           {/* Actionable Directives / Remedial Steps */}
           <div className="space-y-3 pt-1" data-purpose="actionable-directives">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-              Immediate Remedial Steps
+              Top Steps to Improve Your Essay
             </h4>
             <ul className="space-y-2.5 text-xs text-slate-600 font-sans">
               {remedialSteps.map((step, idx) => (
@@ -566,7 +588,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5 text-xs font-sans">
               <div className="flex items-center justify-between gap-2">
                 <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Thesis Statement Architecture
+                  Thesis Statement Check
                 </h4>
                 {evaluation.thesisAudit.status && (
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.thesisAudit.status)}`}>
@@ -585,7 +607,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.thesisAudit.modelTopperThesis && (
                 <div className="p-2.5 rounded bg-emerald-50/70 border border-emerald-200 text-emerald-950">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
-                    70+ Topper Thesis Model
+                    Model Thesis Statement
                   </div>
                   <div className="font-academic text-[13px] leading-relaxed">
                     "{evaluation.thesisAudit.modelTopperThesis}"
@@ -600,7 +622,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 text-xs font-sans">
               <div className="flex items-center justify-between gap-2">
                 <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  1:1 Outline-to-Body Sync
+                  Does Your Essay Follow Your Outline?
                 </h4>
                 {evaluation.outlineAlignment.status && (
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.outlineAlignment.status)}`}>
@@ -619,7 +641,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.outlineAlignment.missingFromBody?.length > 0 && (
                 <div className="space-y-1 pt-1">
                   <div className="text-[10px] font-bold uppercase text-rose-700">
-                    Outline Points Missing in Body:
+                    Outline Points Skipped in the Essay:
                   </div>
                   <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
                     {evaluation.outlineAlignment.missingFromBody.map((m, i) => (
@@ -631,7 +653,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.outlineAlignment.orphanBodyParagraphs?.length > 0 && (
                 <div className="space-y-1 pt-1">
                   <div className="text-[10px] font-bold uppercase text-amber-700">
-                    Orphan Paragraphs Missing in Outline:
+                    Essay Paragraphs Not Mentioned in Your Outline:
                   </div>
                   <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
                     {evaluation.outlineAlignment.orphanBodyParagraphs.map((m, i) => (
@@ -650,7 +672,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0 && (
                 <div className="space-y-1.5">
                   <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Structural Paragraph Role Map
+                    Paragraph-by-Paragraph Map
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(evaluation.paragraphRoleMap).map(([pId, role]) => (
@@ -671,7 +693,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.strategicHighlightingPicks?.length > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-slate-100">
                   <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Strategic Exam Marker Highlighting Picks (3–5/Page)
+                    Key Phrases to Underline in the Exam
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {evaluation.strategicHighlightingPicks.map((phrase, idx) => (
@@ -693,12 +715,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 text-[11px] text-slate-600 font-sans">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
-                  Chief Examiner QA & Telemetry
+                  Quality Check & Paper Layout
                 </span>
                 {typeof evaluation.qaAuditLog?.falsePositivesDeleted === 'number' && (
                   <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                    QA Gate: Reviewed {evaluation.qaAuditLog.totalFlagsReviewed || 0} • Pruned{' '}
-                    {evaluation.qaAuditLog.falsePositivesDeleted} False Positives
+                    Quality Check: Reviewed {evaluation.qaAuditLog.totalFlagsReviewed || 0} • Removed{' '}
+                    {evaluation.qaAuditLog.falsePositivesDeleted} False Alarms
                   </span>
                 )}
               </div>
@@ -714,21 +736,13 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               {evaluation.handwritingAudit && (
                 <div className="pt-1.5 border-t border-slate-200/80 space-y-1">
                   <div className="font-semibold text-slate-700">
-                    Handwritten Layout Audit: Margins{' '}
-                    {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Needs Discipline'} • Indentation{' '}
+                    Paper Layout Check: Margins{' '}
+                    {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Need Neat Margins'} • Indentation{' '}
                     {evaluation.handwritingAudit.indentationConsistent ? 'Consistent' : 'Inconsistent'}
                     {evaluation.handwritingAudit.samePageOutlineBodyStart
-                      ? ' • ⚠️ Started essay on Outline end page'
+                      ? ' • ⚠️ Started essay on the same page where Outline ended'
                       : ''}
                   </div>
-                  {evaluation.handwritingAudit.improperWordBreaks?.length > 0 && (
-                    <div className="text-rose-700">
-                      End-of-Line Word Splits: {evaluation.handwritingAudit.improperWordBreaks.join(', ')}
-                    </div>
-                  )}
-                  {evaluation.handwritingAudit.observations?.length > 0 && (
-                    <div className="text-slate-600">{evaluation.handwritingAudit.observations[0]}</div>
-                  )}
                 </div>
               )}
 
@@ -755,7 +769,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           <div className="flex items-center space-x-2 mb-2">
             <BookOpen className="w-4 h-4 text-brand-600" />
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-              Search-Grounded Empirical & Citation Audit ({factChecks.length})
+              Fact & Reference Check ({factChecks.length})
             </h4>
           </div>
 
@@ -839,7 +853,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         <div className="space-y-4 text-xs font-sans">
           <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2">
             <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-              Prompt Qualifier & Genre Playbook
+              Topic Type & Key Rules
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-2 bg-slate-50 rounded border border-slate-200">
@@ -866,7 +880,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           <div className="bg-rose-50/50 border border-rose-200 rounded-lg p-4 space-y-2">
             <h4 className="font-bold text-rose-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
               <ShieldAlert size={14} className="text-rose-600" />
-              <span>FPSC Disqualification Deal-Breakers</span>
+              <span>Serious Mistakes That Cause Failure in CSS Essay</span>
             </h4>
             <ul className="space-y-1.5 text-slate-700">
               {dealBreakers.map((rule, idx) => (
@@ -890,10 +904,10 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="flex flex-wrap gap-1">
               {[
                 { id: 'all', label: `All (${allAnnotations.length})` },
-                { id: 'tier1', label: `🔴 Fatal (${tier1AnnCount})` },
+                { id: 'tier1', label: `🔴 Serious (${tier1AnnCount})` },
                 { id: 'tier2', label: `🟠 Major (${tier2AnnCount})` },
-                { id: 'polish', label: `🔵 Polish (${tier3AnnCount})` },
-                { id: 'green', label: `🟢 Signifiers (${greenCount})` }
+                { id: 'polish', label: `🔵 Tips (${tier3AnnCount})` },
+                { id: 'green', label: `🟢 Strong (${greenCount})` }
               ].map((f) => (
                 <button
                   key={f.id}
@@ -968,6 +982,266 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {activeTab === 'agent_log' && hasAgentLog && (
+        <div className="space-y-3 text-xs">
+          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
+            <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 mb-1">
+              <Activity size={14} className="text-brand-600" />
+              <span>Agent Pipeline Execution Log</span>
+            </div>
+            <p className="text-[11px] text-slate-600">
+              See exactly what each stage of the evaluation pipeline extracted, flagged, checked, and filtered for this submission.
+            </p>
+          </div>
+
+          {agentTrace?.stage0_ocr && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
+              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Stage 0 • Vision OCR & Layout Check
+              </div>
+              {agentTrace.stage0_ocr.skipped ? (
+                <p className="text-slate-600">Skipped — typed text submission (no handwritten pages uploaded).</p>
+              ) : (
+                <div className="space-y-1 text-slate-700">
+                  <div>
+                    Pages Processed: <strong>{agentTrace.stage0_ocr.pagesProcessed || 0}</strong>
+                    {agentTrace.stage0_ocr.detectedTitle ? (
+                      <> • Detected Title: <strong>{agentTrace.stage0_ocr.detectedTitle}</strong></>
+                    ) : null}
+                  </div>
+                  {agentTrace.stage0_ocr.handwritingAudit && (
+                    <div className="text-[11px] text-slate-600">
+                      Margins: {agentTrace.stage0_ocr.handwritingAudit.marginsRespected ? 'Clean' : 'Needs Improvement'} •{' '}
+                      Indentation: {agentTrace.stage0_ocr.handwritingAudit.indentationConsistent ? 'Consistent' : 'Inconsistent'} •{' '}
+                      Excessive Scratch-outs: {agentTrace.stage0_ocr.handwritingAudit.excessiveScratchOuts ? 'Yes' : 'No'} •{' '}
+                      Outline & Body on Same Page: {agentTrace.stage0_ocr.handwritingAudit.samePageOutlineBodyStart ? 'Yes' : 'No'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {agentTrace?.stage0b_splitter && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
+              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Stage 0B • Outline & Paragraph Splitter
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
+                  <div className="text-slate-500">Outline Points</div>
+                  <div className="font-bold text-slate-800 font-mono">
+                    {agentTrace.stage0b_splitter.outlineCount} ({agentTrace.stage0b_splitter.outlineWordCount}w)
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
+                  <div className="text-slate-500">Body Paragraphs</div>
+                  <div className="font-bold text-slate-800 font-mono">
+                    {agentTrace.stage0b_splitter.paragraphCount} ({agentTrace.stage0b_splitter.bodyWordCount}w)
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
+                  <div className="text-slate-500">Total Words</div>
+                  <div className="font-bold text-slate-800 font-mono">
+                    {agentTrace.stage0b_splitter.totalWordCount}w
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
+                  <div className="text-slate-500">AI Re-Split?</div>
+                  <div className="font-bold text-slate-800 font-mono">
+                    {agentTrace.stage0b_splitter.aiBoundaryAdjusted ? 'Yes (Fixed)' : 'Clean Split'}
+                  </div>
+                </div>
+              </div>
+              {agentTrace.stage0b_splitter.inlineHeadingsCaught > 0 && (
+                <div className="text-[11px] text-amber-700">
+                  Inline Headings Caught Inside Essay Body: {agentTrace.stage0b_splitter.inlineHeadingsCaught}
+                </div>
+              )}
+            </div>
+          )}
+
+          {agentTrace?.stage1_macro && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Agent 1 • Big-Picture & Outline Alignment
+                </span>
+                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {agentTrace.stage1_macro.rawFlagsCount || 0} raw flags
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-700">
+                Topic Type: <strong>{agentTrace.stage1_macro.essayGenre || 'General'}</strong> •{' '}
+                Counter-Argument Helpful?: <strong>{agentTrace.stage1_macro.requiresCounterArgument ? 'Yes' : 'No / Optional'}</strong>
+              </div>
+              {agentTrace.stage1_macro.genreRationale && (
+                <p className="text-[11px] text-slate-600">{agentTrace.stage1_macro.genreRationale}</p>
+              )}
+              {agentTrace.stage1_macro.rawFlags?.length > 0 && (
+                <details className="pt-1">
+                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                    View Agent 1 Raw Output ({agentTrace.stage1_macro.rawFlags.length})
+                  </summary>
+                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {agentTrace.stage1_macro.rawFlags.map((flag, i) => (
+                      <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                        <div className="font-semibold text-slate-800">
+                          [{flag.locationId || 'GLOBAL'}] {flag.severity || flag.type} • {flag.category}
+                        </div>
+                        {flag.targetPhrase && (
+                          <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
+                        )}
+                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
+          {agentTrace?.stage1post_pacing && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1">
+              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Stage 1-Post • Paragraph Length Balance Check
+              </div>
+              <p className="text-[11px] text-slate-700">
+                {agentTrace.stage1post_pacing.summary ||
+                  `Checked ${agentTrace.stage1post_pacing.evaluatedParagraphCount || 0} body paragraphs (1st half avg ${agentTrace.stage1post_pacing.firstHalfAvgWords || 0}w vs 2nd half avg ${agentTrace.stage1post_pacing.secondHalfAvgWords || 0}w).`}
+              </p>
+            </div>
+          )}
+
+          {agentTrace?.stage2_paragraphs && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Agent 2 • Paragraph Structure & Flow
+                </span>
+                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {agentTrace.stage2_paragraphs.skipped
+                    ? 'Skipped (Outline-Only)'
+                    : `${agentTrace.stage2_paragraphs.rawFlagsCount || 0} raw flags`}
+                </span>
+              </div>
+              {!agentTrace.stage2_paragraphs.skipped &&
+                agentTrace.stage2_paragraphs.rawFlags?.length > 0 && (
+                  <details className="pt-1">
+                    <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                      View Agent 2 Raw Output ({agentTrace.stage2_paragraphs.rawFlags.length})
+                    </summary>
+                    <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {agentTrace.stage2_paragraphs.rawFlags.map((flag, i) => (
+                        <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                          <div className="font-semibold text-slate-800">
+                            [{flag.locationId || 'BODY'}] {flag.severity || flag.type} • {flag.category}
+                          </div>
+                          {flag.targetPhrase && (
+                            <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
+                          )}
+                          {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+            </div>
+          )}
+
+          {agentTrace?.stage3_fact_language && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Agent 3 • Facts, Language & Style
+                </span>
+                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {agentTrace.stage3_fact_language.factChecksCount || 0} facts •{' '}
+                  {agentTrace.stage3_fact_language.rawFlagsCount || 0} language flags
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-600">
+                Google Search Verification: <strong>{agentTrace.stage3_fact_language.searchGrounded ? 'Enabled & Grounded' : 'Standard Knowledge'}</strong>
+                {agentTrace.stage3_fact_language.searchSources?.length > 0
+                  ? ` (${agentTrace.stage3_fact_language.searchSources.length} web sources cited)`
+                  : ''}
+              </div>
+              {agentTrace.stage3_fact_language.rawFlags?.length > 0 && (
+                <details className="pt-1">
+                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                    View Agent 3 Raw Output ({agentTrace.stage3_fact_language.rawFlags.length})
+                  </summary>
+                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {agentTrace.stage3_fact_language.rawFlags.map((flag, i) => (
+                      <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                        <div className="font-semibold text-slate-800">
+                          [{flag.locationId || 'TEXT'}] {flag.severity || flag.type} • {flag.category}
+                        </div>
+                        {flag.targetPhrase && (
+                          <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
+                        )}
+                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
+          {agentTrace?.stage4_qa_coach && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
+              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Agent 4 • Final Quality Check & Final Report
+              </div>
+              <div className="text-[11px] text-slate-700 space-y-0.5">
+                <div>
+                  Overall Status: <strong>{agentTrace.stage4_qa_coach.overallReadiness}</strong>
+                </div>
+                <div>
+                  Raw Flags Reviewed: <strong>{agentTrace.stage4_qa_coach.qaAuditLog?.totalFlagsReviewed || 0}</strong> •{' '}
+                  False Alarms Removed: <strong>{agentTrace.stage4_qa_coach.qaAuditLog?.falsePositivesDeleted || 0}</strong> •{' '}
+                  Final Kept Feedback: <strong>{agentTrace.stage4_qa_coach.verifiedFlagsCount || 0}</strong> •{' '}
+                  Sample Rewrites: <strong>{agentTrace.stage4_qa_coach.rewritesCount || 0}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tokenStages.length > 0 && (
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Actual Token & Model Usage by Stage
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-1 pr-2">Stage</th>
+                      <th className="py-1 pr-2">Model</th>
+                      <th className="py-1 pr-2 text-right">In</th>
+                      <th className="py-1 pr-2 text-right">Out</th>
+                      <th className="py-1 text-right">Think</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tokenStages.map((s, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 last:border-0 font-mono text-[10px] text-slate-700">
+                        <td className="py-1 pr-2 font-sans font-medium">{s.stage}</td>
+                        <td className="py-1 pr-2">{s.model}</td>
+                        <td className="py-1 pr-2 text-right">{(s.inputTokens || 0).toLocaleString()}</td>
+                        <td className="py-1 pr-2 text-right">{(s.outputTokens || 0).toLocaleString()}</td>
+                        <td className="py-1 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

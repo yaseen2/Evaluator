@@ -21,8 +21,8 @@ CRITICAL VERBATIM TRANSCRIPTION RULES:
 1. Transcribe the handwritten text 100% VERBATIM in exact sequential page order.
 2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles, wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper so downstream examiners can teach the student.
 3. OUTLINE & PARAGRAPH NEWLINE PRESERVATION (CRITICAL): Every individual Outline heading, sub-heading, and sub-point (I, II, A, B, 1, 2, 1.1, a, b, bullet, etc.) MUST start on its own separate new line (\\n) exactly as written on the handwritten page—NEVER merge multiple outline points together into a single line or paragraph block! Separate essay body paragraphs using double newlines (\\n\\n).
-4. If the student crossed out a phrase, omit the crossed-out words from the main text and note heavy scratch-outs in "observations".
-5. Audit physical handwritten presentation on these pages (paragraph indentation, left/right margin discipline, excessive scratch-outs, whether the Essay body prose starts on a fresh page rather than the same page where the Outline ends, and optionally any improper end-of-line word splits like "Pak-istan" or "20-24").
+4. If the student crossed out a phrase, omit the crossed-out words from the main text.
+5. Audit ONLY these 4 objective page-layout facts on these pages: paragraph indentation consistency, left/right margin discipline, excessive scratch-outs, and whether the Essay body prose starts on the same page where the Outline ends (do NOT attempt to judge handwriting beauty, neatness, or font size).
 
 Return ONLY this JSON object:
 {
@@ -32,9 +32,7 @@ Return ONLY this JSON object:
     "indentationConsistent": true,
     "marginsRespected": true,
     "excessiveScratchOuts": false,
-    "samePageOutlineBodyStart": false,
-    "improperWordBreaks": ["string (Optional: e.g. 'Pak-istan or 20-24 split across lines', empty array if clean)"],
-    "observations": ["string (Any physical presentation warning or strength on these pages, in simple clear English)"]
+    "samePageOutlineBodyStart": false
   }
 }
 `;
@@ -112,11 +110,7 @@ export const runAgent0VisionOcr = async ({
   const detectedTitle =
     batchResults.find((r) => r.detectedTitle)?.detectedTitle || examQuestion || '';
 
-  // Aggregate physical handwriting observations across batches
-  const observations = batchResults
-    .flatMap((r) => r.handwritingAudit?.observations || [])
-    .filter(Boolean);
-
+  // Aggregate objective physical page layout checks across batches
   const indentationConsistent = batchResults.every(
     (r) => r.handwritingAudit?.indentationConsistent !== false
   );
@@ -129,9 +123,6 @@ export const runAgent0VisionOcr = async ({
   const samePageOutlineBodyStart = batchResults.some(
     (r) => r.handwritingAudit?.samePageOutlineBodyStart === true
   );
-  const improperWordBreaks = batchResults
-    .flatMap((r) => r.handwritingAudit?.improperWordBreaks || [])
-    .filter(Boolean);
 
   return {
     skipped: false,
@@ -141,9 +132,7 @@ export const runAgent0VisionOcr = async ({
       indentationConsistent,
       marginsRespected,
       excessiveScratchOuts,
-      samePageOutlineBodyStart,
-      improperWordBreaks,
-      observations
+      samePageOutlineBodyStart
     }
   };
 };

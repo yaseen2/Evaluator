@@ -100,26 +100,23 @@ Never use unescaped double quotes (") inside JSON string values; always use sing
 - Role-Filtered Pacing Decay: ${pacingMetrics.summary}
 ${
   handwritingAudit
-    ? `- Handwritten Physical Layout Audit: ${JSON.stringify(handwritingAudit)}`
-    : '- Input Type: Typed Digital Text (Handwritten physical layout rules disabled)'
+    ? `- Objective Paper Layout Check: ${JSON.stringify(handwritingAudit)}`
+    : '- Input Type: Typed Digital Text (Paper layout checks disabled)'
 }
 
 === MANDATORY QA DELETION & SEVERITY RULES ===
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
 ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
-6. Delete any flag demanding 'Hence' or 'Therefore' in a paragraph's concluding sentence.
-7. Delete any flag penalizing 'committing mistakes' or 'commit an error' (100% valid formal English) or flagging literal fainting uses of 'pass out'.
-8. Delete any flag that accuses a candidate of 'fabricating' a quote without proof; ensure unverified/paraphrased quotes are at most 🔵 'TIER_3_POLISH'.
-9. Delete any flag classifying 'important', 'key', 'big', or 'huge' as TIER_1_FATAL or TIER_2_MAJOR (keep at most as 🔵 'TIER_3_POLISH' expression polish, or delete if noisy).
-10. Delete any flag penalizing words as 'ChatGPT/AI buzzwords' ('delve into', 'intricate tapestry', 'beacon of hope', 'multifaceted landscape', 'paradigm shift').
-11. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
-12. PROTECT CRITICAL GRAMMAR FLAGS: NEVER delete genuine English grammar, tense, subject-verb agreement, preposition, article, or syntax errors (keep them as 🟠 'TIER_2_MAJOR' or 🔴 'TIER_1_FATAL' when pervasive/meaning-breaking).
-13. DOWNGRADE NON-MANDATORY PREFERENCES: Ensure any flag for omitting an optional Counter-Argument, writing a 2-paragraph Intro, or placing the Thesis early inside P1 instead of the ideal very end of P1 is NEVER TIER_1_FATAL or TIER_2_MAJOR (keep strictly at 🔵 'TIER_3_POLISH' or remove if unhelpful).
+5. Delete any flag that accuses a candidate of 'fabricating' a quote without proof; keep unverified/paraphrased quotes at most 🔵 'TIER_3_POLISH'.
+6. Ensure 'important', 'key', 'big', or 'huge' are NEVER TIER_1_FATAL or TIER_2_MAJOR (keep at most as 🔵 'TIER_3_POLISH' word-upgrade tip, or delete if noisy).
+7. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
+8. PROTECT CRITICAL GRAMMAR FLAGS: NEVER delete genuine English grammar, tense, agreement, preposition, article, punctuation, or syntax errors (keep them as 🟠 'TIER_2_MAJOR' or 🔴 'TIER_1_FATAL' when repeated/meaning-breaking).
+9. DOWNGRADE NON-MANDATORY PREFERENCES: Ensure any flag for omitting an optional Counter-Argument, writing a 2-paragraph Intro, or placing the Thesis early inside P1 instead of the end of P1 is NEVER TIER_1_FATAL or TIER_2_MAJOR (keep strictly at 🔵 'TIER_3_POLISH' or remove if unhelpful).
 
 === RAW DIAGNOSTIC FLAGS FROM AGENTS 1, 2 & 3 (${combinedCandidateFlags.length} items) ===
 ${JSON.stringify(combinedCandidateFlags, null, 2)}
 
-=== CANDIDATE OUTLINE & TARGET PARAGRAPHS FOR SURGICAL REWRITES ===
+=== CANDIDATE OUTLINE & TARGET PARAGRAPHS FOR REWRITES ===
 Outline:
 ${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(No outline)'}
 
@@ -130,36 +127,37 @@ ${targetParagraphsText}
 YOUR 5 CORE TASKS:
 1. AUDIT & FILTER DIAGNOSTICS ("verifiedDiagnostics" & "qaAuditLog"):
    - Review all raw flags from Agents 1–3.
-   - Delete any false positive, hallucinated rule, or duplicate flag and record the exact count in "qaAuditLog".
-   - Keep ALL genuinely verified items (whether 0 on an extraordinary draft, 6 on a short outline, or 25+ on a deeply flawed script—never pad to reach a quota and never discard genuine TIER_1/TIER_2 errors). Categorize cleanly by tier:
-     * "TIER_1_FATAL" (🔴 Fatal Deal-Breaker)
-     * "TIER_2_MAJOR" (🟠 Structural / Analytical Risk)
-     * "TIER_3_POLISH" (🔵 Polish & Topper Upgrade)
-     * "EARNED_SIGNIFIER" (🟢 Earned Topper Signifier — strictly when earned with an exact verbatim quote; zero generic praise!)
+   - Delete any false positive or duplicate flag and record the exact count in "qaAuditLog".
+   - Rewrite any confusing/jargon category heading or observation into simple, clear English a CSS student immediately understands.
+   - Keep ALL genuinely verified items (whether 0 on an exceptional draft, 6 on a short outline, or 25+ on a deeply flawed script—never pad to reach a quota and never discard genuine TIER_1/TIER_2 errors). Categorize cleanly by tier:
+     * "TIER_1_FATAL" (🔴 Serious Mistake)
+     * "TIER_2_MAJOR" (🟠 Major Mistake)
+     * "TIER_3_POLISH" (🔵 Improvement & Tip)
+     * "EARNED_SIGNIFIER" (🟢 Strong Point — strictly when earned with an exact verbatim quote; zero empty praise!)
    - Ensure every item's "exact_verbatim_quote" is a concise 2 to 12 word verbatim phrase from the candidate's script.
 
 2. RECALIBRATE PILLAR STATUSES ("recalibratedPillarStatuses"):
    - After deleting false positives above, provide the authoritative calibrated status ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") ONLY for any pillar whose initial rating was overstated because you deleted its false-positive flags (leave empty object {} if initial pillar ratings remain accurate).
 
-3. GENERATE 3–4 SURGICAL "BEFORE → AFTER" REWRITES ("surgicalRewrites"):
-   - Rewrite #1: The candidate's Thesis Statement (if weak, vague, one-dimensional, or missing) upgraded into a 70+ mark CSS Qualifier Thesis Statement.
+3. GENERATE 3–4 "BEFORE → AFTER" REWRITES ("surgicalRewrites"):
+   - Rewrite #1: The candidate's Thesis Statement (if weak, vague, or missing) upgraded into a clear 70+ mark CSS Qualifier Thesis Statement.
    - Rewrites #2–#3: Select 2 weak Topic Sentences or Body Paragraphs from the Target Paragraphs above (or Outline Sections if Outline-Only).
    - Provide "locationId", "targetType", "issueDiagnosed", "original", "basic", "cssStandard", "highScorer", and "whatChanged".
    - PLAIN ENGLISH REWRITE RULE: Write all rewrites ("basic", "cssStandard", and "highScorer") in crisp, clear, natural English using the right word in the right place—never artificial or overly complex thesaurus words!
 
-4. DESIGN MODEL TOPPER OUTLINE BLUEPRINT ("suggestedVisual"), REMEDIAL DIRECTIVES ("thingsToInclude") & EXAM HIGHLIGHTING PICKS ("strategicHighlightingPicks"):
-   - Provide 3–4 high-impact remedial directives in "thingsToInclude" formatted as 'Action Title: Specific directive' in clear, simple English.
+4. MODEL TOPPER OUTLINE BLUEPRINT ("suggestedVisual"), TOP STEPS ("thingsToInclude") & EXAM UNDERLINING PICKS ("strategicHighlightingPicks"):
+   - Provide 3–4 practical improvement steps in "thingsToInclude" formatted as 'Action Title: Specific step' in simple, everyday English.
    - 65% OUTLINE FORMULA FOR WEAK INTRO / CONCLUSION: Whenever the candidate's Introduction or Conclusion needs improvement, include this practical method in "thingsToInclude": 'Outline-to-Intro & Conclusion Method: You can write ~65% of your Introduction directly from your Outline, and build ~65% of your Conclusion from your Outline (using the remaining 35% of Outline points plus 30% core repeated threads restated clearly).'
-   - In "strategicHighlightingPicks", provide 3–5 concise thematic phrases (echoing core Essay Title keywords—NOT bare numbers or dates) that the candidate should underline/highlight with a marker in the exam so scanning examiners immediately see topic relevance.
-   - Build a clean Unicode tree "Model FPSC Topper Outline Blueprint" for "${examQuestion}" using ├──, └──, │ (keep each point conveying 1 distinct idea).
+   - In "strategicHighlightingPicks", provide 3–5 short key phrases (echoing main Essay Title keywords—NOT bare numbers or dates) that the student should underline/highlight with a marker in the exam so examiners quickly see relevance.
+   - Build a clean Unicode tree "Model Topper Outline Blueprint" for "${examQuestion}" using ├──, └──, │ (keep each point conveying 1 distinct idea).
 
-5. EXECUTIVE READINESS VERDICT (ZERO NUMERICAL SCORES):
-   - "overallReadiness": "Competitive Qualifier Draft" | "Balanced Draft — Structural Risks to Resolve" | "High-Risk Draft — Fatal Deal-Breakers Detected"
-   - "examinerSummary": 3–4 clear, direct sentences in simple English summarizing the essay's exact standing, its strongest earned quality, and the #1 priority to fix.
+5. OVERALL DRAFT VERDICT (ZERO NUMERICAL SCORES, SIMPLE ENGLISH):
+   - "overallReadiness": "Strong Draft — Ready for Exam" | "Fair Draft — Major Mistakes to Fix" | "Weak Draft — Serious Mistakes to Fix"
+   - "examinerSummary": 3–4 clear, direct sentences in simple English summarizing the essay's exact standing, its strongest quality, and the #1 priority to fix.
 
 Return ONLY this JSON object:
 {
-  "overallReadiness": "Competitive Qualifier Draft" | "Balanced Draft — Structural Risks to Resolve" | "High-Risk Draft — Fatal Deal-Breakers Detected",
+  "overallReadiness": "Strong Draft — Ready for Exam" | "Fair Draft — Major Mistakes to Fix" | "Weak Draft — Serious Mistakes to Fix",
   "examinerSummary": "string",
   "qaAuditLog": {
     "totalFlagsReviewed": 0,
@@ -243,7 +241,7 @@ export const runAgent4QaVerifierCoach = async ({
 
   return {
     overallReadiness:
-      result?.overallReadiness || 'Balanced Draft — Structural Risks to Resolve',
+      result?.overallReadiness || 'Fair Draft — Major Mistakes to Fix',
     examinerSummary: result?.examinerSummary || '',
     qaAuditLog: result?.qaAuditLog || {
       totalFlagsReviewed: 0,
