@@ -19,9 +19,9 @@ if (typeof window !== 'undefined') {
  */
 export async function convertPdfToImagePages(pdfFile, options = {}) {
   const {
-    maxPages = 14, // Max allowed per submission
-    scale = 1.8,   // High-DPI scale for crystal-clear handwritten OCR
-    quality = 0.88 // JPEG compression quality
+    maxPages = 35, // Max allowed per submission
+    scale = 1.65,  // Crisp DPI scale while staying within upload limits for 35 pages
+    quality = 0.80 // JPEG compression quality
   } = options;
 
   if (!pdfFile) return [];

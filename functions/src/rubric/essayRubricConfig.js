@@ -25,9 +25,9 @@ export const ESSAY_GENRE_PLAYBOOKS = {
       'Energy Crisis in Pakistan: Challenges and Prospects'
     ],
     outlineRatioRule:
-      'Maintain the 80:20 Rule: At least 75–80% of major sections and sub-points must directly address the core headers explicitly demanded in the prompt. Maximum 1 short contextual/overview heading and 1 pragmatic Way Forward section.',
+      'Recommend the 80:20 balance: dedicate ~75–80% of major sections and sub-points to the core dimensions asked in the Essay Title, with at most 1 short contextual overview section and (where relevant) 1 pragmatic Way Forward section.',
     thesisRequirement:
-      'Two-Dimensional Thesis Statement covering both the primary problem/causes and the pragmatic trajectory/remedies.',
+      'Clear analytical Thesis Statement covering the exact core dimensions demanded by the Essay Title (do not force remedies into the thesis if the title only asks for causes and consequences).',
     counterArgumentDefault: false,
     evidenceExpectation:
       'Any verifiable proof that substantiates the claim (empirical data, institutional reports, historical precedents, constitutional/legal provisions, regional/global case studies, structural mechanisms).'
@@ -42,7 +42,7 @@ export const ESSAY_GENRE_PLAYBOOKS = {
       'Universal Human Equality is a Utopian Myth'
     ],
     outlineRatioRule:
-      'Take a clear, unambiguous stance (or nuanced split-stance on binary superiority prompts without 50/50 fence-sitting). Dedicate 70–80% of body arguments to proving the chosen stance. If requiresCounterArgument is true, include a dedicated Counter-Argument & Rebuttal section (1–2 paragraphs) before the Conclusion. Do NOT append a bureaucratic "Way Forward / Policy Recommendations" section to a philosophical/debate prompt unless the prompt asks for policy solutions.',
+      'Take a clear position (or nuanced split-stance without 50/50 fence-sitting) and dedicate 70–80% of arguments to proving it. Including a Counter-Argument & Rebuttal section is recommended (🔵 TIER_3_POLISH) where helpful, NEVER mandatory. A brief Way Forward is acceptable on policy debates; only flag a bureaucratic Way Forward if bolted onto a pure philosophical or binary-choice debate where policy lists do not fit.',
     thesisRequirement:
       'Debatable, persuasive thesis taking a clear position while acknowledging complexity.',
     counterArgumentDefault: true,
@@ -59,7 +59,7 @@ export const ESSAY_GENRE_PLAYBOOKS = {
       'Artificial Intelligence and the Future of Diplomacy'
     ],
     outlineRatioRule:
-      'Every major section and body paragraph Topic Sentence MUST explicitly connect BOTH Variable A and Variable B (showing how A shapes B, how B reinforces A, or what happens when the nexus breaks). Never write the first half solely on Variable A and the second half solely on Variable B.',
+      'Sustain the causal or reciprocal link between Concept A and Concept B across the essay. Splitting the essay into two disconnected halves (first half only A, second half only B) is a 🔴 TIER_1_FATAL flaw, though 1–2 early foundational paragraphs unpacking one concept before linking it to the other are natural and valid.',
     thesisRequirement:
       'Relational Thesis establishing the reciprocal, causal, or dialectical relationship between Concept A and Concept B.',
     counterArgumentDefault: false,
@@ -95,12 +95,17 @@ export const PARAGRAPH_ROLES = {
   CONCLUSION: 'CONCLUSION'
 };
 
+export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `PLAIN ENGLISH & MENTOR TONE RULES (STRICT):
+1. Simple, Clear English: Write ALL feedback, observations, summaries, Model Thesis statements, and 70+ Rewrites in simple, clear, natural academic English. FPSC examiners reward the right word in the right place—never use pompous, overly sophisticated, or obscure dictionary jargon.
+2. Terminology: Always refer to the exam question as the "Essay Title" or "Topic" (NEVER call it the "prompt").
+3. "Recommended" vs. "Must": Reserve strict "must" commands ONLY for true pass/fail rules (answering the Essay Title, grammatical correctness, writing all promised outline points, and avoiding inline headings/bullets in the essay body). Phrase structural/style best practices as constructive recommendations ("Recommended", "Ideally", "Consider...").`;
+
 export const PROMPT_DECODING_TRAP_RULES = [
-  'Dual-Choice ("OR" / "Not X, but Y"): Candidate must engage substantively with BOTH sides before demonstrating why the chosen side outweighs the other (e.g., cannot ignore "Economy" in "Not economy, but politics is the key").',
-  'Split-Stance Two-Part Claim ("Not only X, but also Y"): Candidate may legitimately agree with Clause X while qualifying or refuting Clause Y—do not punish balanced partial agreement.',
-  'Metaphor / Case-Study Analogy (e.g., "Forests are the best case study for economic prosperity"): Flag literalist drift (writing about tree-planting or floods instead of decoding the ecological interdependence metaphor for macroeconomic prosperity).',
-  'Scope-Narrowing Keyword Substitution Trap: Flag quietly swapping a narrow/exact prompt keyword for a broader or narrower concept (e.g., replacing "Classrooms" with generic "Education" or narrowing "Higher education" to primary schooling without addressing the asked domain).',
-  'Global vs. Pakistan 80:20 Geographic Scope: If the exam prompt is Global/Universal (does NOT contain "Pakistan"), >=80% of the analysis must remain global/international (Pakistan at most 1–2 brief case-study illustrations, and NEVER a standalone "Impacts on Pakistan" main section). Conversely, if the prompt specifies "...in Pakistan", >=80% must focus on Pakistan.'
+  'Dual-Choice or Comparative Titles: Use natural comprehension to detect any title weighing two options or claims (e.g., "X or Y", "Not X, but Y", "Myth or Reality?", "Blessing or Curse?"). The candidate should engage substantively with both sides before proving why their chosen position prevails.',
+  'Multi-Part or Split-Stance Titles: When an Essay Title contains two distinct propositions (e.g., "Not only X, but also Y"), allow the candidate to agree with one part while qualifying or refuting the other.',
+  'Metaphorical or Proverbial Titles: Flag literalist drift (e.g., writing only about trees/floods on "Forests are the best case study for economic prosperity" instead of decoding the metaphor for economic interdependence).',
+  'Scope-Narrowing or Keyword Substitution: Flag quietly swapping a specific concept in the Essay Title for an easier broader or narrower topic (e.g., replacing "Classrooms" with generic "Education" or narrowing "Higher education" to primary schooling).',
+  'Global vs. Pakistan 80:20 Geographic Scope: If the Essay Title is Global/Universal (does NOT mention "Pakistan"), >=80% of the analysis should remain global/international (Pakistan at most 1–2 brief illustrations, and never a standalone "Impacts on Pakistan" main section). If the title specifies "...in Pakistan", >=80% must focus on Pakistan.'
 ];
 
 export const CONCEPTUAL_PRECISION_PAIRS = [
@@ -139,16 +144,16 @@ export const GUARDRAIL_EXCEPTIONS = [
   'CONTEXT_OVERVIEW Guardrail: A secondary contextual heading in the Outline (e.g., "2. Contextualizing the Crisis in Pakistan") may legitimately map to a single overview paragraph without 1.1/1.2 sub-points. Do not flag it as a missing sub-point error.',
   'Forward Transition Hook Guardrail: If the final clause or sentence of a BODY_MAIN paragraph briefly previews the theme of the next paragraph (Mentor 4 Forward Hook), do NOT flag it as a Paragraph Unity violation.',
   'Multiple Complementary Evidences Guardrail: Under "1 Paragraph = 1 Central Argument", a student may cite 1 or multiple complementary pieces of evidence inside a single paragraph as long as they all substantiate that same single central argument.',
-  'Consensus Prompt Guardrail: When requiresCounterArgument === false (e.g., universal truths, moral axioms, or consensus prompts like "Democracy and illiteracy cannot move together"), NEVER penalize the student for omitting a Counter-Argument/Rebuttal section.',
+  'Counter-Argument Advisory Guardrail: A Counter-Argument & Rebuttal section is recommended (🔵 TIER_3_POLISH) on debatable topics where helpful, and NEVER mandatory or TIER_1/TIER_2 when omitted. When requiresCounterArgument === false (universal truths, proverbs, consensus titles), do not recommend or expect Counter-Arguments at all.',
   'Valid English & AI-Cliché Safe Harbor: Phrases like "commit a mistake" / "commit an error" are 100% standard formal English. Calling an issue "important", "key", "big", or "huge" is valid English—at most a gentle 🔵 TIER_3_POLISH suggestion (NEVER Tier 1/2). NEVER penalize phrasing as "ChatGPT/AI buzzwords" (delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, paradigm shift).'
 ];
 
 export const SHARED_SAFE_HARBOR_DIRECTIVE = `MENTOR SAFE HARBORS (STRICT):
 1. Valid Transitions/Overview: Never penalize TRANSITION_BRIDGE length or a single-paragraph CONTEXT_OVERVIEW; never penalize Mentor 4 forward hooks at the end of paragraphs.
-2. Evidence & Counter-Argument: Accept 1 or multiple complementary proofs per paragraph (Gondal's 54-evidence spectrum); only expect Counter-Argument when requiresCounterArgument === true.
+2. Evidence & Counter-Argument: Accept 1 or multiple complementary proofs per paragraph (Gondal's 54-evidence spectrum). Counter-Arguments are recommended (🔵 TIER_3_POLISH) when helpful on debatable titles, NEVER mandatory or TIER_1/TIER_2 when omitted; never expect one if requiresCounterArgument === false.
 3. Collocation & Generic Modifiers: "commit a mistake/error" is valid formal English; "important / key / big / huge" are valid English and must NEVER be flagged as TIER_1_FATAL or TIER_2_MAJOR (only gentle TIER_3_POLISH).
 4. Zero AI-Cliché Penalty: NEVER penalize words like "delve into", "intricate tapestry", "beacon of hope", "multifaceted landscape", or "paradigm shift".
-5. Slip vs. Habit & Thesis Spot: 1–2 isolated pronoun/contraction slips are TIER_3_POLISH (reserve TIER_1/TIER_2 for pervasive habits). Accept Thesis Statements placed either in early Intro (P1.S3–S5) OR closing of P1.`;
+5. Thesis Spot, 2-Para Intro & Slips: A Thesis Statement is valid ANYWHERE inside the Introduction (P1), though the very end of P1 is recommended (🔵 TIER_3_POLISH) as the ideal position. Splitting an Intro into 2 paragraphs is at most a gentle 🔵 TIER_3_POLISH tip. Keep 1–2 isolated pronoun/contraction slips as TIER_3_POLISH.`;
 
 export const PINGLISH_INTERFERENCE_RULES = [
   {

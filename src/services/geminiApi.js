@@ -73,7 +73,7 @@ export const estimateCreditsPreFlight = ({
     minRequiredCredits = pages > 0 ? 6 + Math.ceil(pages * 0.6) : 6;
   } else if (isEssay) {
     estimatedWeightedTokens = 44000 + pages * 2500 + Math.max(0, words - 1200) * 14;
-    minRequiredCredits = pages > 0 ? Math.min(28, 16 + pages) : 18;
+    minRequiredCredits = pages > 0 ? Math.min(45, 16 + pages) : 18;
   } else {
     estimatedWeightedTokens = 21000 + pages * 2500 + Math.max(0, words - 450) * 12;
     minRequiredCredits = pages > 0 ? Math.min(18, 8 + pages) : 9;

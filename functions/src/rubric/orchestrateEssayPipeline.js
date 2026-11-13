@@ -13,7 +13,8 @@
 import { runAgent0VisionOcr } from './agent0VisionOcr.js';
 import {
   preprocessEssaySubmission,
-  computeRoleFilteredPacingDecay
+  computeRoleFilteredPacingDecay,
+  reconcileAiStructuralBoundary
 } from './deterministicPreprocessor.js';
 import { runAgent1MacroArchitect } from './agent1MacroArchitect.js';
 import { runAgent2ParagraphInspector } from './agent2ParagraphInspector.js';
@@ -170,23 +171,33 @@ export const executeCssEssayPipelineV2 = async ({
 
   // ── STAGE 0B: Deterministic Code Pre-Processor (0 Tokens) ──
   reportProgress(2, 22, 'Stage 0B • Structural Indexer', 'Indexing [O1..On] Outline & [P1.S1..PN.SM] sentences + Spotlight Zones...');
-  const preprocessed = preprocessEssaySubmission(effectiveText, effectiveTopic);
-  const effectiveEssayMode =
+  let preprocessed = preprocessEssaySubmission(effectiveText, effectiveTopic);
+  const initialEssayMode =
     essayMode === 'outline_only' || preprocessed.isOutlineOnly ? 'outline_only' : 'full';
 
   // ── STAGE 1A: Agent 1 Macro-Architect Runs FIRST (~2s on macro-sliced input) ──
-  reportProgress(3, 36, 'Stage 1A • Macro-Architect', 'Auditing genre playbook, 80:20 scope, thesis placement, and 1:1 alignment...');
+  reportProgress(3, 36, 'Stage 1A • Macro-Architect', 'Auditing genre, Essay Title & 80:20 scope, thesis, and 1:1 alignment...');
   const agent1Output = await runAgent1MacroArchitect({
     examQuestion: effectiveTopic,
     preprocessed,
-    essayMode: effectiveEssayMode,
+    essayMode: initialEssayMode,
     apiKey,
     preferredModel: selectedModel,
     ledger
   });
 
-  // ── STAGE 1A-POST: Role-Filtered Pacing Decay Math (0 Tokens, Post-Agent 1) ──
-  reportProgress(5, 52, 'Stage 1A-Post • Role-Filtered Pacing', 'Computing word-count decay strictly on BODY_MAIN & COUNTER_ARGUMENT...');
+  // Apply AI boundary reconciliation only if Agent 1 flagged a boundary mismatch
+  preprocessed = reconcileAiStructuralBoundary(
+    preprocessed,
+    agent1Output,
+    effectiveText,
+    effectiveTopic
+  );
+  const effectiveEssayMode =
+    essayMode === 'outline_only' || preprocessed.isOutlineOnly ? 'outline_only' : 'full';
+
+  // ── STAGE 1A-POST: Role-Filtered Paragraph Word Metrics (0 Tokens, Post-Agent 1) ──
+  reportProgress(5, 52, 'Stage 1A-Post • Role Map & Metrics', 'Tagging structural roles and computing body paragraph word counts...');
   const pacingMetrics = computeRoleFilteredPacingDecay(
     preprocessed.paragraphs,
     agent1Output.paragraphRoleMap
@@ -387,11 +398,7 @@ export const executeCssEssayPipelineV2 = async ({
           introduction: buildPillarEntry('introduction', 'Balanced'),
           body_paragraphs: buildPillarEntry('body_paragraphs', 'Balanced'),
           evidences: buildPillarEntry('evidences', 'Balanced'),
-          coherence: buildPillarEntry(
-            'coherence',
-            pacingMetrics.pacingDecayFlag ? 'Needs Polish' : 'Balanced',
-            pacingMetrics.summary
-          ),
+          coherence: buildPillarEntry('coherence', 'Balanced', pacingMetrics.summary),
           analytical_depth: buildPillarEntry('analytical_depth', 'Balanced'),
           expression: buildPillarEntry('expression', 'Balanced'),
           grammar_syntax: buildPillarEntry('grammar_syntax', 'Balanced'),

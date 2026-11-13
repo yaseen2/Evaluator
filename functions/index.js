@@ -62,8 +62,8 @@ export const evaluateSubmission = onCall(
     }
 
     // Input Validation to prevent resource abuse
-    if (imageArray && imageArray.length > 16) {
-      throw new HttpsError('invalid-argument', 'Maximum 16 pages allowed per single evaluation.');
+    if (imageArray && imageArray.length > 35) {
+      throw new HttpsError('invalid-argument', 'Maximum 35 pages allowed per single evaluation.');
     }
 
     const wordCount = text ? text.trim().split(/\s+/).length : 0;

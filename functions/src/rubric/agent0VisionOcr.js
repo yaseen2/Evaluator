@@ -15,27 +15,26 @@ const BATCH_SIZE = 4;
 const buildBatchOcrPrompt = ({ batchIndex, startPage, endPage, totalPages, userExamQuestion }) => `
 You are Agent 0: FPSC CSS VERBATIM OCR DIGITIZER & HANDWRITTEN SCRIPT INSPECTOR.
 You are transcribing Pages ${startPage} to ${endPage} (out of ${totalPages} total pages).
-${userExamQuestion ? `Candidate's Selected Essay Prompt: "${userExamQuestion}"` : ''}
+${userExamQuestion ? `Candidate's Selected Essay Title / Topic: "${userExamQuestion}"` : ''}
 
 CRITICAL VERBATIM TRANSCRIPTION RULES:
 1. Transcribe the handwritten text 100% VERBATIM in exact sequential page order.
 2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles, wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper so downstream examiners can teach the student.
-3. Preserve all Outline numbering (I, II, A, B, 1, 2, 1.1) and paragraph breaks using double newlines (\\n\\n).
-4. If the student crossed out a phrase, omit the crossed-out words from the main text and note heavy scratch-outs in "handwritingNotes".
-5. Audit physical handwritten presentation on these pages (paragraph indentation, left/right margin discipline, legibility, whether body pages contain roughly 2 paragraphs per page, whether the Essay prose starts on a fresh page rather than the same page where the Outline ends, and whether any Proper Noun like "Pak-istan", Year like "20-24", or Number is improperly broken across two lines at the end of a line).
+3. OUTLINE & PARAGRAPH NEWLINE PRESERVATION (CRITICAL): Every individual Outline heading, sub-heading, and sub-point (I, II, A, B, 1, 2, 1.1, a, b, bullet, etc.) MUST start on its own separate new line (\\n) exactly as written on the handwritten page—NEVER merge multiple outline points together into a single line or paragraph block! Separate essay body paragraphs using double newlines (\\n\\n).
+4. If the student crossed out a phrase, omit the crossed-out words from the main text and note heavy scratch-outs in "observations".
+5. Audit physical handwritten presentation on these pages (paragraph indentation, left/right margin discipline, excessive scratch-outs, whether the Essay body prose starts on a fresh page rather than the same page where the Outline ends, and optionally any improper end-of-line word splits like "Pak-istan" or "20-24").
 
 Return ONLY this JSON object:
 {
   "detectedTitle": "string or null (Essay title/topic if written on these pages, else null)",
-  "transcribedText": "string (Full verbatim transcription of pages ${startPage}–${endPage} with \\n\\n paragraph breaks)",
+  "transcribedText": "string (Full verbatim transcription of pages ${startPage}–${endPage} with each Outline point on its own newline \\n and body paragraphs separated by \\n\\n)",
   "handwritingAudit": {
     "indentationConsistent": true,
     "marginsRespected": true,
     "excessiveScratchOuts": false,
     "samePageOutlineBodyStart": false,
-    "improperWordBreaks": ["string (e.g. 'Pak-istan or 20-24 split across lines', empty array if clean)"],
-    "paragraphsPerPageEstimate": "string (e.g. '2 paragraphs per page' or 'Wall-to-wall single paragraph')",
-    "observations": ["string (Any physical presentation warning or strength on these pages)"]
+    "improperWordBreaks": ["string (Optional: e.g. 'Pak-istan or 20-24 split across lines', empty array if clean)"],
+    "observations": ["string (Any physical presentation warning or strength on these pages, in simple clear English)"]
   }
 }
 `;

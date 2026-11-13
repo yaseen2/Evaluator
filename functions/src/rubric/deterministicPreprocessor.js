@@ -423,7 +423,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
   const spotlightZoneIds = Array.from(spotlightSet);
 
   const macroSliceForAgent1 = [
-    `ESSAY TOPIC / PROMPT: "${examQuestion || 'Not explicitly provided'}"`,
+    `ESSAY TITLE / TOPIC: "${examQuestion || 'Not explicitly provided'}"`,
     `TOTAL SCRIPT WORDS: ${totalWordCount} (Outline: ${outlineWordCount} words | Essay Body: ${bodyWordCount} words across ${paragraphs.length} paragraphs)`,
     inlineBodyHeadingViolations.length > 0
       ? `DETECTED INLINE HEADINGS IN ESSAY BODY (TABOO): ${JSON.stringify(inlineHeadingDetails)}`
@@ -524,6 +524,154 @@ export const computeRoleFilteredPacingDecay = (paragraphs = [], paragraphRoleMap
     summary: pacingDecayFlag
       ? `PACING_DECAY_DETECTED: 2nd-half substantive body paragraphs (${secondHalf.map((p) => p.id).join(', ')}: avg ${secondHalfAvgWords} words) dropped by ${Math.abs(decayPercent)}% compared to 1st-half body paragraphs (${firstHalf.map((p) => p.id).join(', ')}: avg ${firstHalfAvgWords} words).`
       : `Balanced Pacing: 1st-half substantive body paragraphs avg ${firstHalfAvgWords} words vs. 2nd-half avg ${secondHalfAvgWords} words (${decayPercent >= 0 ? '+' : ''}${decayPercent}%).`
+  };
+};
+
+/**
+ * Hybrid AI-Verified Boundary Reconciliation:
+ * Allows Agent 1 to override the deterministic Outline-to-Body split point when a student's
+ * unusual formatting caused outline points and prose blocks to misalign, while keeping word counts
+ * and [O1..On] / [P1.S1..PN.SM] coordinate indexing 100% deterministic.
+ */
+export const reconcileAiStructuralBoundary = (
+  preprocessed,
+  agent1Output = {},
+  rawText = '',
+  examQuestion = ''
+) => {
+  if (!preprocessed) return preprocessed;
+
+  const correctionQuote = String(
+    agent1Output?.aiBoundaryCorrection?.firstBodyParagraphStartQuote || ''
+  )
+    .replace(/^\[[A-Z0-9.]+\]\s*/i, '')
+    .trim();
+
+  if (!correctionQuote || correctionQuote.length < 12 || !rawText) {
+    return preprocessed;
+  }
+
+  const normalized = String(rawText).replace(/\r\n/g, '\n').trim();
+  const blocks = segmentRawBlocksWithNewlineFallback(normalized);
+  const needle = correctionQuote.toLowerCase().slice(0, 48);
+  const splitIdx = blocks.findIndex((blk) => blk.toLowerCase().includes(needle));
+
+  if (splitIdx === -1) {
+    return preprocessed;
+  }
+
+  const currentFirstBody = preprocessed.paragraphs?.[0]?.rawFirstSentence || '';
+  if (currentFirstBody && currentFirstBody.toLowerCase().includes(needle)) {
+    return preprocessed;
+  }
+
+  const outlineRawBlocks = blocks.slice(0, splitIdx);
+  const bodyRawBlocks = blocks.slice(splitIdx);
+
+  const outlineNodes = [];
+  let oCounter = 1;
+  for (const blk of outlineRawBlocks) {
+    for (const line of blk.split('\n').map((l) => l.trim()).filter(Boolean)) {
+      const id = `O${oCounter++}`;
+      outlineNodes.push({
+        id,
+        text: line,
+        wordCount: countExactWords(line),
+        taggedText: `[${id}] ${line}`
+      });
+    }
+  }
+
+  const inlineBodyHeadingViolations = [];
+  const inlineHeadingDetails = [];
+  const cleanProseBlocks = [];
+
+  for (const blk of bodyRawBlocks) {
+    const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
+    const words = countExactWords(blk);
+    const targetParagraphId = `P${cleanProseBlocks.length + 1}`;
+    if (lines.length === 1 && words <= 14 && !/[.!?]["'”’)]*$/.test(lines[0])) {
+      inlineBodyHeadingViolations.push(lines[0]);
+      inlineHeadingDetails.push({ heading: lines[0], beforeParagraphId: targetParagraphId });
+      continue;
+    }
+    if (lines.length >= 2 && countExactWords(lines[0]) <= 12 && !/[.!?]["'”’)]*$/.test(lines[0])) {
+      inlineBodyHeadingViolations.push(lines[0]);
+      inlineHeadingDetails.push({ heading: lines[0], beforeParagraphId: targetParagraphId });
+      const remainder = lines.slice(1).join(' ').trim();
+      if (remainder) cleanProseBlocks.push(remainder);
+    } else {
+      cleanProseBlocks.push(lines.join(' ').trim());
+    }
+  }
+
+  const paragraphs = cleanProseBlocks.map((paraText, idx) => {
+    const pId = `P${idx + 1}`;
+    const sentences = splitIntoSentences(paraText);
+    const taggedSentences = sentences.map((sText, sIdx) => ({
+      id: `${pId}.S${sIdx + 1}`,
+      text: sText,
+      taggedText: `[${pId}.S${sIdx + 1}] ${sText}`
+    }));
+    const wordCount = countExactWords(paraText);
+    return {
+      id: pId,
+      index: idx + 1,
+      wordCount,
+      sentenceCount: sentences.length,
+      firstSentence: taggedSentences[0]?.taggedText || '',
+      lastSentence:
+        taggedSentences.length > 1
+          ? taggedSentences[taggedSentences.length - 1]?.taggedText
+          : '',
+      rawFirstSentence: sentences[0] || '',
+      rawLastSentence: sentences[sentences.length - 1] || '',
+      fullText: paraText,
+      taggedText: taggedSentences.map((s) => s.taggedText).join(' '),
+      sentences: taggedSentences
+    };
+  });
+
+  const outlineWordCount = outlineNodes.reduce((sum, n) => sum + n.wordCount, 0);
+  const bodyWordCount = paragraphs.reduce((sum, p) => sum + p.wordCount, 0);
+  const totalWordCount = outlineWordCount + bodyWordCount;
+  const spotlightSet = new Set();
+  if (outlineNodes.length > 0) {
+    outlineNodes.slice(0, 2).forEach((o) => spotlightSet.add(o.id));
+    outlineNodes.slice(-2).forEach((o) => spotlightSet.add(o.id));
+  }
+  paragraphs.forEach((p, idx) => {
+    const isIntroOrConclusion = idx === 0 || idx === paragraphs.length - 1;
+    if (isIntroOrConclusion) {
+      p.sentences.slice(0, 3).forEach((s) => spotlightSet.add(s.id));
+      p.sentences.slice(-3).forEach((s) => spotlightSet.add(s.id));
+    } else {
+      if (p.sentences[0]) spotlightSet.add(p.sentences[0].id);
+      if (p.sentences.length > 1) spotlightSet.add(p.sentences[p.sentences.length - 1].id);
+    }
+  });
+
+  const fullTaggedTranscript = [
+    outlineNodes.length > 0 ? `=== OUTLINE ===\n${outlineNodes.map((o) => o.taggedText).join('\n')}` : '',
+    paragraphs.length > 0
+      ? `=== ESSAY PROSE BODY ===\n${paragraphs.map((p) => `[${p.id} | ${p.wordCount}w] ${p.taggedText}`).join('\n\n')}`
+      : ''
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return {
+    ...preprocessed,
+    isOutlineOnly: paragraphs.length === 0,
+    outlineNodes,
+    paragraphs,
+    inlineBodyHeadingViolations,
+    inlineHeadingDetails,
+    spotlightZoneIds: Array.from(spotlightSet),
+    totalWordCount,
+    outlineWordCount,
+    bodyWordCount,
+    fullTaggedTranscript
   };
 };
 

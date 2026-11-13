@@ -9,7 +9,8 @@
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
 import {
   ESSAY_GENRE_PLAYBOOKS,
-  SHARED_SAFE_HARBOR_DIRECTIVE
+  SHARED_SAFE_HARBOR_DIRECTIVE,
+  PLAIN_ENGLISH_AND_TONE_DIRECTIVE
 } from './essayRubricConfig.js';
 
 const buildAgent2Prompt = ({
@@ -47,6 +48,8 @@ ${JSON.stringify(agent1Output.paragraphRoleMap, null, 2)}
 
 === ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
+${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
+
 === FULL TAGGED ESSAY TRANSCRIPT ===
 ${preprocessed.fullTaggedTranscript}
 ====================================
@@ -73,11 +76,9 @@ YOUR 6 DIAGNOSTIC AUDIT TASKS:
      * Flag "Heirless / Nameless Proof" ("According to a report...", "Experts say..." with no named source -> 🔵 TIER_3_POLISH or 🟠 TIER_2_MAJOR).
      * Flag "Dropped / Unintegrated Proof" (citing a quote/stat without 1–2 sentences explaining how it proves the Topic Sentence).
 
-3. COUNTER-ARGUMENT & REBUTTAL AUDIT (Only when requiresCounterArgument === true):
-   - If requiresCounterArgument === false, do NOT penalize the absence of counter-arguments.
-   - If requiresCounterArgument === true:
-     * Check whether the essay includes a Counter-Argument section.
-     * Check the 50/50 Self-Contained Rebuttal Rule on any "COUNTER_ARGUMENT" paragraph: Did the student briefly state the opposing view ("Critics contend...") and immediately refute it with stronger evidence inside the SAME paragraph, or did they leave a whole paragraph validating the opposing side unrefuted ("Self-Sabotage")?
+3. COUNTER-ARGUMENT & REBUTTAL AUDIT (Advisory Only):
+   - NEVER penalize the absence of a Counter-Argument as TIER_1_FATAL or TIER_2_MAJOR (Agent 1 handles optional 🔵 TIER_3_POLISH recommendations where useful).
+   - ONLY if the candidate ACTUALLY WROTE a "COUNTER_ARGUMENT" paragraph: check the 50/50 Self-Contained Rebuttal Rule—did they briefly state the opposing view ("Critics contend...") and immediately refute it inside the SAME paragraph, or did they leave an entire paragraph agreeing with the opposition unrefuted ("Self-Sabotage" -> 🟠 TIER_2_MAJOR)?
 
 4. LOGICAL FALLACIES, WRONG REGISTERS & CROSS-PARAGRAPH CONTRADICTIONS:
    - Scan across P1..P${preprocessed.paragraphs.length} for internal self-contradictions (e.g., arguing in P4 that state institutions are completely paralysed, then claiming in P10 that those same institutions have effortlessly resolved regional crises).
@@ -86,8 +87,8 @@ YOUR 6 DIAGNOSTIC AUDIT TASKS:
    - Catch Wrong Essay Registers (FPSC CE-2018 Warning):
      * Flag writing like a "Friday Sermon / Moral Preaching" ("we must fear God"), a dry "Bureaucratic Policy Report" list without connective flow, or a "Breaking-News Political Column".
 
-5. ROLE-FILTERED PACING DECAY:
-   - If pacingMetrics.pacingDecayFlag === true (decay <= -35%), include a diagnostic item explaining how the 2nd-half substantive body paragraphs (${pacingMetrics.secondHalfIds.join(', ')}) shrank to an average of ${pacingMetrics.secondHalfAvgWords} words compared to ${pacingMetrics.firstHalfAvgWords} words in the 1st half ("2nd-Half Exam Fatigue / Skeleton Paragraphs").
+5. LATE-ESSAY PARAGRAPH UNDERDEVELOPMENT (USING WORD COUNTS):
+   - Check the exact word counts "[Pk | Xw]" printed on each paragraph in the transcript. Only if later substantive body paragraphs genuinely shrink into rushed, shallow skeleton paragraphs lacking explanation or proof (for instance, due to running out of time), note that late-essay drop in simple English. NEVER trigger a mechanical penalty when shorter paragraphs are valid transitions or conclusions.
 
 6. EXTRACT EARNED TOPPER SIGNIFIERS:
    - Whenever a body paragraph demonstrates exceptional Topic-to-Clincher cohesion, seamless Forward-Hook transition, or multi-disciplinary evidence integration, record it as an "EARNED_SIGNIFIER" with its exact verbatim quote.

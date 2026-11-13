@@ -29,7 +29,7 @@ import sampleEssayEvaluation from '../data/evaluations/sample-essay-evaluation.j
 /**
  * Compresses & resizes high-resolution camera photos on client-side
  */
-const compressImageFile = (file, maxDimension = 1600, quality = 0.84) => {
+const compressImageFile = (file, maxDimension = 1450, quality = 0.80) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -198,7 +198,7 @@ export const PracticeHub = ({
       if (pdfFiles.length > 0) {
         for (const pdfFile of pdfFiles) {
           try {
-            const pages = await convertPdfToImagePages(pdfFile, { maxPages: 14, scale: 1.8 });
+            const pages = await convertPdfToImagePages(pdfFile, { maxPages: 35, scale: 1.65, quality: 0.80 });
             allExtractedPages.push(...pages);
           } catch (pdfErr) {
             console.error('Error processing PDF file:', pdfErr);
@@ -219,9 +219,9 @@ export const PracticeHub = ({
       if (allExtractedPages.length > 0) {
         setUploadedFiles((prev) => {
           const combined = [...prev, ...allExtractedPages];
-          if (combined.length > 14) {
-            setUploadWarning('Maximum 14 pages allowed per single evaluation. We kept the first 14 pages.');
-            return combined.slice(0, 14);
+          if (combined.length > 35) {
+            setUploadWarning('Maximum 35 pages allowed per single evaluation. We kept the first 35 pages.');
+            return combined.slice(0, 35);
           }
           return combined;
         });
@@ -718,7 +718,7 @@ export const PracticeHub = ({
                     </div>
 
                     <span className="text-[11px] text-slate-400 mt-3">
-                      Drag and drop PDF booklets or images directly onto this zone (up to 14 pages)
+                      Drag and drop PDF booklets or images directly onto this zone (up to 35 pages)
                     </span>
                   </div>
                 </div>

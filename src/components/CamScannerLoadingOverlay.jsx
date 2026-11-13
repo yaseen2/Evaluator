@@ -39,7 +39,7 @@ const ESSAY_STEPS = [
   {
     id: 'macro',
     stageBadge: 'Stage 1A • Macro-Architect',
-    title: 'Prompt Decoding & 80:20 Scope Check',
+    title: 'Topic Decoding & 80:20 Scope Check',
     detail: 'Decoding 80:20 scope, classifying Essay Genre, and auditing requiresCounterArgument rule...',
     icon: ShieldCheck,
     color: '#818cf8',

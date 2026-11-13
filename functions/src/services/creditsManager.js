@@ -13,7 +13,7 @@ export const estimateCreditsPreFlight = ({
   }
   if (isEssay) {
     if (imageCount > 0) {
-      return Math.min(28, Math.max(18, 16 + imageCount));
+      return Math.min(45, Math.max(18, 16 + imageCount));
     }
     const words = wordCount || 500;
     return Math.min(28, Math.max(18, Math.ceil((44000 + Math.max(0, words - 1200) * 14) / WEIGHTED_TOKENS_PER_CREDIT)));

@@ -60,7 +60,7 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'analytical_depth',
         name: '8. Analytical Depth & Counter-Arg',
         maxMarks: 10,
-        defaultFeedback: 'Audits multi-level causal depth, fallacy avoidance, and Counter-Argument rebuttal (when requiresCounterArgument is true).'
+        defaultFeedback: 'Audits multi-level depth, fallacy avoidance, and optional Counter-Argument rebuttal where helpful.'
       },
       {
         id: 'expression',
@@ -82,10 +82,10 @@ export const FPSC_EXAMINER_CRITERIA = {
       }
     ],
     dealBreakers: [
-      'Theme-Dumping / 80:20 Breach: Dedicating less than 75% of the essay to the core dimensions demanded by the prompt',
+      'Theme-Dumping / 80:20 Breach: Dedicating less than 75% of the essay to the core dimensions asked in the Essay Title',
       'Grafted / Franken-Paragraphs: Bolting pre-memorized paragraphs from another topic onto a forced first/last sentence',
-      '1:1 Outline-to-Body Desynchronization: Listing points in the Outline that are skipped in the Essay prose body',
-      'CSS Structural Taboos: Inserting inline headings, bullet points, tables, or flowcharts inside the Essay prose body',
+      '1:1 Outline-to-Body Desynchronization: Listing points in the Outline that are skipped in the Essay prose body (especially missing last points)',
+      'Critical Grammar Errors or CSS Taboos: Recurring broken English grammar, or inserting inline headings, bullet points, or tables inside the Essay prose body',
       'Mode-Lock Failure: Spending "Way Forward" paragraphs re-narrating the problem instead of explaining the solution mechanism'
     ]
   },
@@ -102,9 +102,9 @@ export const FPSC_EXAMINER_CRITERIA = {
     breakdown: [
       {
         id: 'topic_decoding',
-        name: '1. Prompt Decoding & Dimensional Scope',
+        name: '1. Topic Decoding & Dimensional Scope',
         maxMarks: 20,
-        defaultFeedback: 'Checks whether your outline addresses exact prompt variables, dual/metaphor rules, and 80:20 Global vs. Pakistan scope.'
+        defaultFeedback: 'Checks whether your outline addresses exact Essay Title variables, dual/metaphor rules, and 80:20 Global vs. Pakistan scope.'
       },
       {
         id: 'thesis',
@@ -116,7 +116,7 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'outline_structure',
         name: '3. Logical Funneling & Conclusion Hygiene',
         maxMarks: 20,
-        defaultFeedback: 'Audits section flow (11–20 total points sweet spot), non-overlapping pillars, and ensuring Conclusion has NO sub-points.'
+        defaultFeedback: 'Audits section flow (12–20 total points sweet spot), non-overlapping pillars, and ensuring Conclusion has NO sub-points.'
       },
       {
         id: 'parallelism',

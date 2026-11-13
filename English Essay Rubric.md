@@ -123,9 +123,9 @@ Here are the **10 specific things** our AI must check about the Thesis Statement
 Different CSS mentors teach students to put their Thesis Statement in different places. Our AI must check **all valid spots** and never punish a student for their teacher's format:
 
 * **Spot 1 — Inside the Introduction (Mandatory):**  
-  * **End of the Introduction (Last 1–2 sentences):** Taught by Mureed Hussain Jasra, Adil Riaz, and Mentor 4 (for Argumentative essays).  
-  * **Near the Top of the Introduction (Sentences 3–5, right after the opening hook):** Taught by Mentor 4 (for Descriptive/Issue-based essays) and allowed by Adil Riaz.  
-  * *Rule for our AI:* In a **Descriptive essay**, give full marks whether the thesis is right after the hook OR at the very end of the Introduction. In an **Argumentative essay**, it should be at the **very end** of the Introduction (right after mentioning the opponent's view and pivoting with *"However"*).  
+  * **End of the Introduction (Last 1–2 sentences — Recommended / Ideal):** Taught by Mureed Hussain Jasra, Adil Riaz, and Mentor 4 (for Argumentative essays).  
+  * **Anywhere Inside the Introduction (Early, Middle, or End — Valid Safe Harbor):** Also taught near Sentences 3–5 by some academies (e.g., Mentor 4 for Descriptive essays).  
+  * *Rule for our AI:* Accept a clear Thesis Statement **anywhere inside the Introduction paragraph** with zero major penalty; gently recommend placing it at the **very end of the Introductory paragraph** as the ideal, clearest spot.  
 * **Spot 2 — At the Start of the Conclusion (Mandatory):**  
   * Must appear in the **first 1–2 sentences of the Conclusion** (right after a closing phrase like *"To conclude,"* or *"In a nutshell,"*).  
 * **Spot 3 — Above or Inside the Outline (100% Optional — Zero Penalty):**  
@@ -276,9 +276,9 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 
 8. **Your Stance vs. Opponent's Stance (For Argumentative / Debate Outlines):**  
      
-   * **Your Stance Section:** Comes first and must have **75% to 85%** of the points (around 10 to 14 points).  
-   * **Opponent's Stance (Counter-Arguments) Section:** Comes after Your Stance and must have **2 to 3 points** (15% to 20%). If the student doesn't put them under a separate Counter-Argument heading, the points must start with distancing words like *"Some people argue that..."* so it's clear those are opposing views.  
-   * **Strict Ban on "Way Forward / Solutions" in Argumentative Outlines:** In a pure debate essay (like *"Gender equality is a myth"* or *"Not economy, but politics is the key to success"*), if the student adds a *"Way Forward / Recommendations"* heading, penalize it heavily\! Debate essays prove a stance; they do not give policy recommendations.
+   * **Your Stance Section:** Comes first and should carry **75% to 85%** of the points (around 10 to 14 points).  
+   * **Opponent's Stance (Counter-Arguments) Section (Recommended Where Helpful, Not Mandatory):** When included after Your Stance, give it **2 to 3 points** (15% to 20%) starting with distancing phrasing like *"Some people argue that..."*. Do NOT treat omitting a Counter-Argument as a mandatory deal-breaker or major risk—recommend it gently where helpful on debatable topics.  
+   * **Way Forward / Solutions in Argumentative Outlines:** Only flag a bolted-on bureaucratic *"Way Forward / Recommendations"* heading if the Essay Title is a pure philosophical or binary choice where policy recommendations make no sense (keep as gentle polish unless excessive).
 
    
 
@@ -322,11 +322,11 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 
     
 
-12. **Total Number of Points (The 11 to 20 Sweet Spot):**  
+12. **Total Number of Points (The 12 to 20 Sweet Spot):**  
       
-    * **CSS (3 Hours):** **11 to 20 body points** total (12–15 for Argumentative; 14–20 for Descriptive).  
+    * **CSS (3 Hours):** **12 to 20 body points** total (outlines should **not be fewer than 12 points**; e.g., 12–15 for Argumentative and 14–20 for Descriptive).  
     * **PMS Punjab (2 Hours):** **10 to 14 body points**.  
-    * Penalize outlines with `< 8 points` (*Too Thin*) or `> 24 points` (*Impossible to write in 3 hours*).
+    * Flag outlines with `< 12 points` (*Too Thin / Under-developed*) or `> 24–30 points` (*Too dense to complete in 3 hours*).
 
 ---
 
@@ -476,10 +476,10 @@ Here are the **18 specific things** our AI must check across the Introduction, C
 
     
 
-12. **The "60% Non-Overlap" Rule (No Lazy Copy-Pasting of the Introduction\!):**  
+12. **The "65% Outline Reuse" & "60% Non-Overlap" Rule (Easy Intro/Conclusion Method):**  
       
-    * Students often rewrite the exact same sentences from their Introduction in their Conclusion.  
-    * **The Rule (Jasra & Adil Riaz):** If the Introduction summarized points `1 to 7` from the Outline, the Conclusion should emphasize points `6 to 12` (overlapping only 1 or 2 points) and use fresh synonyms so it reads like a genuine synthesis rather than a clone of the Introduction\!
+    * Students often either freeze on how to fill the Intro/Conclusion or clone the exact same Introduction sentences in the Conclusion.  
+    * **Recommended Practical Method:** Tell students with weak Introductions or Conclusions: *"You can write ~65% of your Introduction directly from your Outline points; similarly, you can build ~65% of your Conclusion from your Outline (using the remaining ~35% of Outline points not emphasized in the Intro plus ~30% repeated core points restated in fresh wording and fulfilled tense)."*
 
     
 

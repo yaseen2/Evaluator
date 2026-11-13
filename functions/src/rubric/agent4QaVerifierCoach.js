@@ -13,7 +13,10 @@
  */
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
-import { SHARED_SAFE_HARBOR_DIRECTIVE } from './essayRubricConfig.js';
+import {
+  SHARED_SAFE_HARBOR_DIRECTIVE,
+  PLAIN_ENGLISH_AND_TONE_DIRECTIVE
+} from './essayRubricConfig.js';
 
 /**
  * Selects P1 (Intro/Thesis) + the 3 most heavily flagged or weakest body paragraphs
@@ -101,14 +104,17 @@ ${
     : '- Input Type: Typed Digital Text (Handwritten physical layout rules disabled)'
 }
 
-=== MANDATORY QA DELETION RULES (DELETE ANY FLAG THAT VIOLATES THESE) ===
+=== MANDATORY QA DELETION & SEVERITY RULES ===
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
+${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 6. Delete any flag demanding 'Hence' or 'Therefore' in a paragraph's concluding sentence.
 7. Delete any flag penalizing 'committing mistakes' or 'commit an error' (100% valid formal English) or flagging literal fainting uses of 'pass out'.
 8. Delete any flag that accuses a candidate of 'fabricating' a quote without proof; ensure unverified/paraphrased quotes are at most 🔵 'TIER_3_POLISH'.
 9. Delete any flag classifying 'important', 'key', 'big', or 'huge' as TIER_1_FATAL or TIER_2_MAJOR (keep at most as 🔵 'TIER_3_POLISH' expression polish, or delete if noisy).
 10. Delete any flag penalizing words as 'ChatGPT/AI buzzwords' ('delve into', 'intricate tapestry', 'beacon of hope', 'multifaceted landscape', 'paradigm shift').
 11. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
+12. PROTECT CRITICAL GRAMMAR FLAGS: NEVER delete genuine English grammar, tense, subject-verb agreement, preposition, article, or syntax errors (keep them as 🟠 'TIER_2_MAJOR' or 🔴 'TIER_1_FATAL' when pervasive/meaning-breaking).
+13. DOWNGRADE NON-MANDATORY PREFERENCES: Ensure any flag for omitting an optional Counter-Argument, writing a 2-paragraph Intro, or placing the Thesis early inside P1 instead of the ideal very end of P1 is NEVER TIER_1_FATAL or TIER_2_MAJOR (keep strictly at 🔵 'TIER_3_POLISH' or remove if unhelpful).
 
 === RAW DIAGNOSTIC FLAGS FROM AGENTS 1, 2 & 3 (${combinedCandidateFlags.length} items) ===
 ${JSON.stringify(combinedCandidateFlags, null, 2)}
@@ -139,15 +145,17 @@ YOUR 5 CORE TASKS:
    - Rewrite #1: The candidate's Thesis Statement (if weak, vague, one-dimensional, or missing) upgraded into a 70+ mark CSS Qualifier Thesis Statement.
    - Rewrites #2–#3: Select 2 weak Topic Sentences or Body Paragraphs from the Target Paragraphs above (or Outline Sections if Outline-Only).
    - Provide "locationId", "targetType", "issueDiagnosed", "original", "basic", "cssStandard", "highScorer", and "whatChanged".
+   - PLAIN ENGLISH REWRITE RULE: Write all rewrites ("basic", "cssStandard", and "highScorer") in crisp, clear, natural English using the right word in the right place—never artificial or overly complex thesaurus words!
 
 4. DESIGN MODEL TOPPER OUTLINE BLUEPRINT ("suggestedVisual"), REMEDIAL DIRECTIVES ("thingsToInclude") & EXAM HIGHLIGHTING PICKS ("strategicHighlightingPicks"):
-   - Provide 3–4 high-impact remedial directives in "thingsToInclude" formatted as 'Action Title: Specific directive'.
-   - In "strategicHighlightingPicks", provide 3–5 concise thematic phrases (echoing core prompt keywords—NOT bare numbers or dates) that the candidate should underline/highlight with a marker in the exam so scanning examiners immediately see topic relevance.
-   - Build a clean Unicode tree "Model FPSC Topper Outline Blueprint" for "${examQuestion}" using ├──, └──, │.
+   - Provide 3–4 high-impact remedial directives in "thingsToInclude" formatted as 'Action Title: Specific directive' in clear, simple English.
+   - 65% OUTLINE FORMULA FOR WEAK INTRO / CONCLUSION: Whenever the candidate's Introduction or Conclusion needs improvement, include this practical method in "thingsToInclude": 'Outline-to-Intro & Conclusion Method: You can write ~65% of your Introduction directly from your Outline, and build ~65% of your Conclusion from your Outline (using the remaining 35% of Outline points plus 30% core repeated threads restated clearly).'
+   - In "strategicHighlightingPicks", provide 3–5 concise thematic phrases (echoing core Essay Title keywords—NOT bare numbers or dates) that the candidate should underline/highlight with a marker in the exam so scanning examiners immediately see topic relevance.
+   - Build a clean Unicode tree "Model FPSC Topper Outline Blueprint" for "${examQuestion}" using ├──, └──, │ (keep each point conveying 1 distinct idea).
 
 5. EXECUTIVE READINESS VERDICT (ZERO NUMERICAL SCORES):
    - "overallReadiness": "Competitive Qualifier Draft" | "Balanced Draft — Structural Risks to Resolve" | "High-Risk Draft — Fatal Deal-Breakers Detected"
-   - "examinerSummary": 3–4 authoritative, non-sycophantic sentences summarizing the essay's exact standing, its strongest earned quality, and the #1 priority to fix.
+   - "examinerSummary": 3–4 clear, direct sentences in simple English summarizing the essay's exact standing, its strongest earned quality, and the #1 priority to fix.
 
 Return ONLY this JSON object:
 {

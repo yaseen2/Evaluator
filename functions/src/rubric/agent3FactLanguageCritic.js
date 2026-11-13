@@ -16,7 +16,8 @@ import {
   CONCEPTUAL_PRECISION_PAIRS,
   CSS_LANGUAGE_AND_FORMAT_RULES,
   PAKISTAN_2026_BASELINES,
-  SHARED_SAFE_HARBOR_DIRECTIVE
+  SHARED_SAFE_HARBOR_DIRECTIVE,
+  PLAIN_ENGLISH_AND_TONE_DIRECTIVE
 } from './essayRubricConfig.js';
 
 const buildTranscriptFromParagraphs = (paragraphs = []) =>
@@ -36,6 +37,8 @@ ${PAKISTAN_2026_BASELINES}
 ${JSON.stringify(CONCEPTUAL_PRECISION_PAIRS, null, 2)}
 
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
+
+${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 
 RULES FOR FACT & CONCEPT AUDIT:
 1. SELECTIVE GOOGLE SEARCH RULE: Query Google Search ONLY when verifying specific statistics, global index rankings, macroeconomic numbers, constitutional articles, treaties, historical dates, or suspect quotes. Do NOT run search queries for general conceptual prose.
@@ -107,10 +110,13 @@ ${CSS_LANGUAGE_AND_FORMAT_RULES.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
+${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
+
 STRICT CALIBRATION OVERRIDES (NEVER VIOLATE):
+- CRITICAL GRAMMAR PRIORITY: In FPSC CSS English Essay, real English grammar mistakes fail essays. Scan EVERY sentence in the target slice from start to finish so NO genuine grammar error is missed. Classify clear grammar, syntax, subject-verb agreement, tense shift, fragment, comma-splice, preposition, or article errors as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" when recurring/pervasive or breaking sentence meaning).
 - GENERIC MODIFIERS ([WW]): Calling an issue "important", "key", "big", or "huge" is valid standard English. Suggesting academic upgrades ("grave", "chronic", "pervasive") is STRICTLY 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
 - ZERO AI-BUZZWORD PENALTY: NEVER flag or penalize words such as "delve into", "intricate tapestry", "testament to", "beacon of hope", "multifaceted landscape", or "paradigm shift".
-- SLIP VS. DEAL-BREAKER: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for pervasive repetition or structural taboos (inline headings, bullets, tables).
+- SLIP VS. DEAL-BREAKER: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for genuine grammar mistakes, pervasive errors, or structural taboos (inline headings, bullets, tables).
 - VALID COLLOCATIONS: NEVER flag "commit a mistake/error" or literal fainting uses of "pass out".
 
 === TARGET TEXT SLICE TO AUDIT ===
@@ -118,11 +124,11 @@ ${sliceTranscript}
 =================================
 
 YOUR OUTPUT TASKS:
-Audit EVERY paragraph in the target slice using your full native command of formal British English + Pakistani L1 interference detection:
-1. Grammar & Clause Punctuation (Subject-verb agreement, British spelling consistency, articles, prepositions, comma splices, fragments, complex-sentence commas, unanchored opening pronouns, Subject-Verb >15w separation).
+Audit EVERY paragraph and EVERY sentence in the target slice using your full native command of formal British English + Pakistani L1 interference detection:
+1. COMPREHENSIVE GRAMMAR & SYNTAX AUDIT (CRITICAL PRIORITY): Scan EVERY sentence from start to finish so you DO NOT miss any grammar or language mistake. Catch subject-verb disagreement, wrong tense shifts, sentence fragments, comma splices/run-on sentences, wrong prepositions, missing/wrong articles, dangling modifiers, unanchored opening pronouns, British spelling inconsistency, and broken syntax. Mark genuine grammar flaws as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" if pervasive or breaking meaning).
 2. Pinglish Interference ("cope up with", "discuss about", "comprise of", "doing corruption/mistakes", "concerned authorities", "avail the opportunity", "pass out from college/university").
-3. CSS Conventions (First-mention unexpanded acronyms like IMF/UNO/FBR, unspelled single-digit numbers "4 pillars", monotonous "The government should..." vs Constitutional "must", 80:20 sentence variety, topic praise, slashes like "his/her").
-4. Earned Topper Signifiers ("EARNED_SIGNIFIER"): Cite specific verbatim sentences showing rhythmic Adjective+Noun triads, crisp embedded-clause syntax, or authoritative academic voice.
+3. CSS Formatting & Style Preferences (Keep strictly 🔵 "TIER_3_POLISH" unless structural taboo): First-mention unexpanded acronyms like IMF/UNO/FBR, unspelled single-digit numbers "4 pillars", monotonous "The government should..." vs Constitutional "must", 80:20 sentence variety, >15-word unpunctuated Subject-Verb separation, topic praise, slashes like "his/her".
+4. Earned Topper Signifiers ("EARNED_SIGNIFIER"): Cite specific verbatim sentences showing clear, natural, accurate English prose (right word in the right place).
 
 Return ONLY this JSON object:
 {
@@ -155,11 +161,13 @@ ${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
 
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
+${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
+
 === OUTLINE TEXT ===
 ${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(Empty outline)'}
 ====================
 
-Audit ONLY the Outline lines [O1..On] for British grammar, Pinglish interference, spelling, unexpanded acronyms, fake question marks, and expression clarity. Do NOT invent body-paragraph complaints.
+Audit EVERY Outline line [O1..On] thoroughly for British grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if pervasive), Pinglish interference, spelling, unexpanded acronyms, fake question marks, and clarity in simple English. Do NOT invent body-paragraph complaints.
 
 Return ONLY this JSON object:
 {
