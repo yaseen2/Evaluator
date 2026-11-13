@@ -21,7 +21,8 @@ import { runAgent3FactLanguageCritic } from './agent3FactLanguageCritic.js';
 import { runAgent4QaVerifierCoach } from './agent4QaVerifierCoach.js';
 
 export const WEIGHTED_TOKENS_PER_CREDIT = 2500;
-export const OUTPUT_TOKEN_MULTIPLIER = 3.5;
+export const OUTPUT_TOKEN_MULTIPLIER = 3;
+export const THINKING_TOKEN_MULTIPLIER = 2;
 
 const createEssayTokenLedger = () => {
   const stages = [];
@@ -40,7 +41,9 @@ const createEssayTokenLedger = () => {
         Number(usage.totalTokens || inputTokens + outputTokens + thinkingTokens)
       );
       const stageWeighted = Math.round(
-        inputTokens + OUTPUT_TOKEN_MULTIPLIER * (outputTokens + thinkingTokens)
+        inputTokens +
+          OUTPUT_TOKEN_MULTIPLIER * outputTokens +
+          THINKING_TOKEN_MULTIPLIER * thinkingTokens
       );
 
       totalInputTokens += inputTokens;
@@ -61,7 +64,9 @@ const createEssayTokenLedger = () => {
 
     finalize() {
       const weightedTokens = Math.round(
-        totalInputTokens + OUTPUT_TOKEN_MULTIPLIER * (totalOutputTokens + totalThinkingTokens)
+        totalInputTokens +
+          OUTPUT_TOKEN_MULTIPLIER * totalOutputTokens +
+          THINKING_TOKEN_MULTIPLIER * totalThinkingTokens
       );
       const creditsConsumed = Math.max(
         2,
@@ -77,6 +82,7 @@ const createEssayTokenLedger = () => {
         creditsConsumed,
         weightedTokensPerCredit: WEIGHTED_TOKENS_PER_CREDIT,
         outputMultiplier: OUTPUT_TOKEN_MULTIPLIER,
+        thinkingMultiplier: THINKING_TOKEN_MULTIPLIER,
         stages
       };
     }
@@ -129,11 +135,25 @@ export const executeCssEssayPipelineV2 = async ({
   examQuestion = '',
   mode = 'digital',
   apiKey,
-  selectedModel = 'auto'
+  selectedModel = 'auto',
+  onStageProgress = null
 }) => {
   const ledger = createEssayTokenLedger();
+  const reportProgress = (currentStep, percent, stepLabel, detail) => {
+    if (typeof onStageProgress === 'function') {
+      Promise.resolve(
+        onStageProgress({
+          currentStep,
+          percent,
+          stepLabel,
+          detail
+        })
+      ).catch(() => {});
+    }
+  };
 
   // ── STAGE 0A: Agent 0 Vision OCR (Bypassed if typed digital text) ──
+  reportProgress(1, 10, 'Stage 0A • Vision OCR Digitizer', 'Transcribing script verbatim without premature corrections...');
   const ocrOutput = await runAgent0VisionOcr({
     text,
     imageArray,
@@ -149,11 +169,13 @@ export const executeCssEssayPipelineV2 = async ({
     examQuestion?.trim() || ocrOutput.detectedTitle || 'FPSC CSS English Essay';
 
   // ── STAGE 0B: Deterministic Code Pre-Processor (0 Tokens) ──
+  reportProgress(2, 22, 'Stage 0B • Structural Indexer', 'Indexing [O1..On] Outline & [P1.S1..PN.SM] sentences + Spotlight Zones...');
   const preprocessed = preprocessEssaySubmission(effectiveText, effectiveTopic);
   const effectiveEssayMode =
     essayMode === 'outline_only' || preprocessed.isOutlineOnly ? 'outline_only' : 'full';
 
-  // ── STAGE 1A: Agent 1 Macro-Architect Runs FIRST (~2s on ~1,200 tokens) ──
+  // ── STAGE 1A: Agent 1 Macro-Architect Runs FIRST (~2s on macro-sliced input) ──
+  reportProgress(3, 36, 'Stage 1A • Macro-Architect', 'Auditing genre playbook, 80:20 scope, thesis placement, and 1:1 alignment...');
   const agent1Output = await runAgent1MacroArchitect({
     examQuestion: effectiveTopic,
     preprocessed,
@@ -164,70 +186,141 @@ export const executeCssEssayPipelineV2 = async ({
   });
 
   // ── STAGE 1A-POST: Role-Filtered Pacing Decay Math (0 Tokens, Post-Agent 1) ──
-  // Averages ONLY paragraphs tagged BODY_MAIN and COUNTER_ARGUMENT so short TRANSITION_BRIDGE
-  // or CONTEXT_OVERVIEW paragraphs never trigger false -35% pacing decay penalties!
+  reportProgress(5, 52, 'Stage 1A-Post • Role-Filtered Pacing', 'Computing word-count decay strictly on BODY_MAIN & COUNTER_ARGUMENT...');
   const pacingMetrics = computeRoleFilteredPacingDecay(
     preprocessed.paragraphs,
     agent1Output.paragraphRoleMap
   );
 
-  // ── STAGE 1B: Agents 2 & 3 Run in Parallel via Promise.all ──
-  const [agent2Output, agent3Output] = await Promise.all([
-    runAgent2ParagraphInspector({
+  // ── STAGE 1B: Branch by Submission Mode with Graceful Partial Recovery (Promise.allSettled) ──
+  const stageDegradations = [];
+  let agent2Output = {
+    paragraphDiagnostics: [],
+    pillarStatuses: {}
+  };
+  let agent3Output = {
+    factChecks: [],
+    languageAndFactDiagnostics: [],
+    pillarStatuses: {},
+    searchSources: [],
+    searchGrounded: false
+  };
+
+  if (effectiveEssayMode === 'outline_only') {
+    reportProgress(7, 68, 'Stage 1B • Outline Syntax Critic', 'Auditing outline phrasing, Pinglish interference, and terminology...');
+    try {
+      agent3Output = await runAgent3FactLanguageCritic({
+        examQuestion: effectiveTopic,
+        preprocessed,
+        agent1Output,
+        essayMode: 'outline_only',
+        apiKey,
+        preferredModel: selectedModel,
+        ledger
+      });
+    } catch (err) {
+      stageDegradations.push(`Outline language critic degraded: ${err.message}`);
+    }
+  } else {
+    reportProgress(6, 66, 'Stage 1B • Parallel Critics (+Search Grounding)', 'Running Paragraph Inspector alongside Search-Grounded Fact & British Syntax Critics...');
+    const [settled2, settled3] = await Promise.allSettled([
+      runAgent2ParagraphInspector({
+        examQuestion: effectiveTopic,
+        preprocessed,
+        agent1Output,
+        pacingMetrics,
+        apiKey,
+        preferredModel: selectedModel,
+        ledger
+      }),
+      runAgent3FactLanguageCritic({
+        examQuestion: effectiveTopic,
+        preprocessed,
+        agent1Output,
+        essayMode: 'full',
+        apiKey,
+        preferredModel: selectedModel,
+        ledger
+      })
+    ]);
+
+    if (settled2.status === 'fulfilled') {
+      agent2Output = settled2.value;
+    } else {
+      stageDegradations.push(`Paragraph Inspector partial skip: ${settled2.reason?.message || 'Error'}`);
+    }
+
+    if (settled3.status === 'fulfilled') {
+      agent3Output = settled3.value;
+    } else {
+      stageDegradations.push(`Fact & Language Critic partial skip: ${settled3.reason?.message || 'Error'}`);
+    }
+
+    if (settled2.status === 'rejected' && settled3.status === 'rejected') {
+      throw new Error(
+        `Stage 1B critics both failed: ${settled2.reason?.message || ''} | ${settled3.reason?.message || ''}`
+      );
+    }
+  }
+
+  // ── STAGE 2: Agent 4 Chief Examiner QA Verifier & Surgical Coach ──
+  reportProgress(9, 86, 'Stage 2 • Chief Examiner QA & Coach', 'Pruning false positives, recalibrating pillars, and drafting Topper rewrites...');
+  let agent4Failed = false;
+  let agent4Output = {
+    overallReadiness: 'Balanced Draft — Structural Risks to Resolve',
+    examinerSummary: '',
+    qaAuditLog: { totalFlagsReviewed: 0, falsePositivesDeleted: 0, deletionNotes: [] },
+    recalibratedPillarStatuses: {},
+    verifiedDiagnostics: null,
+    surgicalRewrites: [],
+    strategicHighlightingPicks: [],
+    thingsToInclude: [],
+    suggestedVisual: null
+  };
+
+  try {
+    agent4Output = await runAgent4QaVerifierCoach({
       examQuestion: effectiveTopic,
       preprocessed,
       agent1Output,
       pacingMetrics,
+      agent2Output,
+      agent3Output,
+      handwritingAudit: ocrOutput.handwritingAudit,
+      essayMode: effectiveEssayMode,
       apiKey,
       preferredModel: selectedModel,
       ledger
-    }),
-    runAgent3FactLanguageCritic({
-      examQuestion: effectiveTopic,
-      preprocessed,
-      agent1Output,
-      apiKey,
-      preferredModel: selectedModel,
-      ledger
-    })
-  ]);
+    });
+  } catch (err) {
+    agent4Failed = true;
+    stageDegradations.push(`QA Gate degraded: ${err.message}`);
+  }
 
-  // ── STAGE 2: Agent 4 Chief Examiner QA Verifier & Surgical Coach ──
-  const agent4Output = await runAgent4QaVerifierCoach({
-    examQuestion: effectiveTopic,
-    preprocessed,
-    agent1Output,
-    pacingMetrics,
-    agent2Output,
-    agent3Output,
-    handwritingAudit: ocrOutput.handwritingAudit,
-    essayMode: effectiveEssayMode,
-    apiKey,
-    preferredModel: selectedModel,
-    ledger
-  });
-
-  // Fallback to combined raw diagnostics if Agent 4 returned an empty verifiedDiagnostics array
+  // Strictly trust Agent 4 verifiedDiagnostics (never re-inject pruned false positives when verifiedDiagnostics is [])
   const rawCombined = [
     ...(agent1Output.macroDiagnostics || []),
     ...(agent2Output.paragraphDiagnostics || []),
     ...(agent3Output.languageAndFactDiagnostics || [])
   ];
   const verifiedList =
-    agent4Output.verifiedDiagnostics && agent4Output.verifiedDiagnostics.length > 0
+    Array.isArray(agent4Output.verifiedDiagnostics)
       ? agent4Output.verifiedDiagnostics
-      : rawCombined;
+      : agent4Failed
+      ? rawCombined
+      : [];
 
   const tier1Fatal = verifiedList.filter((d) => d.tier === 'TIER_1_FATAL');
   const tier2Major = verifiedList.filter((d) => d.tier === 'TIER_2_MAJOR');
   const tier3Polish = verifiedList.filter((d) => d.tier === 'TIER_3_POLISH');
   const earnedSignifiers = verifiedList.filter((d) => d.tier === 'EARNED_SIGNIFIER');
 
-  // Combine Pillar Statuses (100% Non-Scored Qualitative Readiness)
+  // Combine Pillar Statuses + apply Agent 4 QA Recalibrations (100% Non-Scored)
   const mergedPillars = {
     ...(agent1Output.pillarStatuses || {}),
     ...(agent2Output.pillarStatuses || {}),
-    ...(agent3Output.pillarStatuses || {})
+    ...(agent3Output.pillarStatuses || {}),
+    ...(agent4Output.recalibratedPillarStatuses || {})
   };
 
   const buildPillarEntry = (key, fallbackStatus = 'Balanced', fallbackFeedback = '') => {
@@ -241,58 +334,69 @@ export const executeCssEssayPipelineV2 = async ({
     };
   };
 
-  const scoreBreakdown = {
-    // Full Essay Pillars (10 Pillars)
-    topic_relevance: buildPillarEntry(
-      'topic_relevance',
-      agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
-      agent1Output.directiveAnalysis?.feedback
-    ),
-    thesis: buildPillarEntry(
-      'thesis',
-      agent1Output.thesisAudit?.status || 'Balanced',
-      agent1Output.thesisAudit?.critique
-    ),
-    outline: buildPillarEntry(
-      'outline',
-      agent1Output.outlineAlignment?.status || 'Balanced',
-      agent1Output.outlineAlignment?.summary
-    ),
-    introduction: buildPillarEntry('introduction', 'Balanced'),
-    body_paragraphs: buildPillarEntry('body_paragraphs', 'Balanced'),
-    evidences: buildPillarEntry('evidences', 'Balanced'),
-    coherence: buildPillarEntry(
-      'coherence',
-      pacingMetrics.pacingDecayFlag ? 'Needs Polish' : 'Balanced',
-      pacingMetrics.summary
-    ),
-    analytical_depth: buildPillarEntry('analytical_depth', 'Balanced'),
-    expression: buildPillarEntry('expression', 'Balanced'),
-    grammar_syntax: buildPillarEntry('grammar_syntax', 'Balanced'),
-    conclusion: buildPillarEntry('conclusion', 'Balanced'),
-
-    // Outline-Only Mode Aliases
-    topic_decoding: buildPillarEntry(
-      'topic_relevance',
-      agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
-      agent1Output.directiveAnalysis?.feedback
-    ),
-    outline_structure: buildPillarEntry(
-      'outline',
-      agent1Output.outlineAlignment?.status || 'Balanced',
-      agent1Output.outlineAlignment?.summary
-    ),
-    parallelism: buildPillarEntry(
-      'expression',
-      agent1Output.headerUpgrades?.length > 2 ? 'Needs Polish' : 'Balanced',
-      'Evaluated grammatical parallelism and self-explanatory phrasing across Outline sections.'
-    ),
-    coverage_originality: buildPillarEntry(
-      'analytical_depth',
-      'Balanced',
-      agent1Output.directiveAnalysis?.feedback
-    )
-  };
+  const scoreBreakdown =
+    effectiveEssayMode === 'outline_only'
+      ? {
+          topic_decoding: buildPillarEntry(
+            'topic_relevance',
+            agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
+            agent1Output.directiveAnalysis?.feedback
+          ),
+          thesis: buildPillarEntry(
+            'thesis',
+            agent1Output.thesisAudit?.status || 'Balanced',
+            agent1Output.thesisAudit?.critique
+          ),
+          outline_structure: buildPillarEntry(
+            'outline',
+            agent1Output.outlineAlignment?.status || 'Balanced',
+            agent1Output.outlineAlignment?.summary
+          ),
+          parallelism: {
+            status:
+              agent1Output.outlineAlignment?.parallelismStatus ||
+              (agent1Output.headerUpgrades?.length > 2 ? 'Needs Polish' : 'Balanced'),
+            score: null,
+            scored: false,
+            isNonScored: true,
+            feedback:
+              'Audits uniform phrasing (consistent noun phrases or declarative clauses), fake question traps, and single-word labels.'
+          },
+          coverage_originality: buildPillarEntry(
+            'analytical_depth',
+            'Balanced',
+            agent1Output.directiveAnalysis?.feedback
+          )
+        }
+      : {
+          topic_relevance: buildPillarEntry(
+            'topic_relevance',
+            agent1Output.directiveAnalysis?.alignmentStatus === 'Aligned' ? 'Strong' : 'Balanced',
+            agent1Output.directiveAnalysis?.feedback
+          ),
+          thesis: buildPillarEntry(
+            'thesis',
+            agent1Output.thesisAudit?.status || 'Balanced',
+            agent1Output.thesisAudit?.critique
+          ),
+          outline: buildPillarEntry(
+            'outline',
+            agent1Output.outlineAlignment?.status || 'Balanced',
+            agent1Output.outlineAlignment?.summary
+          ),
+          introduction: buildPillarEntry('introduction', 'Balanced'),
+          body_paragraphs: buildPillarEntry('body_paragraphs', 'Balanced'),
+          evidences: buildPillarEntry('evidences', 'Balanced'),
+          coherence: buildPillarEntry(
+            'coherence',
+            pacingMetrics.pacingDecayFlag ? 'Needs Polish' : 'Balanced',
+            pacingMetrics.summary
+          ),
+          analytical_depth: buildPillarEntry('analytical_depth', 'Balanced'),
+          expression: buildPillarEntry('expression', 'Balanced'),
+          grammar_syntax: buildPillarEntry('grammar_syntax', 'Balanced'),
+          conclusion: buildPillarEntry('conclusion', 'Balanced')
+        };
 
   // Deterministically map verifiedDiagnostics into inline paper annotations
   const seenPhrases = new Set();
@@ -322,6 +426,7 @@ export const executeCssEssayPipelineV2 = async ({
           ? 'green'
           : 'amber',
       category: d.category || 'Diagnostic',
+      inSpotlightZone: Boolean(d.inSpotlightZone),
       comment: d.observation || '',
       suggestion: d.suggested_fix || null,
       microLesson: d.micro_rule || ''
@@ -337,12 +442,12 @@ export const executeCssEssayPipelineV2 = async ({
     essayMode: effectiveEssayMode,
     scored: false,
     isNonScoredEssay: true,
-    rubricVersion: '2.1',
+    rubricVersion: '3.0',
     archetypeId: effectiveEssayMode === 'outline_only' ? 'essay_outline' : 'essay',
     archetypeLabel:
       effectiveEssayMode === 'outline_only'
-        ? 'FPSC Essay Outline & Thesis Blueprint Audit (v2.1)'
-        : 'FPSC CSS English Essay Diagnostic (v2.1)',
+        ? 'FPSC Essay Outline & Thesis Blueprint Audit (v3)'
+        : 'FPSC CSS English Essay Diagnostic (v3)',
     evaluatedModelId: 'gemini-3.8-flash',
     evaluatedModelName: 'Gemini 3.8 Flash',
     topic: effectiveTopic,
@@ -355,6 +460,7 @@ export const executeCssEssayPipelineV2 = async ({
     genreRationale: agent1Output.genreRationale,
     paragraphRoleMap: agent1Output.paragraphRoleMap,
     pacingMetrics,
+    spotlightZoneIds: preprocessed.spotlightZoneIds || [],
     qaAuditLog: agent4Output.qaAuditLog,
     handwritingAudit: ocrOutput.handwritingAudit,
     diagnosticTiers: {
@@ -382,8 +488,11 @@ export const executeCssEssayPipelineV2 = async ({
     headerUpgrades: agent1Output.headerUpgrades,
     surgicalRewrites: agent4Output.surgicalRewrites,
     rewrites: agent4Output.surgicalRewrites,
+    strategicHighlightingPicks: agent4Output.strategicHighlightingPicks || [],
     factCheck: agent3Output.factChecks,
     searchSources: agent3Output.searchSources || [],
+    searchGrounded: Boolean(agent3Output.searchGrounded),
+    stageDegradations,
     annotations: finalAnnotations,
     thingsToInclude: agent4Output.thingsToInclude,
     suggestedVisual: agent4Output.suggestedVisual,

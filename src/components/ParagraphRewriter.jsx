@@ -297,8 +297,16 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                     border: '1px solid rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  <strong style={{ color: 'var(--pass-green)' }}>After (70+ Qualifier):</strong> "
-                  {currentRewriteText}"
+                  <strong style={{ color: 'var(--pass-green)' }}>
+                    After (
+                    {selectedTier === 'basic'
+                      ? '50-Mark Pass'
+                      : selectedTier === 'cssStandard'
+                      ? '60-Mark Standard'
+                      : '70+ Qualifier'}
+                    ):
+                  </strong>{' '}
+                  "{currentRewriteText}"
                   <button
                     type="button"
                     onClick={() => handleCopy(currentRewriteText, `rw-${idx}`)}

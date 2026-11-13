@@ -13,7 +13,7 @@
  */
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
-import { GUARDRAIL_EXCEPTIONS } from './essayRubricConfig.js';
+import { SHARED_SAFE_HARBOR_DIRECTIVE } from './essayRubricConfig.js';
 
 /**
  * Selects P1 (Intro/Thesis) + the 3 most heavily flagged or weakest body paragraphs
@@ -102,11 +102,13 @@ ${
 }
 
 === MANDATORY QA DELETION RULES (DELETE ANY FLAG THAT VIOLATES THESE) ===
-${GUARDRAIL_EXCEPTIONS.map((g, i) => `${i + 1}. ${g}`).join('\n')}
-7. Delete any flag demanding 'Hence' or 'Therefore' in a paragraph's concluding sentence.
-8. Delete any flag penalizing 'committing mistakes' or 'commit an error' (which is 100% valid formal English) or flagging literal fainting uses of 'pass out'.
-9. Delete any flag that accuses a candidate of 'fabricating' a quote without proof; ensure unverified/paraphrased quotes are at most 🔵 'TIER_3_POLISH'.
-10. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
+${SHARED_SAFE_HARBOR_DIRECTIVE}
+6. Delete any flag demanding 'Hence' or 'Therefore' in a paragraph's concluding sentence.
+7. Delete any flag penalizing 'committing mistakes' or 'commit an error' (100% valid formal English) or flagging literal fainting uses of 'pass out'.
+8. Delete any flag that accuses a candidate of 'fabricating' a quote without proof; ensure unverified/paraphrased quotes are at most 🔵 'TIER_3_POLISH'.
+9. Delete any flag classifying 'important', 'key', 'big', or 'huge' as TIER_1_FATAL or TIER_2_MAJOR (keep at most as 🔵 'TIER_3_POLISH' expression polish, or delete if noisy).
+10. Delete any flag penalizing words as 'ChatGPT/AI buzzwords' ('delve into', 'intricate tapestry', 'beacon of hope', 'multifaceted landscape', 'paradigm shift').
+11. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
 
 === RAW DIAGNOSTIC FLAGS FROM AGENTS 1, 2 & 3 (${combinedCandidateFlags.length} items) ===
 ${JSON.stringify(combinedCandidateFlags, null, 2)}
@@ -119,27 +121,31 @@ Target Paragraphs:
 ${targetParagraphsText}
 ===================================================================
 
-YOUR 4 CORE TASKS:
+YOUR 5 CORE TASKS:
 1. AUDIT & FILTER DIAGNOSTICS ("verifiedDiagnostics" & "qaAuditLog"):
    - Review all raw flags from Agents 1–3.
-   - Delete any false positive, hallucinated rule, or duplicate flag and record the count in "qaAuditLog".
-   - Keep the top 14–20 highest-value verified items categorized by tier:
+   - Delete any false positive, hallucinated rule, or duplicate flag and record the exact count in "qaAuditLog".
+   - Keep ALL genuinely verified items (whether 0 on an extraordinary draft, 6 on a short outline, or 25+ on a deeply flawed script—never pad to reach a quota and never discard genuine TIER_1/TIER_2 errors). Categorize cleanly by tier:
      * "TIER_1_FATAL" (🔴 Fatal Deal-Breaker)
      * "TIER_2_MAJOR" (🟠 Structural / Analytical Risk)
      * "TIER_3_POLISH" (🔵 Polish & Topper Upgrade)
      * "EARNED_SIGNIFIER" (🟢 Earned Topper Signifier — strictly when earned with an exact verbatim quote; zero generic praise!)
-   - Ensure every item's "exact_verbatim_quote" is a concise 2 to 10 word verbatim phrase from the candidate's script.
+   - Ensure every item's "exact_verbatim_quote" is a concise 2 to 12 word verbatim phrase from the candidate's script.
 
-2. GENERATE 3–4 SURGICAL "BEFORE → AFTER" REWRITES ("surgicalRewrites"):
+2. RECALIBRATE PILLAR STATUSES ("recalibratedPillarStatuses"):
+   - After deleting false positives above, provide the authoritative calibrated status ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") ONLY for any pillar whose initial rating was overstated because you deleted its false-positive flags (leave empty object {} if initial pillar ratings remain accurate).
+
+3. GENERATE 3–4 SURGICAL "BEFORE → AFTER" REWRITES ("surgicalRewrites"):
    - Rewrite #1: The candidate's Thesis Statement (if weak, vague, one-dimensional, or missing) upgraded into a 70+ mark CSS Qualifier Thesis Statement.
    - Rewrites #2–#3: Select 2 weak Topic Sentences or Body Paragraphs from the Target Paragraphs above (or Outline Sections if Outline-Only).
    - Provide "locationId", "targetType", "issueDiagnosed", "original", "basic", "cssStandard", "highScorer", and "whatChanged".
 
-3. DESIGN MODEL TOPPER OUTLINE BLUEPRINT ("suggestedVisual") & REMEDIAL DIRECTIVES ("thingsToInclude"):
+4. DESIGN MODEL TOPPER OUTLINE BLUEPRINT ("suggestedVisual"), REMEDIAL DIRECTIVES ("thingsToInclude") & EXAM HIGHLIGHTING PICKS ("strategicHighlightingPicks"):
    - Provide 3–4 high-impact remedial directives in "thingsToInclude" formatted as 'Action Title: Specific directive'.
+   - In "strategicHighlightingPicks", provide 3–5 concise thematic phrases (echoing core prompt keywords—NOT bare numbers or dates) that the candidate should underline/highlight with a marker in the exam so scanning examiners immediately see topic relevance.
    - Build a clean Unicode tree "Model FPSC Topper Outline Blueprint" for "${examQuestion}" using ├──, └──, │.
 
-4. EXECUTIVE READINESS VERDICT (ZERO NUMERICAL SCORES):
+5. EXECUTIVE READINESS VERDICT (ZERO NUMERICAL SCORES):
    - "overallReadiness": "Competitive Qualifier Draft" | "Balanced Draft — Structural Risks to Resolve" | "High-Risk Draft — Fatal Deal-Breakers Detected"
    - "examinerSummary": 3–4 authoritative, non-sycophantic sentences summarizing the essay's exact standing, its strongest earned quality, and the #1 priority to fix.
 
@@ -152,10 +158,11 @@ Return ONLY this JSON object:
     "falsePositivesDeleted": 0,
     "deletionNotes": ["string"]
   },
+  "recalibratedPillarStatuses": {},
   "verifiedDiagnostics": [
     {
       "location_id": "string (e.g. O3, P4.S2)",
-      "exact_verbatim_quote": "string (EXACT 2-10 word verbatim substring from student text)",
+      "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from student text)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
       "category": "string",
       "observation": "string",
@@ -174,6 +181,9 @@ Return ONLY this JSON object:
       "highScorer": "string (70+ Mark CSS Qualifier Rewrite)",
       "whatChanged": "string"
     }
+  ],
+  "strategicHighlightingPicks": [
+    "string (Thematic prompt-echoing phrase to underline/highlight for the FPSC examiner)"
   ],
   "thingsToInclude": [
     "string (Format as 'Action Title: Specific analytical or structural directive')"
@@ -232,11 +242,15 @@ export const runAgent4QaVerifierCoach = async ({
       falsePositivesDeleted: 0,
       deletionNotes: []
     },
+    recalibratedPillarStatuses: result?.recalibratedPillarStatuses || {},
     verifiedDiagnostics: Array.isArray(result?.verifiedDiagnostics)
       ? result.verifiedDiagnostics
-      : [],
+      : null,
     surgicalRewrites: Array.isArray(result?.surgicalRewrites)
       ? result.surgicalRewrites
+      : [],
+    strategicHighlightingPicks: Array.isArray(result?.strategicHighlightingPicks)
+      ? result.strategicHighlightingPicks
       : [],
     thingsToInclude: Array.isArray(result?.thingsToInclude)
       ? result.thingsToInclude

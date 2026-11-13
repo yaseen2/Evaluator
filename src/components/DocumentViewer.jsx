@@ -56,6 +56,56 @@ export const DocumentViewer = ({
 
   const paragraphs = useMemo(() => fullText.split(/\n\s*\n/).filter(Boolean), [fullText]);
 
+  // Map logical essay coordinates ([O...], [P1..PN]) to UI paragraph block indexes so
+  // repeated phrases only highlight inside their intended target paragraph.
+  const annotationTargetIndexMap = useMemo(() => {
+    const map = {};
+    if (paragraphs.length === 0 || allAnnotations.length === 0) return map;
+
+    const firstProseIdx = paragraphs.findIndex((blk) => {
+      const words = blk.trim().split(/\s+/).filter(Boolean).length;
+      const isHeadingOnly =
+        /^(?:outline\b|thesis\s*statement\b|[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-])/i.test(
+          blk.trim()
+        ) && words < 45;
+      return !isHeadingOnly && words >= 22 && /[.!?]/.test(blk);
+    });
+
+    const proseIndices =
+      firstProseIdx === -1
+        ? []
+        : paragraphs.map((_, idx) => idx).filter((idx) => idx >= firstProseIdx);
+
+    allAnnotations.forEach((ann, idx) => {
+      const annId = ann.id || `ann-${idx}`;
+      const phrase = String(ann.targetPhrase || '').trim();
+      if (!phrase) return;
+      const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+
+      const loc = String(ann.locationId || '').trim();
+      const pMatch = loc.match(/^P(\d+)/i);
+      if (pMatch) {
+        const targetProseNum = parseInt(pMatch[1], 10);
+        const candidateIdx = proseIndices[targetProseNum - 1];
+        if (typeof candidateIdx === 'number' && regex.test(paragraphs[candidateIdx])) {
+          map[annId] = candidateIdx;
+          return;
+        }
+      } else if (/^O\d+/i.test(loc) && firstProseIdx > 0) {
+        const outlineIdx = paragraphs
+          .slice(0, firstProseIdx)
+          .findIndex((blk) => regex.test(blk));
+        if (outlineIdx !== -1) {
+          map[annId] = outlineIdx;
+          return;
+        }
+      }
+    });
+
+    return map;
+  }, [paragraphs, allAnnotations]);
+
   // Identify currently selected annotation
   const activeAnnotation = useMemo(() => {
     if (!selectedAnnId) return null;
@@ -186,13 +236,18 @@ export const DocumentViewer = ({
   };
 
   /**
-   * Underline Highlighter with QuillBot Aesthetics
+   * Coordinate-Aware Underline Highlighter
    */
-  const renderHighlightedParagraph = (text) => {
+  const renderHighlightedParagraph = (text, paraIdx) => {
     if (!allAnnotations || allAnnotations.length === 0) return text;
 
-    const validAnns = allAnnotations.filter((a) => {
+    const validAnns = allAnnotations.filter((a, idx) => {
       if (!a.targetPhrase || typeof a.targetPhrase !== 'string') return false;
+      const annId = a.id || `ann-${idx}`;
+      const lockedIdx = annotationTargetIndexMap[annId];
+      if (typeof lockedIdx === 'number' && lockedIdx !== paraIdx) {
+        return false;
+      }
       const escaped = a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return new RegExp(escaped, 'i').test(text);
     });
@@ -228,7 +283,9 @@ export const DocumentViewer = ({
           <span
             key={`${annId}-${i}`}
             ref={(el) => {
-              if (el) highlightRefs.current[annId] = el;
+              if (el && !highlightRefs.current[annId]) {
+                highlightRefs.current[annId] = el;
+              }
             }}
             onClick={(e) => handleTranscribedClick(e, matchedAnn)}
             className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline ${
@@ -444,6 +501,46 @@ export const DocumentViewer = ({
               </span>
             </div>
 
+            {/* Recommended Structural Visual Blueprint (if provided by Stage 2 Coach) */}
+            {suggestedVisual && suggestedVisual.diagramText && (
+              <div className="mb-4 ml-6 sm:ml-10 rounded-lg border border-slate-200 bg-slate-50/90 font-sans overflow-hidden">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsVisualExpanded((prev) => !prev);
+                  }}
+                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-100/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles size={14} className="text-brand-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">
+                      {suggestedVisual.title || 'Model Topper Outline Blueprint'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-brand-600 inline-flex items-center gap-1 shrink-0">
+                    <span>{isVisualExpanded ? 'Hide Blueprint' : 'View Blueprint'}</span>
+                    {isVisualExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </span>
+                </button>
+                {isVisualExpanded && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3.5 pb-3 pt-1 border-t border-slate-200/80 space-y-2"
+                  >
+                    {suggestedVisual.description && (
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        {suggestedVisual.description}
+                      </p>
+                    )}
+                    <pre className="text-[11px] leading-relaxed font-mono bg-white border border-slate-200 rounded-md p-3 text-slate-800 overflow-x-auto whitespace-pre">
+                      {suggestedVisual.diagramText}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Formatted Transcribed Paragraphs on Ruled Canvas */}
             <div className="notebook-ruled-body text-slate-900 pl-6 sm:pl-10 font-academic">
               {paragraphs.map((para, pIdx) => {
@@ -452,7 +549,7 @@ export const DocumentViewer = ({
                   trimmed.length < 90 &&
                   !trimmed.endsWith('.') &&
                   (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
-                const highlightedContent = renderHighlightedParagraph(para);
+                const highlightedContent = renderHighlightedParagraph(para, pIdx);
 
                 return (
                   <p
@@ -584,12 +681,20 @@ export const DocumentViewer = ({
                   </div>
                 )}
 
-                {/* Contextual Pedagogical Explanation */}
-                {(activeAnnotation.comment || activeAnnotation.microLesson) && (
-                  <p className="text-xs sm:text-[12.5px] text-slate-600 leading-relaxed my-2 font-normal font-sans">
-                    {cleanSimpleText(activeAnnotation.comment || activeAnnotation.microLesson)}
+                {/* Contextual Pedagogical Explanation + Micro-Lesson */}
+                {activeAnnotation.comment && (
+                  <p className="text-xs sm:text-[12.5px] text-slate-700 leading-relaxed my-2 font-normal font-sans">
+                    {cleanSimpleText(activeAnnotation.comment)}
                   </p>
                 )}
+                {activeAnnotation.microLesson &&
+                  cleanSimpleText(activeAnnotation.microLesson) !==
+                    cleanSimpleText(activeAnnotation.comment || '') && (
+                    <div className="my-2 px-2.5 py-2 rounded-md bg-slate-50 border border-slate-200 text-[11.5px] text-slate-600 leading-relaxed font-sans">
+                      <span className="font-bold text-slate-800">Examiner Rule: </span>
+                      {cleanSimpleText(activeAnnotation.microLesson)}
+                    </div>
+                  )}
 
                 {/* Action Buttons Row */}
                 <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2 font-sans">

@@ -7,7 +7,10 @@
  */
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
-import { ESSAY_GENRE_PLAYBOOKS, GUARDRAIL_EXCEPTIONS } from './essayRubricConfig.js';
+import {
+  ESSAY_GENRE_PLAYBOOKS,
+  SHARED_SAFE_HARBOR_DIRECTIVE
+} from './essayRubricConfig.js';
 
 const buildAgent2Prompt = ({
   examQuestion,
@@ -42,8 +45,7 @@ ${JSON.stringify(agent1Output.paragraphRoleMap, null, 2)}
 - ${genrePlaybook.outlineRatioRule}
 - ${genrePlaybook.evidenceExpectation}
 
-=== MANDATORY GUARDRAIL EXCEPTIONS (NEVER VIOLATE) ===
-${GUARDRAIL_EXCEPTIONS.map((g, i) => `${i + 1}. ${g}`).join('\n')}
+=== ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
 === FULL TAGGED ESSAY TRANSCRIPT ===
 ${preprocessed.fullTaggedTranscript}
@@ -77,8 +79,12 @@ YOUR 6 DIAGNOSTIC AUDIT TASKS:
      * Check whether the essay includes a Counter-Argument section.
      * Check the 50/50 Self-Contained Rebuttal Rule on any "COUNTER_ARGUMENT" paragraph: Did the student briefly state the opposing view ("Critics contend...") and immediately refute it with stronger evidence inside the SAME paragraph, or did they leave a whole paragraph validating the opposing side unrefuted ("Self-Sabotage")?
 
-4. CROSS-PARAGRAPH CONTRADICTION DETECTOR:
+4. LOGICAL FALLACIES, WRONG REGISTERS & CROSS-PARAGRAPH CONTRADICTIONS:
    - Scan across P1..P${preprocessed.paragraphs.length} for internal self-contradictions (e.g., arguing in P4 that state institutions are completely paralysed, then claiming in P10 that those same institutions have effortlessly resolved regional crises).
+   - Catch the 6 Classic Logical Fallacies when present:
+     * Correlation vs. Causation, Circular Reasoning, False Dilemma (black-and-white extremes), Hasty Generalization (1 news incident universalized), Strawman Counter-Argument, and Whataboutism ("Even developed countries have corruption").
+   - Catch Wrong Essay Registers (FPSC CE-2018 Warning):
+     * Flag writing like a "Friday Sermon / Moral Preaching" ("we must fear God"), a dry "Bureaucratic Policy Report" list without connective flow, or a "Breaking-News Political Column".
 
 5. ROLE-FILTERED PACING DECAY:
    - If pacingMetrics.pacingDecayFlag === true (decay <= -35%), include a diagnostic item explaining how the 2nd-half substantive body paragraphs (${pacingMetrics.secondHalfIds.join(', ')}) shrank to an average of ${pacingMetrics.secondHalfAvgWords} words compared to ${pacingMetrics.firstHalfAvgWords} words in the 1st half ("2nd-Half Exam Fatigue / Skeleton Paragraphs").
@@ -152,7 +158,7 @@ export const runAgent2ParagraphInspector = async ({
     prompt,
     enableGoogleSearch: false,
     temperature: 0.2,
-    maxOutputTokens: 6144,
+    maxOutputTokens: 16384,
     preferredModel,
     stageName: 'Agent 2: Paragraph & Logic Inspector',
     ledger

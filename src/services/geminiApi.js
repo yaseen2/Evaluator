@@ -53,7 +53,7 @@ export const countIntroWords = (fullText) => {
 };
 
 export const WEIGHTED_TOKENS_PER_CREDIT = 2500;
-export const OUTPUT_TOKEN_MULTIPLIER = 3.5;
+export const OUTPUT_TOKEN_MULTIPLIER = 3;
 
 export const estimateCreditsPreFlight = ({
   isEssay = false,
@@ -66,17 +66,17 @@ export const estimateCreditsPreFlight = ({
   const words = activeTab === 'text' ? Math.max(0, Number(wordCount || 0)) : 0;
 
   let estimatedWeightedTokens = 0;
-  let minRequiredCredits = 3;
+  let minRequiredCredits = 4;
 
-  if (isEssay && essayMode === 'outline_only') {
-    estimatedWeightedTokens = 9500 + pages * 3200 + Math.max(0, words - 200) * 10;
-    minRequiredCredits = pages > 0 ? 4 + pages : 4;
+  if (isEssay && (essayMode === 'outline_only' || essayMode === 'outline')) {
+    estimatedWeightedTokens = 14000 + pages * 1500 + Math.max(0, words - 200) * 10;
+    minRequiredCredits = pages > 0 ? 6 + Math.ceil(pages * 0.6) : 6;
   } else if (isEssay) {
-    estimatedWeightedTokens = 44000 + pages * 4200 + Math.max(0, words - 1200) * 14;
-    minRequiredCredits = pages > 0 ? 18 + pages : 18;
+    estimatedWeightedTokens = 44000 + pages * 2500 + Math.max(0, words - 1200) * 14;
+    minRequiredCredits = pages > 0 ? Math.min(28, 16 + pages) : 18;
   } else {
-    estimatedWeightedTokens = 21000 + pages * 3500 + Math.max(0, words - 450) * 12;
-    minRequiredCredits = pages > 0 ? 9 + pages : 9;
+    estimatedWeightedTokens = 21000 + pages * 2500 + Math.max(0, words - 450) * 12;
+    minRequiredCredits = pages > 0 ? Math.min(18, 8 + pages) : 9;
   }
 
   const estimatedCredits = Math.max(

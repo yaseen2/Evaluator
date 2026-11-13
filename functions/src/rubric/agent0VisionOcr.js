@@ -22,7 +22,7 @@ CRITICAL VERBATIM TRANSCRIPTION RULES:
 2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles, wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper so downstream examiners can teach the student.
 3. Preserve all Outline numbering (I, II, A, B, 1, 2, 1.1) and paragraph breaks using double newlines (\\n\\n).
 4. If the student crossed out a phrase, omit the crossed-out words from the main text and note heavy scratch-outs in "handwritingNotes".
-5. Audit physical handwritten presentation on these pages (paragraph indentation, left/right margin discipline, legibility, and whether body pages contain roughly 2 paragraphs per page).
+5. Audit physical handwritten presentation on these pages (paragraph indentation, left/right margin discipline, legibility, whether body pages contain roughly 2 paragraphs per page, whether the Essay prose starts on a fresh page rather than the same page where the Outline ends, and whether any Proper Noun like "Pak-istan", Year like "20-24", or Number is improperly broken across two lines at the end of a line).
 
 Return ONLY this JSON object:
 {
@@ -32,6 +32,8 @@ Return ONLY this JSON object:
     "indentationConsistent": true,
     "marginsRespected": true,
     "excessiveScratchOuts": false,
+    "samePageOutlineBodyStart": false,
+    "improperWordBreaks": ["string (e.g. 'Pak-istan or 20-24 split across lines', empty array if clean)"],
     "paragraphsPerPageEstimate": "string (e.g. '2 paragraphs per page' or 'Wall-to-wall single paragraph')",
     "observations": ["string (Any physical presentation warning or strength on these pages)"]
   }
@@ -85,7 +87,7 @@ export const runAgent0VisionOcr = async ({
         imageArray: b.pages,
         enableGoogleSearch: false,
         temperature: 0.1,
-        maxOutputTokens: 6144,
+        maxOutputTokens: 16384,
         preferredModel,
         stageName: `Agent 0: Vision OCR (Pages ${b.startPage}-${b.endPage})`,
         ledger
@@ -125,6 +127,12 @@ export const runAgent0VisionOcr = async ({
   const excessiveScratchOuts = batchResults.some(
     (r) => r.handwritingAudit?.excessiveScratchOuts === true
   );
+  const samePageOutlineBodyStart = batchResults.some(
+    (r) => r.handwritingAudit?.samePageOutlineBodyStart === true
+  );
+  const improperWordBreaks = batchResults
+    .flatMap((r) => r.handwritingAudit?.improperWordBreaks || [])
+    .filter(Boolean);
 
   return {
     skipped: false,
@@ -134,6 +142,8 @@ export const runAgent0VisionOcr = async ({
       indentationConsistent,
       marginsRespected,
       excessiveScratchOuts,
+      samePageOutlineBodyStart,
+      improperWordBreaks,
       observations
     }
   };

@@ -20,7 +20,8 @@ import {
   deleteEvaluationFromFirestore,
   subscribeToUserProfile,
   subscribeToPendingPaymentCount,
-  callEvaluateSubmission
+  callEvaluateSubmission,
+  subscribeToEvaluationJob
 } from './services/firebase';
 
 import sampleEssayEvaluation from './data/evaluations/sample-essay-evaluation.json';
@@ -274,8 +275,20 @@ export default function App() {
     setIsEvaluating(true);
     setCurrentSubmissionImages(submissionData?.imageArray || []);
 
+    const clientJobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const unsubscribeJob = subscribeToEvaluationJob(clientJobId, (jobData) => {
+      if (jobData?.currentStep || jobData?.percent) {
+        setPipelineProgress({
+          currentStep: jobData.currentStep,
+          percent: jobData.percent,
+          stepLabel: jobData.stepLabel,
+          detail: jobData.detail
+        });
+      }
+    });
+
     try {
-      // Execute via Secure Cloud Function (Server-Side 6-Agent DAG with Atomic Concurrency Lock)
+      // Execute via Secure Cloud Function (Server-Side Multi-Agent DAG with Live Job Telemetry)
       const res = await callEvaluateSubmission({
         text: submissionData?.text,
         imageArray: submissionData?.imageArray,
@@ -284,7 +297,8 @@ export default function App() {
         examQuestion: submissionData?.examQuestion || '',
         mode: submissionData?.mode || mode,
         apiKey: personalApiKey || null,
-        selectedModel: activeModel
+        selectedModel: activeModel,
+        clientJobId
       });
 
       const result = res.evaluation;
@@ -309,6 +323,7 @@ export default function App() {
         type: 'error'
       });
     } finally {
+      unsubscribeJob();
       setIsEvaluating(false);
       setPipelineProgress(null);
     }

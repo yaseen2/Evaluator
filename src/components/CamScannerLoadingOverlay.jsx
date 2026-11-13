@@ -330,7 +330,7 @@ export const CamScannerLoadingOverlay = ({
   const StepIcon = currentStep.icon;
 
   const displayPercent = pipelineProgress?.percent
-    ? Math.round(pipelineProgress.percent)
+    ? Math.max(Math.round(simulatedPercent), Math.round(pipelineProgress.percent))
     : Math.round(simulatedPercent);
 
   const displayTitle = pipelineProgress?.stepLabel || pipelineProgress?.stage || currentStep.title;

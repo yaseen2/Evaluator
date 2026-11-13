@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
-const WEIGHTED_TOKENS_PER_CREDIT = 1000;
+const WEIGHTED_TOKENS_PER_CREDIT = 2500;
 
 export const estimateCreditsPreFlight = ({
   isEssay = true,
@@ -8,21 +8,21 @@ export const estimateCreditsPreFlight = ({
   imageCount = 0,
   wordCount = 0
 }) => {
-  if (isEssay && essayMode === 'outline') {
-    return 6;
+  if (isEssay && (essayMode === 'outline_only' || essayMode === 'outline')) {
+    return 6 + Math.ceil((Number(imageCount) || 0) * 0.6);
   }
   if (isEssay) {
     if (imageCount > 0) {
-      return Math.min(28, Math.max(12, 10 + imageCount * 2));
+      return Math.min(28, Math.max(18, 16 + imageCount));
     }
     const words = wordCount || 500;
-    return Math.min(26, Math.max(10, Math.ceil(words / 110)));
+    return Math.min(28, Math.max(18, Math.ceil((44000 + Math.max(0, words - 1200) * 14) / WEIGHTED_TOKENS_PER_CREDIT)));
   }
   if (imageCount > 0) {
-    return Math.min(18, Math.max(6, 4 + imageCount * 2));
+    return Math.min(18, Math.max(9, 8 + imageCount));
   }
   const words = wordCount || 400;
-  return Math.min(16, Math.max(4, Math.ceil(words / 150)));
+  return Math.min(18, Math.max(9, Math.ceil((21000 + Math.max(0, words - 450) * 12) / WEIGHTED_TOKENS_PER_CREDIT)));
 };
 
 export const calculateActualCredits = (tokenUsage, fallbackEstimate = 12) => {

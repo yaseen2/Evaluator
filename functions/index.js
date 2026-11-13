@@ -53,7 +53,8 @@ export const evaluateSubmission = onCall(
       examQuestion = '',
       mode = 'digital',
       apiKey: userApiKey,
-      selectedModel = 'auto'
+      selectedModel = 'auto',
+      clientJobId = null
     } = request.data || {};
 
     if (!text && (!imageArray || imageArray.length === 0)) {
@@ -72,7 +73,10 @@ export const evaluateSubmission = onCall(
 
     const isEssay = (subject || '').toLowerCase().includes('essay');
     const imageCount = imageArray?.length || 0;
-    const jobId = `job-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    const jobId =
+      clientJobId && typeof clientJobId === 'string' && /^[a-zA-Z0-9_-]{8,80}$/.test(clientJobId)
+        ? clientJobId
+        : `job-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
     // 1. Determine API Key (BYOK vs Platform Master Key)
     let effectiveKey = '';
@@ -125,7 +129,23 @@ export const evaluateSubmission = onCall(
       throw new HttpsError('internal', err.message || 'Failed to verify account credits.');
     }
 
-    // 4. Run the Server-Side DAG Pipeline (v2.1 5-Stage Essay Rubric or 6-Agent Subjective Pipeline)
+    // 4. Run the Server-Side DAG Pipeline (v3 5-Stage Essay Rubric or 6-Agent Subjective Pipeline)
+    const writeJobStage = (progressPayload) => {
+      db.doc(`jobs/${jobId}`)
+        .set(
+          {
+            userId: uid,
+            subject,
+            essayMode,
+            ...progressPayload,
+            status: 'running',
+            updatedAt: new Date().toISOString()
+          },
+          { merge: true }
+        )
+        .catch(() => {});
+    };
+
     try {
       const result = isEssay
         ? await executeCssEssayPipelineV2({
@@ -136,7 +156,8 @@ export const evaluateSubmission = onCall(
             examQuestion,
             mode,
             apiKey: effectiveKey,
-            selectedModel
+            selectedModel,
+            onStageProgress: writeJobStage
           })
         : await executeMultiAgentPipeline({
             text,
@@ -148,6 +169,13 @@ export const evaluateSubmission = onCall(
             apiKey: effectiveKey,
             selectedModel
           });
+
+      writeJobStage({
+        currentStep: 10,
+        percent: 100,
+        status: 'completed',
+        stepLabel: 'Evaluation Complete'
+      });
 
       // 5. Atomic Settlement & Cloud Firestore Save
       const evaluationId = result.id || `eval-${Date.now()}`;

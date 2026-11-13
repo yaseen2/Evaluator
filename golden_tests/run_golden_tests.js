@@ -11,10 +11,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import {
   preprocessEssaySubmission,
-  computeRoleFilteredPacingDecay
+  computeRoleFilteredPacingDecay,
+  splitIntoSentences
 } from '../functions/src/rubric/deterministicPreprocessor.js';
 import { safeParseJsonWithGrounding } from '../functions/src/rubric/safeJsonParser.js';
-import { PINGLISH_INTERFERENCE_RULES } from '../functions/src/rubric/essayRubricConfig.js';
+import {
+  PINGLISH_INTERFERENCE_RULES,
+  PROMPT_DECODING_TRAP_RULES,
+  CONCEPTUAL_PRECISION_PAIRS,
+  CSS_LANGUAGE_AND_FORMAT_RULES,
+  SHARED_SAFE_HARBOR_DIRECTIVE
+} from '../functions/src/rubric/essayRubricConfig.js';
+import { estimateCreditsPreFlight } from '../functions/src/services/creditsManager.js';
 import { executeCssEssayPipelineV2 } from '../functions/src/rubric/orchestrateEssayPipeline.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -170,6 +178,66 @@ Sources: [1] imf.org`;
     console.log('');
     passed++;
   }
+
+  // 4. Test v3 Rubric Config, Preprocessor Boundary, Abbreviations, Spotlight Zones & Outline Credits
+  console.log('▶ Test 4: v3 Rubric Exports, Abbreviations, Bounded Conclusion Split, Single-Newline Fallback & Credits...');
+  assertCondition(
+    PROMPT_DECODING_TRAP_RULES.length >= 4 &&
+      CONCEPTUAL_PRECISION_PAIRS.length >= 5 &&
+      CSS_LANGUAGE_AND_FORMAT_RULES.length >= 5 &&
+      SHARED_SAFE_HARBOR_DIRECTIVE.includes('Zero AI-Cliché Penalty'),
+    'v3 rubric rules and safe harbors must be exported completely.'
+  );
+
+  const abbrSentences = splitIntoSentences(
+    'In 2026, U.S. foreign policy and Rs. 500 billion fiscal shifts reshaped trade. Pakistan responded strategically.'
+  );
+  assertCondition(
+    abbrSentences.length === 2,
+    `Expected 2 sentences with U.S. and Rs. protected, got ${abbrSentences.length}`
+  );
+
+  const lateConclusionAndShortParaScript = [
+    'Outline\n1. Introduction\n2. Economic Reform\n3. Conclusion',
+    'Public finance reform anchors macroeconomic stability across developing states in the contemporary global economy. Structural deficits persist unless direct taxation broadens fairly across all high-income sectors.',
+    'This transitional bridge connects structural revenue diagnosis directly to institutional administrative reform. Every tier of public finance requires statutory transparency and auditing.',
+    'Conclusion',
+    'Long-term fiscal stabilization depends on revenue modernization, expenditure discipline, and targeted social protection working together. Sound democratic governance endures beyond short-term electoral and partisan cycles.'
+  ].join('\n\n');
+
+  const lateCheck = preprocessEssaySubmission(lateConclusionAndShortParaScript, 'Economic Reform');
+  assertCondition(
+    lateCheck.outlineNodes.length === 4 && lateCheck.paragraphs.length === 3,
+    `Bounded conclusion scan + short transition check failed: outline=${lateCheck.outlineNodes.length}, paras=${lateCheck.paragraphs.length}`
+  );
+  assertCondition(
+    lateCheck.spotlightZoneIds.includes('O1') && lateCheck.spotlightZoneIds.includes('P1.S1'),
+    'Expected spotlightZoneIds to include O1 and P1.S1.'
+  );
+
+  const singleNewlineScript = [
+    'Outline',
+    '1. Introduction',
+    '2. Conclusion',
+    'Governance reform begins with transparent municipal institutions, meritocratic recruitment, and fiscal devolution across provinces. Weak oversight routinely entrenches public service delivery failures and administrative bottlenecks nationwide.',
+    'Civil service modernization replaces discretionary red tape with verifiable digital workflows and open procurement audits across departments. Public trust rises sharply whenever citizens observe predictable administrative enforcement.',
+    'Judicial efficiency reinforces impartial contract enforcement and attracts durable private capital investment across emerging industrial corridors. Citizens also gain timely constitutional remedies against arbitrary executive overreach.',
+    'Ultimately, durable state capacity relies on constitutional accountability rather than ad-hoc administrative decrees issued during crises. Sustained structural reform secures collective economic prosperity and democratic stability.'
+  ].join('\n');
+
+  const singleNlPre = preprocessEssaySubmission(singleNewlineScript, 'Governance Reform');
+  assertCondition(
+    singleNlPre.outlineNodes.length === 3 && singleNlPre.paragraphs.length === 4,
+    `Single-newline fallback failed: outline=${singleNlPre.outlineNodes.length}, paras=${singleNlPre.paragraphs.length}`
+  );
+
+  const outlineCredits = estimateCreditsPreFlight({ isEssay: true, essayMode: 'outline_only' });
+  assertCondition(
+    outlineCredits === 6,
+    `Expected outline_only digital preflight credits === 6, got ${outlineCredits}`
+  );
+  console.log('  ✓ v3 Pre-Processor, Abbreviations, Bounded Split, Spotlight Zones & Outline Credits Verified.\n');
+  passed++;
 
   console.log(`✅ All ${passed} Deterministic & Pre-Processor Golden Suites Passed (0 Tokens)!\n`);
 };

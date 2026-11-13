@@ -30,7 +30,7 @@ export const splitIntoSentences = (paragraphText) => {
   // Protect common abbreviations with a placeholder before splitting on sentence boundaries
   const PLACEHOLDER = '\u0000';
   const protectedText = cleaned.replace(
-    /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e|Fig|Art|Sec|Vol|No|Gen|Col|Lt|Govt|Dept|viz|cf|al)\./gi,
+    /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e|U\.S\.A|U\.S|U\.K|U\.N|U\.A\.E|Rs|P\.M|C\.M|B\.C|A\.D|Fig|Art|Sec|Vol|No|Gen|Col|Lt|Govt|Dept|viz|cf|al)\./gi,
     `$1${PLACEHOLDER}`
   );
 
@@ -64,8 +64,13 @@ const isOutlineLineOrBlock = (blockText) => {
     return true;
   }
 
-  // Single short line (< 35 words) with fewer than 3 sentences
-  if (lines.length === 1 && totalWords < 35 && sentences.length <= 2) {
+  // Single short line (< 35 words) with fewer than 3 sentences (unless clearly 2+ prose sentences >= 20w without marker)
+  if (
+    lines.length === 1 &&
+    totalWords < 35 &&
+    sentences.length <= 2 &&
+    !(sentences.length >= 2 && totalWords >= 20 && !outlineMarkerRegex.test(lines[0]))
+  ) {
     return true;
   }
 
@@ -102,8 +107,76 @@ const isContinuousProseParagraph = (blockText) => {
   if (sentences.length >= 3 && totalWords >= 32) {
     return true;
   }
+  // Also recognize concise 2-sentence paragraphs (e.g., short Intro/Transition) not formatted as outline markers
+  if (
+    lines.length === 1 &&
+    !outlineMarkerRegexSafe(blockText) &&
+    totalWords >= 22 &&
+    sentences.length >= 2 &&
+    /[.!?]["'”’)]*$/.test(blockText.trim())
+  ) {
+    return true;
+  }
 
   return false;
+};
+
+const outlineMarkerRegexSafe = (blockText) =>
+  /^(?:outline\b|thesis\s*statement\b|[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-]|[a-z]\s*[.):\-]|[-•*▪→])/i.test(
+    String(blockText || '').trim()
+  );
+
+/**
+ * Splits digital scripts pasted with single newlines (\n) when standard \n\n splitting
+ * collapses multiple long prose paragraphs into <= 2 giant blocks.
+ */
+const segmentRawBlocksWithNewlineFallback = (normalized) => {
+  const initialBlocks = normalized
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  if (initialBlocks.length > 2) {
+    return initialBlocks;
+  }
+
+  const lines = normalized.split('\n').map((l) => l.trim()).filter(Boolean);
+  const longProseLines = lines.filter(
+    (l) => countExactWords(l) >= 25 && splitIntoSentences(l).length >= 2
+  );
+
+  // Only invoke single-newline splitting if we genuinely see >= 3 single-line prose paragraphs jammed together
+  if (lines.length < 4 || longProseLines.length < 3) {
+    return initialBlocks;
+  }
+
+  const blocks = [];
+  let outlineBuffer = [];
+  let proseStarted = false;
+
+  for (const line of lines) {
+    const isProseLine =
+      countExactWords(line) >= 22 &&
+      splitIntoSentences(line).length >= 2 &&
+      !outlineMarkerRegexSafe(line);
+
+    if (!proseStarted && !isProseLine) {
+      outlineBuffer.push(line);
+    } else {
+      if (outlineBuffer.length > 0) {
+        blocks.push(outlineBuffer.join('\n'));
+        outlineBuffer = [];
+      }
+      proseStarted = true;
+      blocks.push(line);
+    }
+  }
+
+  if (outlineBuffer.length > 0) {
+    blocks.push(outlineBuffer.join('\n'));
+  }
+
+  return blocks.length > 0 ? blocks : initialBlocks;
 };
 
 /**
@@ -127,6 +200,8 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
       outlineNodes: [],
       paragraphs: [],
       inlineBodyHeadingViolations: [],
+      inlineHeadingDetails: [],
+      spotlightZoneIds: [],
       totalWordCount: 0,
       outlineWordCount: 0,
       bodyWordCount: 0,
@@ -135,10 +210,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
     };
   }
 
-  const rawBlocks = normalized
-    .split(/\n\s*\n/)
-    .map((b) => b.trim())
-    .filter(Boolean);
+  const rawBlocks = segmentRawBlocksWithNewlineFallback(normalized);
 
   // Step 1: Locate candidate boundary using Outline Conclusion anchor + first continuous prose paragraph
   let proseStartIndex = -1;
@@ -146,6 +218,14 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
 
   for (let i = 0; i < rawBlocks.length; i++) {
     const blk = rawBlocks[i];
+    // Stop scanning once essay prose has started after an Outline Conclusion anchor
+    if (
+      outlineConclusionBlockIdx !== -1 &&
+      (isContinuousProseParagraph(blk) || !isOutlineLineOrBlock(blk))
+    ) {
+      break;
+    }
+
     // Check if this outline block contains an Outline "Conclusion" line (short header, not a 150-word paragraph)
     const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
     const hasShortConclusionHeader = lines.some(
@@ -221,6 +301,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
 
   // Step 3: Process Body Blocks -> Detect Inline Body Headings & Tag [P1.S1..PN.SM]
   const inlineBodyHeadingViolations = [];
+  const inlineHeadingDetails = [];
   const cleanProseBlocks = [];
 
   for (const blk of bodyRawBlocks) {
@@ -229,10 +310,12 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
       .map((l) => l.trim())
       .filter(Boolean);
     const words = countExactWords(blk);
+    const targetParagraphId = `P${cleanProseBlocks.length + 1}`;
 
     // Standalone short heading inside the essay body (CSS Taboo)
     if (lines.length === 1 && words <= 14 && !/[.!?]["'”’)]*$/.test(lines[0])) {
       inlineBodyHeadingViolations.push(lines[0]);
+      inlineHeadingDetails.push({ heading: lines[0], beforeParagraphId: targetParagraphId });
       continue;
     }
 
@@ -243,6 +326,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
       !/[.!?]["'”’)]*$/.test(lines[0])
     ) {
       inlineBodyHeadingViolations.push(lines[0]);
+      inlineHeadingDetails.push({ heading: lines[0], beforeParagraphId: targetParagraphId });
       const remainder = lines.slice(1).join(' ').trim();
       if (remainder) {
         cleanProseBlocks.push(remainder);
@@ -297,14 +381,52 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
     if (idx === 0 || idx === 1 || idx === paragraphs.length - 1) {
       return `--- ${p.id} (${p.wordCount} words, ${p.sentenceCount} sentences — FULL TEXT) ---\n${p.taggedText}`;
     }
-    return `--- ${p.id} (${p.wordCount} words, ${p.sentenceCount} sentences — SLICED BOUNDARIES) ---\nFirst Sentence: ${p.firstSentence}\nLast Sentence: ${p.lastSentence || '(Single-sentence paragraph)'}`;
+    // Extract compact middle-sentence/evidence cue so Agent 1 can verify 3rd-level Outline promises
+    const middleSentences = p.sentences.slice(1, -1);
+    const midCue =
+      middleSentences.length > 0
+        ? middleSentences
+            .map((s) => s.text)
+            .join(' ')
+            .split(/\s+/)
+            .slice(0, 24)
+            .join(' ')
+        : '';
+    return [
+      `--- ${p.id} (${p.wordCount} words, ${p.sentenceCount} sentences — SLICED BOUNDARIES) ---`,
+      `First Sentence: ${p.firstSentence}`,
+      midCue ? `Mid-Para Cue: ${midCue}...` : '',
+      `Last Sentence: ${p.lastSentence || '(Single-sentence paragraph)'}`
+    ]
+      .filter(Boolean)
+      .join('\n');
   });
+
+  // Compute the 4 Spotlight Zones coordinates (Examiner Eye-Tracking Zones)
+  const spotlightSet = new Set();
+  if (outlineNodes.length > 0) {
+    outlineNodes.slice(0, 2).forEach((o) => spotlightSet.add(o.id));
+    outlineNodes.slice(-2).forEach((o) => spotlightSet.add(o.id));
+  }
+  paragraphs.forEach((p, idx) => {
+    const isIntroOrConclusion = idx === 0 || idx === paragraphs.length - 1;
+    if (isIntroOrConclusion) {
+      p.sentences.slice(0, 3).forEach((s) => spotlightSet.add(s.id));
+      p.sentences.slice(-3).forEach((s) => spotlightSet.add(s.id));
+    } else {
+      if (p.sentences[0]) spotlightSet.add(p.sentences[0].id);
+      if (p.sentences.length > 1) {
+        spotlightSet.add(p.sentences[p.sentences.length - 1].id);
+      }
+    }
+  });
+  const spotlightZoneIds = Array.from(spotlightSet);
 
   const macroSliceForAgent1 = [
     `ESSAY TOPIC / PROMPT: "${examQuestion || 'Not explicitly provided'}"`,
     `TOTAL SCRIPT WORDS: ${totalWordCount} (Outline: ${outlineWordCount} words | Essay Body: ${bodyWordCount} words across ${paragraphs.length} paragraphs)`,
     inlineBodyHeadingViolations.length > 0
-      ? `DETECTED INLINE HEADINGS IN ESSAY BODY (TABOO): ${JSON.stringify(inlineBodyHeadingViolations)}`
+      ? `DETECTED INLINE HEADINGS IN ESSAY BODY (TABOO): ${JSON.stringify(inlineHeadingDetails)}`
       : `INLINE HEADINGS IN ESSAY BODY: None (Clean)`,
     `\n=== TAGGED OUTLINE [O1..O${outlineNodes.length}] ===\n${outlineTaggedString}`,
     `\n=== MACRO PARAGRAPH MAP [P1..P${paragraphs.length}] ===\n${
@@ -328,6 +450,8 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
     outlineNodes,
     paragraphs,
     inlineBodyHeadingViolations,
+    inlineHeadingDetails,
+    spotlightZoneIds,
     totalWordCount,
     outlineWordCount,
     bodyWordCount,

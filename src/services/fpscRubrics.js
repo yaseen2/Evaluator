@@ -6,7 +6,7 @@
 export const FPSC_EXAMINER_CRITERIA = {
   essay: {
     id: 'essay',
-    label: 'FPSC CSS English Essay Diagnostic (v2.1)',
+    label: 'FPSC CSS English Essay Diagnostic (v3)',
     scored: false,
     passingScore: 40,
     totalScore: 100,
@@ -18,25 +18,25 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'topic_relevance',
         name: '1. Topic Decoding & 80:20 Scope',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates genre classification, 80:20 relevance ratio, and whether the script avoids pre-memorized theme-dumping.'
+        defaultFeedback: 'Evaluates genre classification, 80:20 relevance ratio, Global vs. Pakistan geographic bounds, and scope-drift prevention.'
       },
       {
         id: 'thesis',
         name: '2. Thesis Stance & Architecture',
         maxMarks: 10,
-        defaultFeedback: 'Audits whether the thesis takes a clear two-dimensional, debatable, or relational stance at the end of the Introduction.'
+        defaultFeedback: 'Audits whether the thesis takes a clear debatable, causal, or relational stance inside the Introduction.'
       },
       {
         id: 'outline',
         name: '3. Outline Parallelism & 1:1 Sync',
         maxMarks: 10,
-        defaultFeedback: 'Checks grammatical parallelism, mutually exclusive sub-points, and 1:1 Outline-to-Body synchronization.'
+        defaultFeedback: 'Checks grammatical parallelism, mutually exclusive sub-points (no Conclusion sub-points), and 1:1 Outline-to-Body sync.'
       },
       {
         id: 'introduction',
         name: '4. Introduction Funnel & Hook',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates opening hook, contextual funnel, ~180–250 word proportion, and absence of raw statistical dumps.'
+        defaultFeedback: 'Evaluates opening hook, contextual funnel, single-paragraph unity (~180–250 words), and absence of raw statistical dumps.'
       },
       {
         id: 'body_paragraphs',
@@ -48,31 +48,37 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'evidences',
         name: '6. Evidence Quality & Integration',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates Gondal’s open evidence spectrum, source credibility, and post-evidence analytical integration.'
+        defaultFeedback: 'Evaluates Gondal’s 54-type open evidence spectrum, live 2026 factual grounding, and analytical integration.'
       },
       {
         id: 'coherence',
         name: '7. Transitions, Role Map & Pacing',
         maxMarks: 10,
-        defaultFeedback: 'Checks role-filtered 1st-half vs. 2nd-half body pacing decay and organic forward-hook transitions.'
+        defaultFeedback: 'Checks role-filtered 1st-half vs. 2nd-half body pacing decay, valid transition bridge placement, and organic forward hooks.'
       },
       {
         id: 'analytical_depth',
         name: '8. Analytical Depth & Counter-Arg',
         maxMarks: 10,
-        defaultFeedback: 'Audits multi-level causal depth and 50/50 self-contained rebuttal (when requiresCounterArgument is true).'
+        defaultFeedback: 'Audits multi-level causal depth, fallacy avoidance, and Counter-Argument rebuttal (when requiresCounterArgument is true).'
       },
       {
         id: 'expression',
         name: '9. Academic Register & Diction',
         maxMarks: 10,
-        defaultFeedback: 'Evaluates measured civil-service tone, conceptual precision, and upgrades for generic modifiers.'
+        defaultFeedback: 'Evaluates impartial critic tone, modal variety, conceptual precision pairs, and Spotlight Zone polish.'
       },
       {
         id: 'grammar_syntax',
         name: '10. British Syntax & Pinglish Check',
         maxMarks: 10,
-        defaultFeedback: 'Line-by-line audit of formal British English syntax, clause punctuation, and Pakistani Urdu-to-English (Pinglish) interference.'
+        defaultFeedback: 'Audits formal British English syntax, clause punctuation, acronym expansion, and Pakistani Urdu-to-English (Pinglish) interference.'
+      },
+      {
+        id: 'conclusion',
+        name: '11. Conclusion & Synthesis',
+        maxMarks: 10,
+        defaultFeedback: 'Checks fulfilled-tense thesis restatement (60% non-overlap with Intro), holistic synthesis without new data, and measured close.'
       }
     ],
     dealBreakers: [
@@ -86,7 +92,7 @@ export const FPSC_EXAMINER_CRITERIA = {
 
   essay_outline: {
     id: 'essay_outline',
-    label: 'FPSC Essay Outline & Thesis Blueprint Audit',
+    label: 'FPSC Essay Outline & Thesis Blueprint Audit (v3)',
     scored: false,
     passingScore: 40,
     totalScore: 100,
@@ -98,7 +104,7 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'topic_decoding',
         name: '1. Prompt Decoding & Dimensional Scope',
         maxMarks: 20,
-        defaultFeedback: 'Checks whether your outline addresses the exact variables and qualifiers of the prompt without going off-tangent.'
+        defaultFeedback: 'Checks whether your outline addresses exact prompt variables, dual/metaphor rules, and 80:20 Global vs. Pakistan scope.'
       },
       {
         id: 'thesis',
@@ -108,28 +114,28 @@ export const FPSC_EXAMINER_CRITERIA = {
       },
       {
         id: 'outline_structure',
-        name: '3. Logical Funneling (Intro → Arguments → Counter-Arg → Way Forward → Conclusion)',
+        name: '3. Logical Funneling & Conclusion Hygiene',
         maxMarks: 20,
-        defaultFeedback: 'Audits the sequence of major sections, inclusion of counter-arguments/case studies, and pragmatic recommendations.'
+        defaultFeedback: 'Audits section flow (11–20 total points sweet spot), non-overlapping pillars, and ensuring Conclusion has NO sub-points.'
       },
       {
         id: 'parallelism',
-        name: '4. Grammatical Parallelism & Header Phrasing',
+        name: '4. Grammatical Parallelism & Phrasing',
         maxMarks: 20,
-        defaultFeedback: 'Checks that headers use parallel grammatical structures (consistent noun phrases or gerunds) rather than 1-word labels or full paragraphs.'
+        defaultFeedback: 'Accepts consistent noun phrases OR consistent full declarative sentences; flags mixed/broken phrasing and fake question-mark headers.'
       },
       {
         id: 'coverage_originality',
         name: '5. Multi-Dimensional Depth & Case-Study Signals',
         maxMarks: 20,
-        defaultFeedback: 'Evaluates diversity of lenses (political, economic, institutional, social, global) and specificity of sub-points.'
+        defaultFeedback: 'Evaluates diversity of analytical lenses (political, economic, institutional, social, global) and concrete example cues.'
       }
     ],
     dealBreakers: [
       'Single-word generic headers (e.g., "Economy", "Politics") instead of self-explanatory analytical phrases',
-      'Non-parallel outline headers (mixing questions, full sentences, verbs, and nouns randomly across sections)',
-      'Writing full paragraph-length sentences inside the Outline instead of concise hierarchical points',
-      'Omitting a clear Thesis Statement or jumping straight to recommendations without diagnosing root causes'
+      'Mixing incompatible formats randomly across sibling outline points (e.g., fragments, fake "?" questions, and declarative clauses)',
+      'Writing full paragraph-length prose blocks inside the Outline instead of focused outline points',
+      'Omitting a clear Thesis Statement, adding sub-points under Conclusion, or AND-coupling unrelated ideas'
     ]
   },
 

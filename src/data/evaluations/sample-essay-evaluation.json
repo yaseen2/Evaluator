@@ -375,7 +375,37 @@
       "status": "Strong",
       "scored": false,
       "feedback": "Clean British English syntax and clause structure with zero Pakistani L1 ('Pinglish') interference."
+    },
+    "conclusion": {
+      "name": "11. Conclusion & Synthesis",
+      "status": "Strong",
+      "scored": false,
+      "feedback": "Restates the thesis without copying opening wording and ends on a balanced, forward-looking note."
     }
-  }
+  },
+  "paragraphRoleMap": {
+    "P1": "INTRO",
+    "P2": "BODY_MAIN",
+    "P3": "BODY_MAIN",
+    "P4": "BODY_MAIN",
+    "P5": "CONCLUSION"
+  },
+  "qaAuditLog": {
+    "totalFlagsReviewed": 9,
+    "falsePositivesDeleted": 2,
+    "deletionNotes": [
+      "Removed redundant 'Hence/Therefore' check on P2 concluding sentence per Mentor Safe Harbors.",
+      "Cleared 'biggest' generic adjective warning from major flaw status."
+    ]
+  },
+  "strategicHighlightingPicks": [
+    "leapfrog mechanism to modernize the state apparatus",
+    "biometric and algorithmic verification",
+    "technology cannot substitute for institutional integrity"
+  ],
+  "searchSources": [
+    "https://documents.worldbank.org/en/publication/documents-reports",
+    "https://nadra.gov.pk/"
+  ]
 }
 

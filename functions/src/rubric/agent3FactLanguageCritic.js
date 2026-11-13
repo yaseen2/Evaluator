@@ -1,76 +1,53 @@
 /**
- * Stage 1B (Parallel Branch 2): Agent 3 — Fact, Discourse & Language Critic (v2.1)
+ * Stage 1B (Parallel Branch 2): Agent 3 — Split Fact/Concept & Language/CSS Format Critic (v3)
  *
- * Runs in parallel with Agent 2 using @google/genai with Selective Google Search Grounding
- * and Resilient JSON Parsing.
- *
- * Enforces:
- * 1. Selective Google Search Grounding for specific stats, indices, laws, dates & suspect quotes
- *    (checked against 2026 Pakistan & Global baselines).
- * 2. Epistemic Fairness Rule on Quotes: Never accuses a candidate of "fabricating" a quote
- *    unless proven false/misattributed; flags unverified/paraphrased quotes gently in 🔵 TIER_3_POLISH.
- * 3. Domain 4 Recalibrations:
- *    - 1–2 isolated pronoun/contraction slips = 🔵 TIER_3_POLISH (reserve Tier 1/2 for pervasive violations or inline body headings/bullets/tables).
- *    - Generic modifiers ("important", "big", "key") = 🔵 TIER_3_POLISH Expression Upgrade.
- *    - Zero penalty for "AI buzzwords" (delve into, multifaceted).
- *    - Native British English syntax + Corrected Pakistani "Pinglish" L1 Interference detector.
+ * Splits overloaded single-pass Agent 3 into focused concurrent critics:
+ *  - Agent 3A (Fact, 2026 Time-Warp, Quote Fairness & Conceptual Precision) WITH Google Search Grounding.
+ *  - Agent 3B (British Syntax, Pinglish, Acronyms, Modals, 80:20 Sentence Variety & Spotlight Zones)
+ *    which automatically chunks essays > 1,600 words or > 10 paragraphs into two parallel slices
+ *    so later paragraphs (P10–P18) never suffer attention drop or output truncation.
+ *  - Outline-Only Light Mode: Checks only [O1..On] for Pinglish, grammar, and acronyms without
+ *    expecting body paragraphs or triggering unnecessary Search Grounding.
  */
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
 import {
   PINGLISH_INTERFERENCE_RULES,
+  CONCEPTUAL_PRECISION_PAIRS,
+  CSS_LANGUAGE_AND_FORMAT_RULES,
   PAKISTAN_2026_BASELINES,
-  GUARDRAIL_EXCEPTIONS
+  SHARED_SAFE_HARBOR_DIRECTIVE
 } from './essayRubricConfig.js';
 
-const buildAgent3Prompt = ({ examQuestion, preprocessed, agent1Output }) => `
-You are Agent 3: FPSC CSS FACT, DISCOURSE & LANGUAGE CRITIC (equipped with Google Search Grounding).
+const buildTranscriptFromParagraphs = (paragraphs = []) =>
+  paragraphs.map((p) => `[${p.id} | ${p.wordCount}w] ${p.taggedText}`).join('\n\n');
+
+const buildAgent3aFactPrompt = ({ examQuestion, preprocessed, agent1Output }) => `
+You are Agent 3A: FPSC CSS FACT, TIME-WARP & CONCEPTUAL PRECISION CRITIC (with Selective Google Search Grounding).
 CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 === CONTEXT ===
 - Essay Topic: "${examQuestion}"
 - Classified Essay Genre: ${agent1Output.essayGenre}
-- Detected Inline Body Headings (Taboo Check): ${
-  preprocessed.inlineBodyHeadingViolations.length > 0
-    ? JSON.stringify(preprocessed.inlineBodyHeadingViolations)
-    : 'None'
-}
 
 ${PAKISTAN_2026_BASELINES}
 
-=== CORRECTED PAKISTANI "PINGLISH" (URDU-TO-ENGLISH L1 INTERFERENCE) RULES ===
-${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
+=== CONCEPTUAL & TERMINOLOGICAL PRECISION PAIRS ===
+${JSON.stringify(CONCEPTUAL_PRECISION_PAIRS, null, 2)}
 
-=== MANDATORY CALIBRATION & GUARDRAIL RULES ===
-${GUARDRAIL_EXCEPTIONS.map((g, i) => `${i + 1}. ${g}`).join('\n')}
-- SELECTIVE GOOGLE SEARCH RULE: Query Google Search ONLY when verifying specific statistics, global index rankings, macroeconomic numbers, constitutional articles, historical dates, or suspect quotes. Do NOT run search queries for general conceptual statements.
-- EPISTEMIC FAIRNESS ON QUOTES: Students often write translated or slightly paraphrased quotes from Allama Iqbal, Quaid-e-Azam, Rumi, or classical thinkers from memory. NEVER accuse a student of "fabricating" a quote unless Google Search proves it is factually false or a famous misattribution. If a quote cannot be verified verbatim online, classify it gently in 🔵 "TIER_3_POLISH" as "Unverified / Paraphrased Citation — Add Clearer Source Context".
-- SLIP VS. DEAL-BREAKER CALIBRATION:
-  * 1–2 isolated occurrences of a contraction ("it's", "don't") or first-person pronoun ("we", "our") across an essay -> classify as 🔵 "TIER_3_POLISH" (Slip of the Pen).
-  * Pervasive/repeated first-person pronouns or contractions, OR structural taboos (inline headings, bullet points, tables, or flowcharts inside the essay prose body) -> classify as 🔴 "TIER_1_FATAL" or 🟠 "TIER_2_MAJOR".
-- GENERIC MODIFIERS ([WW]): Calling a problem "important", "key", "big", or "huge" is valid standard English. Suggesting academic upgrades ("grave", "chronic", "pervasive", "deep-rooted") is strictly 🔵 "TIER_3_POLISH", never Tier 1 or Tier 2.
-- NUANCED SUPERLATIVES & ZERO AI-BUZZWORD PENALTY: Do NOT mechanically ban "best" or "most" (only flag unsubstantiated absolutist reductionism like claiming a multi-causal crisis has "only one cause", or emotional/vigilante rants). Do NOT penalize words like "delve into", "multifaceted", "paradigm shift", or "underscore".
-- NATIVE BRITISH ENGLISH INTELLIGENCE: Use your full native command of formal British English to catch subject-verb disagreement, dangling modifiers, comma splices, fragments, faulty parallelism, wrong prepositions/articles, and malapropisms (e.g., "economical pathways" instead of "economic pathways").
+${SHARED_SAFE_HARBOR_DIRECTIVE}
+
+RULES FOR FACT & CONCEPT AUDIT:
+1. SELECTIVE GOOGLE SEARCH RULE: Query Google Search ONLY when verifying specific statistics, global index rankings, macroeconomic numbers, constitutional articles, treaties, historical dates, or suspect quotes. Do NOT run search queries for general conceptual prose.
+2. TIME-WARP CHECK: Flag outdated facts presented as current in 2026 (e.g., claiming Pakistan is still on FATF Grey List after Oct 2022 exit, quoting 2017/207M census instead of 2023 Digital Census ~241.5M, citing expired MDGs instead of SDGs, or unmerged FATA/FCR).
+3. EPISTEMIC FAIRNESS ON QUOTES: NEVER accuse a candidate of "fabricating" a quote (especially translated Iqbal/Jinnah/classical quotes) unless Google Search proves it factually false or misattributed. If merely unverified, classify gently as 🔵 "TIER_3_POLISH" ("UNVERIFIED_CITATION").
+4. CONCEPTUAL CONFUSION CHECK: Flag conflating terms from CONCEPTUAL_PRECISION_PAIRS (e.g., calling IMF loans "foreign aid", confusing State vs. Government, Growth vs. Development, Equality vs. Equity, Literacy vs. Education).
 
 === FULL TAGGED ESSAY TRANSCRIPT ===
 ${preprocessed.fullTaggedTranscript}
 ====================================
 
-YOUR 4 OUTPUT TASKS:
-1. "factChecks": Audit 4 to 8 specific factual claims, statistics, rankings, constitutional articles, historical dates, or quotes in the script. Verify against 2026 baselines and selective Google Search.
-2. "languageAndFactDiagnostics": Generate 10 to 18 quote-locked diagnostic items across:
-   - Grammar & Syntax Errors (Subject-verb agreement, tense, articles, prepositions, clause punctuation, fragments/run-ons).
-   - Pakistani "Pinglish" L1 Interference ("cope up with", "discuss about", "comprise of", "doing corruption", "making hurdles", "doing mistakes", "concerned authorities", "avail the opportunity", "pass out from college/university"). Remember: NEVER flag valid formal English like "committing mistakes/errors" or literal fainting uses of "pass out"!
-   - Logical Fallacies & Discourse Tone (Sweeping generalizations, reductionism, emotional/vigilante tone, or CSS structural taboos like inline body headings).
-   - Expression Polish ([WW] generic modifier upgrades, rhythmic prose refinements).
-   - Earned Topper Signifiers ("EARNED_SIGNIFIER"): Specific verbatim sentences demonstrating exceptional formal diction, rhythmic adjective+noun triads, or authoritative citation integration.
-3. CRITICAL VERBATIM QUOTE RULE:
-   Every item in "languageAndFactDiagnostics" MUST include:
-   - "location_id": Exact coordinate (e.g., "O3", "P2.S4").
-   - "exact_verbatim_quote": Exact 2 to 12 word substring copied VERBATIM from the candidate's transcript (exact spelling, case, and punctuation) so it can be highlighted directly on the answer sheet.
-4. "pillarStatuses": Evaluate "grammar_syntax", "expression", and "analytical_depth".
-
-Return ONLY a valid JSON object matching this exact schema (no markdown commentary outside the JSON):
+Return ONLY this JSON object:
 {
   "factChecks": [
     {
@@ -82,57 +59,321 @@ Return ONLY a valid JSON object matching this exact schema (no markdown commenta
       "source": "string (Authoritative institution, report, or constitution)"
     }
   ],
-  "languageAndFactDiagnostics": [
+  "factAndConceptDiagnostics": [
     {
-      "location_id": "string (e.g. O2, P1.S2, P5.S3)",
+      "location_id": "string (e.g. P4.S2)",
       "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the candidate's text)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (e.g. Subject-Verb Agreement, Pinglish Interference, Diction / Malapropism, Outdated Statistic, Unverified Citation, Expression Polish, Earned Signifier)",
-      "observation": "string (Clear pedagogical explanation of WHY this was flagged or praised)",
+      "category": "string (e.g. Outdated Statistic / Time-Warp, Factual Error, Conceptual Precision, Unverified Citation, Authoritative Evidence)",
+      "observation": "string (Clear explanation referencing 2026 data or social-science terminology)",
+      "suggested_fix": "string (Exact factual or terminological correction)",
+      "micro_rule": "string (1-sentence exam takeaway rule)"
+    }
+  ],
+  "analyticalDepthStatus": {
+    "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap",
+    "feedback": "string"
+  }
+}
+`;
+
+const buildAgent3bLanguagePrompt = ({
+  examQuestion,
+  preprocessed,
+  agent1Output,
+  sliceLabel,
+  sliceTranscript
+}) => `
+You are Agent 3B: FPSC CSS BRITISH SYNTAX, PINGLISH & FORMAT CRITIC (${sliceLabel}).
+CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
+
+=== CONTEXT ===
+- Essay Topic: "${examQuestion}"
+- Essay Genre: ${agent1Output.essayGenre}
+- Detected Inline Body Headings (Taboo Check): ${
+  preprocessed.inlineBodyHeadingViolations?.length > 0
+    ? JSON.stringify(preprocessed.inlineBodyHeadingViolations)
+    : 'None'
+}
+- Highlighted Spotlight Zone Coordinates (Double Examiner Weight): ${JSON.stringify(
+  (preprocessed.spotlightZoneIds || []).slice(0, 30)
+)}
+
+=== PAKISTANI "PINGLISH" (URDU-TO-ENGLISH L1 INTERFERENCE) RULES ===
+${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
+
+=== CSS FORMATTING & LANGUAGE CONVENTIONS ===
+${CSS_LANGUAGE_AND_FORMAT_RULES.map((r, i) => `${i + 1}. ${r}`).join('\n')}
+
+${SHARED_SAFE_HARBOR_DIRECTIVE}
+
+STRICT CALIBRATION OVERRIDES (NEVER VIOLATE):
+- GENERIC MODIFIERS ([WW]): Calling an issue "important", "key", "big", or "huge" is valid standard English. Suggesting academic upgrades ("grave", "chronic", "pervasive") is STRICTLY 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
+- ZERO AI-BUZZWORD PENALTY: NEVER flag or penalize words such as "delve into", "intricate tapestry", "testament to", "beacon of hope", "multifaceted landscape", or "paradigm shift".
+- SLIP VS. DEAL-BREAKER: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for pervasive repetition or structural taboos (inline headings, bullets, tables).
+- VALID COLLOCATIONS: NEVER flag "commit a mistake/error" or literal fainting uses of "pass out".
+
+=== TARGET TEXT SLICE TO AUDIT ===
+${sliceTranscript}
+=================================
+
+YOUR OUTPUT TASKS:
+Audit EVERY paragraph in the target slice using your full native command of formal British English + Pakistani L1 interference detection:
+1. Grammar & Clause Punctuation (Subject-verb agreement, British spelling consistency, articles, prepositions, comma splices, fragments, complex-sentence commas, unanchored opening pronouns, Subject-Verb >15w separation).
+2. Pinglish Interference ("cope up with", "discuss about", "comprise of", "doing corruption/mistakes", "concerned authorities", "avail the opportunity", "pass out from college/university").
+3. CSS Conventions (First-mention unexpanded acronyms like IMF/UNO/FBR, unspelled single-digit numbers "4 pillars", monotonous "The government should..." vs Constitutional "must", 80:20 sentence variety, topic praise, slashes like "his/her").
+4. Earned Topper Signifiers ("EARNED_SIGNIFIER"): Cite specific verbatim sentences showing rhythmic Adjective+Noun triads, crisp embedded-clause syntax, or authoritative academic voice.
+
+Return ONLY this JSON object:
+{
+  "languageDiagnostics": [
+    {
+      "location_id": "string (e.g. O2, P1.S2, P12.S3)",
+      "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the slice)",
+      "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
+      "category": "string (e.g. Subject-Verb Agreement, Pinglish Interference, Acronym Expansion, Clause Punctuation, Modal Variety, Expression Polish, Earned Signifier)",
+      "observation": "string (Clear British English or CSS convention explanation)",
       "suggested_fix": "string (Exact drop-in replacement phrase/sentence)",
-      "micro_rule": "string (Concise 1-sentence grammar or CSS discourse rule to remember)"
+      "micro_rule": "string (Concise 1-sentence rule)"
     }
   ],
   "pillarStatuses": {
     "grammar_syntax": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
-    "expression": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
-    "analytical_depth": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" }
+    "expression": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" }
   }
 }
 `;
+
+const buildOutlineOnlyLanguagePrompt = ({ examQuestion, preprocessed }) => `
+You are Agent 3: FPSC CSS OUTLINE LANGUAGE & TERMINOLOGY CRITIC (Outline-Only Mode).
+CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
+
+Essay Topic: "${examQuestion}"
+
+=== PAKISTANI "PINGLISH" & CSS RULES ===
+${JSON.stringify(PINGLISH_INTERFERENCE_RULES, null, 2)}
+
+${SHARED_SAFE_HARBOR_DIRECTIVE}
+
+=== OUTLINE TEXT ===
+${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(Empty outline)'}
+====================
+
+Audit ONLY the Outline lines [O1..On] for British grammar, Pinglish interference, spelling, unexpanded acronyms, fake question marks, and expression clarity. Do NOT invent body-paragraph complaints.
+
+Return ONLY this JSON object:
+{
+  "languageDiagnostics": [
+    {
+      "location_id": "string (e.g. O4)",
+      "exact_verbatim_quote": "string (EXACT 2-12 word substring from that outline line)",
+      "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
+      "category": "string",
+      "observation": "string",
+      "suggested_fix": "string",
+      "micro_rule": "string"
+    }
+  ],
+  "pillarStatuses": {
+    "grammar_syntax": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" },
+    "expression": { "status": "Strong" | "Balanced" | "Needs Polish" | "Critical Gap", "feedback": "string" }
+  }
+}
+`;
+
+const tagSpotlightZones = (items = [], spotlightZoneIds = []) => {
+  const spotSet = new Set(spotlightZoneIds || []);
+  return items.map((item) => {
+    const loc = String(item.location_id || '').trim();
+    const inSpotlightZone = spotSet.has(loc);
+    return {
+      ...item,
+      inSpotlightZone,
+      observation:
+        inSpotlightZone && item.tier !== 'EARNED_SIGNIFIER' && !String(item.observation || '').includes('[Spotlight Zone]')
+          ? `[Spotlight Zone — 2x Examiner Visibility] ${item.observation || ''}`.trim()
+          : item.observation || ''
+    };
+  });
+};
 
 export const runAgent3FactLanguageCritic = async ({
   examQuestion,
   preprocessed,
   agent1Output,
+  essayMode = 'full',
   apiKey,
   preferredModel = 'auto',
   ledger = null
 }) => {
-  const prompt = buildAgent3Prompt({
-    examQuestion,
-    preprocessed,
-    agent1Output
-  });
+  // Fast Outline-Only Path: skip Search Grounding & body prose prompts completely
+  if (essayMode === 'outline_only' || preprocessed.isOutlineOnly || preprocessed.paragraphs.length === 0) {
+    const outlinePrompt = buildOutlineOnlyLanguagePrompt({ examQuestion, preprocessed });
+    const { result } = await callGenAiAgentWithFailover({
+      apiKey,
+      prompt: outlinePrompt,
+      enableGoogleSearch: false,
+      temperature: 0.15,
+      maxOutputTokens: 16384,
+      preferredModel,
+      stageName: 'Agent 3 (Outline Mode): Syntax & Terminology Critic',
+      ledger
+    });
 
-  const { result, searchSources } = await callGenAiAgentWithFailover({
+    const tagged = tagSpotlightZones(
+      Array.isArray(result?.languageDiagnostics) ? result.languageDiagnostics : [],
+      preprocessed.spotlightZoneIds
+    );
+
+    return {
+      factChecks: [],
+      languageAndFactDiagnostics: tagged,
+      pillarStatuses: {
+        grammar_syntax: result?.pillarStatuses?.grammar_syntax || {
+          status: 'Balanced',
+          feedback: 'Evaluated on outline phrasing.'
+        },
+        expression: result?.pillarStatuses?.expression || {
+          status: 'Balanced',
+          feedback: 'Evaluated on outline diction.'
+        },
+        analytical_depth: {
+          status: 'Balanced',
+          feedback: 'Outline blueprint depth audited in Macro Architecture.'
+        }
+      },
+      searchSources: [],
+      searchGrounded: false
+    };
+  }
+
+  // Decide whether Agent 3B should chunk long scripts (> 10 paragraphs or > 1,600 words)
+  const paras = preprocessed.paragraphs || [];
+  const shouldChunk3b = paras.length > 10 || preprocessed.bodyWordCount > 1600;
+  const languageCalls = [];
+
+  if (shouldChunk3b) {
+    const mid = Math.ceil(paras.length / 2);
+    const firstHalfParas = paras.slice(0, mid);
+    const secondHalfParas = paras.slice(mid);
+    const outlineHeader =
+      preprocessed.outlineNodes.length > 0
+        ? `=== OUTLINE CONTEXT ===\n${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n')}\n\n`
+        : '';
+
+    languageCalls.push(
+      callGenAiAgentWithFailover({
+        apiKey,
+        prompt: buildAgent3bLanguagePrompt({
+          examQuestion,
+          preprocessed,
+          agent1Output,
+          sliceLabel: `First Half: P1..${firstHalfParas[firstHalfParas.length - 1]?.id}`,
+          sliceTranscript: `${outlineHeader}${buildTranscriptFromParagraphs(firstHalfParas)}`
+        }),
+        enableGoogleSearch: false,
+        temperature: 0.15,
+        maxOutputTokens: 16384,
+        preferredModel,
+        stageName: 'Agent 3B-1: Language & CSS Critic (First Half)',
+        ledger
+      }),
+      callGenAiAgentWithFailover({
+        apiKey,
+        prompt: buildAgent3bLanguagePrompt({
+          examQuestion,
+          preprocessed,
+          agent1Output,
+          sliceLabel: `Second Half: ${secondHalfParas[0]?.id}..${secondHalfParas[secondHalfParas.length - 1]?.id}`,
+          sliceTranscript: buildTranscriptFromParagraphs(secondHalfParas)
+        }),
+        enableGoogleSearch: false,
+        temperature: 0.15,
+        maxOutputTokens: 16384,
+        preferredModel,
+        stageName: 'Agent 3B-2: Language & CSS Critic (Second Half)',
+        ledger
+      })
+    );
+  } else {
+    languageCalls.push(
+      callGenAiAgentWithFailover({
+        apiKey,
+        prompt: buildAgent3bLanguagePrompt({
+          examQuestion,
+          preprocessed,
+          agent1Output,
+          sliceLabel: 'Full Script',
+          sliceTranscript: preprocessed.fullTaggedTranscript
+        }),
+        enableGoogleSearch: false,
+        temperature: 0.15,
+        maxOutputTokens: 16384,
+        preferredModel,
+        stageName: 'Agent 3B: Language & CSS Format Critic',
+        ledger
+      })
+    );
+  }
+
+  // Run Agent 3A (Search Grounding Fact & Concept) concurrently with Agent 3B slice(s)
+  const factCall = callGenAiAgentWithFailover({
     apiKey,
-    prompt,
+    prompt: buildAgent3aFactPrompt({ examQuestion, preprocessed, agent1Output }),
     enableGoogleSearch: true,
     temperature: 0.15,
-    maxOutputTokens: 6144,
+    maxOutputTokens: 16384,
     preferredModel,
-    stageName: 'Agent 3: Fact, Discourse & Language Critic (+Search Grounding)',
+    stageName: 'Agent 3A: Fact, 2026 Grounding & Conceptual Critic',
     ledger
   });
 
+  const [factSettled, ...langSettled] = await Promise.allSettled([factCall, ...languageCalls]);
+
+  const factData = factSettled.status === 'fulfilled' ? factSettled.value : null;
+  const langResults = langSettled
+    .filter((s) => s.status === 'fulfilled')
+    .map((s) => s.value?.result)
+    .filter(Boolean);
+
+  if (!factData && langResults.length === 0) {
+    throw new Error(factSettled.reason?.message || 'Agent 3 fact and language sub-critics failed.');
+  }
+
+  const factChecks = Array.isArray(factData?.result?.factChecks) ? factData.result.factChecks : [];
+  const factDiagnostics = Array.isArray(factData?.result?.factAndConceptDiagnostics)
+    ? factData.result.factAndConceptDiagnostics
+    : [];
+  const langDiagnostics = langResults.flatMap((r) =>
+    Array.isArray(r?.languageDiagnostics) ? r.languageDiagnostics : []
+  );
+
+  const combinedDiagnostics = tagSpotlightZones(
+    [...factDiagnostics, ...langDiagnostics],
+    preprocessed.spotlightZoneIds
+  );
+
+  const primaryLangPillars = langResults[0]?.pillarStatuses || {};
+  const statusRank = { 'Critical Gap': 4, 'Needs Polish': 3, Balanced: 2, Strong: 1 };
+  const mergeDualPillar = (key) => {
+    const candidates = langResults.map((r) => r?.pillarStatuses?.[key]).filter(Boolean);
+    if (candidates.length === 0) return { status: 'Balanced', feedback: 'Audited across full text.' };
+    candidates.sort((a, b) => (statusRank[b.status] || 0) - (statusRank[a.status] || 0));
+    return candidates[0];
+  };
+
   return {
-    factChecks: Array.isArray(result?.factChecks) ? result.factChecks : [],
-    languageAndFactDiagnostics: Array.isArray(result?.languageAndFactDiagnostics)
-      ? result.languageAndFactDiagnostics
-      : [],
-    pillarStatuses: result?.pillarStatuses || {},
-    searchSources: searchSources || []
+    factChecks,
+    languageAndFactDiagnostics: combinedDiagnostics,
+    pillarStatuses: {
+      grammar_syntax: mergeDualPillar('grammar_syntax') || primaryLangPillars.grammar_syntax,
+      expression: mergeDualPillar('expression') || primaryLangPillars.expression,
+      analytical_depth: factData?.result?.analyticalDepthStatus || {
+        status: 'Balanced',
+        feedback: 'Factual & conceptual depth reviewed.'
+      }
+    },
+    searchSources: factData?.searchSources || [],
+    searchGrounded: Boolean(factData?.searchGrounded)
   };
 };
-

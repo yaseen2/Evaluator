@@ -23,7 +23,7 @@ const GENRE_LABELS = {
 export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
   const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts'
   const [selectedParamId, setSelectedParamId] = useState(null);
-  const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'red' | 'amber' | 'green'
+  const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'tier1' | 'tier2' | 'polish' | 'green'
   const cardRefs = useRef({});
 
   if (!evaluation) return null;
@@ -52,19 +52,26 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
   const amberCount = allAnnotations.filter((a) => a.type === 'amber').length;
   const greenCount = allAnnotations.filter((a) => a.type === 'green').length;
 
-  // 4-Tier Diagnostic Counts (v2.1 Non-Scored Essay Rubric)
-  const tier1Count =
-    evaluation.diagnosticTiers?.tier1Fatal?.length ??
-    allAnnotations.filter((a) => a.tier === 'TIER_1_FATAL').length;
-  const tier2Count =
-    evaluation.diagnosticTiers?.tier2Major?.length ??
-    allAnnotations.filter((a) => a.tier === 'TIER_2_MAJOR' || (a.type === 'red' && a.tier !== 'TIER_1_FATAL')).length;
-  const tier3Count =
-    evaluation.diagnosticTiers?.tier3Polish?.length ?? amberCount;
+  const isTier1 = (a) => a.tier === 'TIER_1_FATAL' || a.tier === 'TIER_1_DEAL_BREAKER';
+  const isTier2 = (a) =>
+    a.tier === 'TIER_2_MAJOR' ||
+    a.tier === 'TIER_2_MAJOR_FLAW' ||
+    (a.type === 'red' && !isTier1(a));
+  const isPolish = (a) => a.tier === 'TIER_3_POLISH' || (a.type === 'amber' && !isTier1(a) && !isTier2(a));
+  const isGreen = (a) => a.type === 'green' || a.tier === 'EARNED_SIGNIFIER' || a.tier === 'EARNED_STRENGTH';
+
+  const tier1AnnCount = allAnnotations.filter(isTier1).length;
+  const tier2AnnCount = allAnnotations.filter(isTier2).length;
+  const tier3AnnCount = allAnnotations.filter(isPolish).length;
+
+  // 4-Tier Diagnostic Counts (v3 Non-Scored Essay Rubric)
+  const tier1Count = evaluation.diagnosticTiers?.tier1Fatal?.length ?? tier1AnnCount;
+  const tier2Count = evaluation.diagnosticTiers?.tier2Major?.length ?? tier2AnnCount;
+  const tier3Count = evaluation.diagnosticTiers?.tier3Polish?.length ?? tier3AnnCount;
   const earnedSignifiersList =
     evaluation.diagnosticTiers?.earnedSignifiers ||
     allAnnotations
-      .filter((a) => a.type === 'green' || a.tier === 'EARNED_SIGNIFIER')
+      .filter(isGreen)
       .map((a) => ({
         location_id: a.locationId || '',
         exact_verbatim_quote: a.targetPhrase,
@@ -72,10 +79,20 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         observation: a.comment
       }));
 
-  const filteredAnnotations =
-    calloutFilter === 'all'
-      ? allAnnotations
-      : allAnnotations.filter((a) => a.type === calloutFilter);
+  const filteredAnnotations = allAnnotations.filter((a) => {
+    if (calloutFilter === 'all') return true;
+    if (calloutFilter === 'tier1') return isTier1(a);
+    if (calloutFilter === 'tier2') return isTier2(a);
+    if (calloutFilter === 'red') return a.type === 'red' || isTier1(a) || isTier2(a);
+    if (calloutFilter === 'polish' || calloutFilter === 'amber') return isPolish(a);
+    if (calloutFilter === 'green') return isGreen(a);
+    return true;
+  });
+
+  const handleTierFilterJump = (filterKey) => {
+    setCalloutFilter(filterKey);
+    setActiveTab('callouts');
+  };
 
   useEffect(() => {
     if (selectedAnnId && activeTab === 'callouts') {
@@ -120,14 +137,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             : Math.round(comp.maxMarks * 0.25 * 2) / 2;
       }
 
-      let cleanName = comp.name.replace(/^[0-9]+[.\-)]\s*/, '');
-      if (cleanName.includes('&')) {
-        const shortPart = cleanName.split('&')[0].trim();
-        if (shortPart.length <= 18) cleanName = shortPart;
-      }
-      if (cleanName.length > 24) {
-        cleanName = cleanName.substring(0, 22) + '...';
-      }
+      const cleanName = comp.name.replace(/^[0-9]+[.\-)]\s*/, '').trim();
 
       return {
         id: comp.id,
@@ -354,35 +364,55 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             )}
           </div>
 
-          {/* 4-Tier Diagnostic Readiness Summary Ribbon (For Non-Scored CSS Essays) */}
+          {/* 4-Tier Diagnostic Readiness Summary Ribbon (Interactive Filter Cards) */}
           {isNonScoredEssay && (
             <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="p-2 rounded-md bg-rose-50/70 border border-rose-200/80">
+              <button
+                type="button"
+                onClick={() => handleTierFilterJump('tier1')}
+                className="p-2 rounded-md bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200/80 transition-colors cursor-pointer"
+                title="Filter Callouts: Fatal Deal-Breakers"
+              >
                 <div className="text-sm font-bold text-rose-700 font-mono">{tier1Count}</div>
                 <div className="text-[10px] font-semibold text-rose-800 leading-tight">
                   🔴 Fatal Deal-Breakers
                 </div>
-              </div>
-              <div className="p-2 rounded-md bg-orange-50/70 border border-orange-200/80">
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTierFilterJump('tier2')}
+                className="p-2 rounded-md bg-orange-50/70 hover:bg-orange-100/70 border border-orange-200/80 transition-colors cursor-pointer"
+                title="Filter Callouts: Structural Risks"
+              >
                 <div className="text-sm font-bold text-orange-700 font-mono">{tier2Count}</div>
                 <div className="text-[10px] font-semibold text-orange-800 leading-tight">
                   🟠 Structural Risks
                 </div>
-              </div>
-              <div className="p-2 rounded-md bg-blue-50/70 border border-blue-200/80">
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTierFilterJump('polish')}
+                className="p-2 rounded-md bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 transition-colors cursor-pointer"
+                title="Filter Callouts: Polish & Upgrades"
+              >
                 <div className="text-sm font-bold text-blue-700 font-mono">{tier3Count}</div>
                 <div className="text-[10px] font-semibold text-blue-800 leading-tight">
                   🔵 Polish & Upgrades
                 </div>
-              </div>
-              <div className="p-2 rounded-md bg-emerald-50/70 border border-emerald-200/80">
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTierFilterJump('green')}
+                className="p-2 rounded-md bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200/80 transition-colors cursor-pointer"
+                title="Filter Callouts: Earned Signifiers"
+              >
                 <div className="text-sm font-bold text-emerald-700 font-mono">
                   {earnedSignifiersList.length}
                 </div>
                 <div className="text-[10px] font-semibold text-emerald-800 leading-tight">
                   🟢 Earned Signifiers
                 </div>
-              </div>
+              </button>
             </div>
           )}
 
@@ -417,8 +447,8 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     }`}
                     title={item.fullName}
                   >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <div className="text-[11px] text-slate-700 font-semibold truncate font-sans">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="text-[11px] text-slate-700 font-semibold leading-snug font-sans">
                         {item.cleanName}
                       </div>
                       <span
@@ -530,6 +560,185 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               ))}
             </ul>
           </div>
+
+          {/* Thesis Statement Audit & Model Topper Rewrite */}
+          {evaluation.thesisAudit && (
+            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5 text-xs font-sans">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Thesis Statement Architecture
+                </h4>
+                {evaluation.thesisAudit.status && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.thesisAudit.status)}`}>
+                    {evaluation.thesisAudit.status}
+                  </span>
+                )}
+              </div>
+              {(evaluation.thesisAudit.extractedThesis || evaluation.thesisAudit.candidateThesis) && (
+                <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-slate-700 font-academic text-[13px] italic">
+                  "{evaluation.thesisAudit.extractedThesis || evaluation.thesisAudit.candidateThesis}"
+                </div>
+              )}
+              {evaluation.thesisAudit.critique && (
+                <p className="text-slate-600 leading-relaxed">{evaluation.thesisAudit.critique}</p>
+              )}
+              {evaluation.thesisAudit.modelTopperThesis && (
+                <div className="p-2.5 rounded bg-emerald-50/70 border border-emerald-200 text-emerald-950">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+                    70+ Topper Thesis Model
+                  </div>
+                  <div className="font-academic text-[13px] leading-relaxed">
+                    "{evaluation.thesisAudit.modelTopperThesis}"
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 1:1 Outline-to-Body Synchronization Card */}
+          {evaluation.outlineAlignment && (
+            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 text-xs font-sans">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  1:1 Outline-to-Body Sync
+                </h4>
+                {evaluation.outlineAlignment.status && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.outlineAlignment.status)}`}>
+                    {evaluation.outlineAlignment.status}
+                  </span>
+                )}
+              </div>
+              {evaluation.outlineAlignment.summary && (
+                <p className="text-slate-600 leading-relaxed">{evaluation.outlineAlignment.summary}</p>
+              )}
+              {evaluation.outlineAlignment.bodyHeadingWarning && (
+                <div className="p-2 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">
+                  <strong>Structural Warning:</strong> {evaluation.outlineAlignment.bodyHeadingWarning}
+                </div>
+              )}
+              {evaluation.outlineAlignment.missingFromBody?.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="text-[10px] font-bold uppercase text-rose-700">
+                    Outline Points Missing in Body:
+                  </div>
+                  <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
+                    {evaluation.outlineAlignment.missingFromBody.map((m, i) => (
+                      <li key={i}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {evaluation.outlineAlignment.orphanBodyParagraphs?.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="text-[10px] font-bold uppercase text-amber-700">
+                    Orphan Paragraphs Missing in Outline:
+                  </div>
+                  <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
+                    {evaluation.outlineAlignment.orphanBodyParagraphs.map((m, i) => (
+                      <li key={i}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Paragraph Role Map & Strategic Examiner Highlighting Picks */}
+          {((evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0) ||
+            (evaluation.strategicHighlightingPicks && evaluation.strategicHighlightingPicks.length > 0)) && (
+            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs font-sans">
+              {evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0 && (
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                    Structural Paragraph Role Map
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(evaluation.paragraphRoleMap).map(([pId, role]) => (
+                      <span
+                        key={pId}
+                        className="text-[10px] px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-mono"
+                      >
+                        <strong>{pId}:</strong> {role}
+                      </span>
+                    ))}
+                  </div>
+                  {evaluation.pacingMetrics?.summary && (
+                    <p className="text-[11px] text-slate-500 pt-1">{evaluation.pacingMetrics.summary}</p>
+                  )}
+                </div>
+              )}
+
+              {evaluation.strategicHighlightingPicks?.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                    Strategic Exam Marker Highlighting Picks (3–5/Page)
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {evaluation.strategicHighlightingPicks.map((phrase, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[11px] px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 font-medium"
+                      >
+                        "{phrase}"
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Chief Examiner QA Audit & Handwriting Physical Layout */}
+          {(evaluation.qaAuditLog || evaluation.handwritingAudit || evaluation.stageDegradations?.length > 0) && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 text-[11px] text-slate-600 font-sans">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                  Chief Examiner QA & Telemetry
+                </span>
+                {typeof evaluation.qaAuditLog?.falsePositivesDeleted === 'number' && (
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                    QA Gate: Reviewed {evaluation.qaAuditLog.totalFlagsReviewed || 0} • Pruned{' '}
+                    {evaluation.qaAuditLog.falsePositivesDeleted} False Positives
+                  </span>
+                )}
+              </div>
+
+              {evaluation.qaAuditLog?.deletionNotes?.length > 0 && (
+                <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
+                  {evaluation.qaAuditLog.deletionNotes.slice(0, 3).map((note, idx) => (
+                    <li key={idx}>{note}</li>
+                  ))}
+                </ul>
+              )}
+
+              {evaluation.handwritingAudit && (
+                <div className="pt-1.5 border-t border-slate-200/80 space-y-1">
+                  <div className="font-semibold text-slate-700">
+                    Handwritten Layout Audit: Margins{' '}
+                    {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Needs Discipline'} • Indentation{' '}
+                    {evaluation.handwritingAudit.indentationConsistent ? 'Consistent' : 'Inconsistent'}
+                    {evaluation.handwritingAudit.samePageOutlineBodyStart
+                      ? ' • ⚠️ Started essay on Outline end page'
+                      : ''}
+                  </div>
+                  {evaluation.handwritingAudit.improperWordBreaks?.length > 0 && (
+                    <div className="text-rose-700">
+                      End-of-Line Word Splits: {evaluation.handwritingAudit.improperWordBreaks.join(', ')}
+                    </div>
+                  )}
+                  {evaluation.handwritingAudit.observations?.length > 0 && (
+                    <div className="text-slate-600">{evaluation.handwritingAudit.observations[0]}</div>
+                  )}
+                </div>
+              )}
+
+              {evaluation.stageDegradations?.length > 0 && (
+                <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
+                  Partial Stage Notice: {evaluation.stageDegradations.join(' | ')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -601,6 +810,27 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               </div>
             );
           })}
+
+          {evaluation.searchSources?.length > 0 && (
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1.5 font-sans">
+              <div className="font-bold uppercase tracking-wider text-[10px] text-slate-600">
+                Google Search Verification Sources ({evaluation.searchSources.length})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {evaluation.searchSources.map((src, idx) => (
+                  <a
+                    key={idx}
+                    href={src.startsWith('http') ? src : undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-0.5 rounded bg-white border border-slate-200 text-brand-700 hover:underline truncate max-w-[260px]"
+                  >
+                    {src}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -657,12 +887,13 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <span className="text-xs text-slate-400">
               Showing {filteredAnnotations.length} annotations:
             </span>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {[
                 { id: 'all', label: `All (${allAnnotations.length})` },
-                { id: 'red', label: `Errors (${redCount})` },
-                { id: 'amber', label: `Polish (${amberCount})` },
-                { id: 'green', label: `Signifiers (${greenCount})` }
+                { id: 'tier1', label: `🔴 Fatal (${tier1AnnCount})` },
+                { id: 'tier2', label: `🟠 Major (${tier2AnnCount})` },
+                { id: 'polish', label: `🔵 Polish (${tier3AnnCount})` },
+                { id: 'green', label: `🟢 Signifiers (${greenCount})` }
               ].map((f) => (
                 <button
                   key={f.id}
@@ -727,6 +958,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
 
                 {ann.comment && (
                   <p className="text-slate-600 leading-relaxed">{cleanSimpleText(ann.comment)}</p>
+                )}
+                {ann.microLesson && (
+                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
+                    <strong className="text-slate-800">Examiner Rule: </strong>
+                    {cleanSimpleText(ann.microLesson)}
+                  </div>
                 )}
               </div>
             );

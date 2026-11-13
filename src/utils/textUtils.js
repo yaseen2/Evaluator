@@ -1,21 +1,13 @@
 /**
- * Plain-English Text Sanitizer
- * Strictly removes pedantic academic jargon, "FPSC", "CSS", "PMS", "examiner", etc.
- * Keeps feedback clear, direct, and simple (QuillBot style).
+ * Plain-English Text Sanitizer (v3)
+ * Preserves authentic CSS / FPSC analytical terminology ("CSS", "FPSC", "examiner",
+ * "rubric", "syntax", "diction", "colloquialism") so mentor diagnostics remain complete
+ * while tidying residual markdown artifacts and stray whitespace.
  */
 export const cleanSimpleText = (text) => {
   if (!text || typeof text !== 'string') return '';
   return text
-    .replace(/\b(fpsc|css|pms|upsc)\s*(examiner|commission|board|report|guideline|rubric)?\b/gi, '')
-    .replace(/\bthe examiner\b/gi, 'this')
-    .replace(/\bexaminer(?:'s)?\b/gi, 'reader')
-    .replace(/\bpenaliz(?:ed|es|ing)\b/gi, 'flagged')
-    .replace(/\bpenalty\b/gi, 'issue')
-    .replace(/\bdeduction(?:s)?\b/gi, 'improvement')
-    .replace(/\bmarking rubric\b/gi, 'writing guidelines')
-    .replace(/\bcolloquialism\b/gi, 'informal phrasing')
-    .replace(/\bdiction\b/gi, 'word choice')
-    .replace(/\bsyntax\b/gi, 'sentence structure')
+    .replace(/\*\*/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 };

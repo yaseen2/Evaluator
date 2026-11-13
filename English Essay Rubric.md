@@ -841,11 +841,10 @@ Here are the **28 specific things** our AI must check for Tone, Expression, Gram
 
    
 
-5. **`[WW]` Wrong Word — Positive vs. Negative Connotation & Word Pairings:**  
+5. **`[WW]` Vocabulary Upgrades vs. Wrong Word Connotation (`🔵 Tier 3 Polish` for Generic Modifiers):**  
      
-   * **The Positive vs. Negative Connotation Trap (Jasra `video_7`):** Never call a bad thing (like corruption, poverty, or terrorism) an **"important"** or **"key"** issue\! (*Important* has a positive meaning—calling corruption "important" is like calling Abdul Sattar Edhi "notorious" instead of "famous"\!). For bad things, use negative words: *grave, alarming, horrendous, chronic, menacing*.  
-   * **The Physical vs. Abstract Trap:** Never call an abstract problem **"big"** or **"huge"** (*"Corruption is a big/huge issue"* — *big* and *huge* are for physical objects\!). Use *severe, pervasive, deep-rooted, monumental*.  
-   * **Exact Word Pairing (Collocation):** In a democracy, citizens **elect** leaders (not *choose* leaders\!).
+   * *(Calibration Note: Calling a problem "important", "key", "big", or "huge" is grammatically valid standard English and must **NOT** be flagged as a Tier 1/2 error. Treat upgrading generic adjectives like `important / key / big / huge` → `grave, chronic, pervasive, deep-rooted, monumental` gently as **🔵 Tier 3 Expression Polish**.)*  
+   * **Exact Word Pairing (Collocation):** In a democracy, citizens **elect** leaders (not *choose* leaders\!). Also flag true meaning inversions such as praising a destructive phenomenon as a positive achievement.
 
    
 
@@ -1098,10 +1097,9 @@ Examiners immediately spot when a student confuses basic social-science terms th
 
 ---
 
-### 8\. The "ChatGPT-ism / AI Cliché" Detector
+### 8\. The "ChatGPT-ism / AI Cliché" Detector *(Disabled per Mentor Safe Harbors)*
 
-* **The Problem:** When students practice online today, many copy-paste paragraphs from ChatGPT or memorize AI-generated essays. FPSC examiners (and Sir Hasnain Jilani in `video_10`) immediately spot robotic AI vocabulary\!  
-* **What our AI must flag:** Overused AI buzzwords and robotic phrasing—such as *"delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, underscore, in the grand scheme of things, it is crucial to note, double-edged sword, paradigm shift"* used 5 times on one page\!
+* **Calibration Rule:** **Do NOT penalize** phrases often called "AI buzzwords" (such as *"delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, underscore, paradigm shift, double-edged sword"*). Focus strictly on genuine logic, structural, factual, and British English issues.
 
 ---
 

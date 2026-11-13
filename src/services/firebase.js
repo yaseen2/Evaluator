@@ -249,6 +249,22 @@ export const callEvaluateSubmission = async (payload) => {
   return res.data;
 };
 
+export const subscribeToEvaluationJob = (jobId, callback) => {
+  if (!jobId) return () => {};
+  const jobRef = doc(db, 'jobs', String(jobId));
+  return onSnapshot(
+    jobRef,
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data());
+      }
+    },
+    () => {
+      // Ignore permission/transient listener errors gracefully
+    }
+  );
+};
+
 export const callSetAdminClaim = async () => {
   const claimFn = httpsCallable(functions, 'setAdminClaim');
   const res = await claimFn({});

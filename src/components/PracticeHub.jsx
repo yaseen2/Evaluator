@@ -510,7 +510,7 @@ export const PracticeHub = ({
                         {isEssay ? 'Full 100-Mark Essay' : 'Full Mains Question (20 Marks)'}
                       </div>
                       <div className="text-xs text-slate-500 font-normal mt-0.5">
-                        {isEssay ? 'Complete 7-pillar DAG rubric check' : 'Comprehensive examiner diagnostics'}
+                        {isEssay ? 'Complete 11-pillar DAG rubric check' : 'Comprehensive examiner diagnostics'}
                       </div>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
@@ -860,7 +860,7 @@ export const PracticeHub = ({
                     Estimated: {preFlight.estimatedCredits} Credits
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium">
-                    Vision OCR + 6-Agent DAG Examiner Suite
+                    Vision OCR + 5-Stage Mentor DAG Suite
                   </div>
                 </div>
               </div>
@@ -942,7 +942,9 @@ export const PracticeHub = ({
                 const scoreDisplay = hasScore ? `${item.overallScore} / ${maxMarks} Marks` : 'Qualitative Report';
                 const title = item.topic || item.examQuestion || 'Candidate Answer Script';
                 const summaryExcerpt =
-                  item.examinerSummary?.overallVerdict ||
+                  (typeof item.examinerSummary === 'string'
+                    ? item.examinerSummary
+                    : item.examinerSummary?.overallVerdict) ||
                   item.summary ||
                   'Comprehensive feedback report highlighting thesis strength, vocabulary diversity, and counter-argument articulation.';
 

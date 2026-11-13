@@ -95,14 +95,60 @@ export const PARAGRAPH_ROLES = {
   CONCLUSION: 'CONCLUSION'
 };
 
+export const PROMPT_DECODING_TRAP_RULES = [
+  'Dual-Choice ("OR" / "Not X, but Y"): Candidate must engage substantively with BOTH sides before demonstrating why the chosen side outweighs the other (e.g., cannot ignore "Economy" in "Not economy, but politics is the key").',
+  'Split-Stance Two-Part Claim ("Not only X, but also Y"): Candidate may legitimately agree with Clause X while qualifying or refuting Clause Y—do not punish balanced partial agreement.',
+  'Metaphor / Case-Study Analogy (e.g., "Forests are the best case study for economic prosperity"): Flag literalist drift (writing about tree-planting or floods instead of decoding the ecological interdependence metaphor for macroeconomic prosperity).',
+  'Scope-Narrowing Keyword Substitution Trap: Flag quietly swapping a narrow/exact prompt keyword for a broader or narrower concept (e.g., replacing "Classrooms" with generic "Education" or narrowing "Higher education" to primary schooling without addressing the asked domain).',
+  'Global vs. Pakistan 80:20 Geographic Scope: If the exam prompt is Global/Universal (does NOT contain "Pakistan"), >=80% of the analysis must remain global/international (Pakistan at most 1–2 brief case-study illustrations, and NEVER a standalone "Impacts on Pakistan" main section). Conversely, if the prompt specifies "...in Pakistan", >=80% must focus on Pakistan.'
+];
+
+export const CONCEPTUAL_PRECISION_PAIRS = [
+  {
+    pair: 'Foreign Aid vs. External Debt / Loans',
+    distinction: 'IMF Extended Fund Facility (EFF) tranches and bilateral deposits are interest-bearing loans/external debt to be repaid, NOT concessional "foreign aid" or grants.'
+  },
+  {
+    pair: 'State vs. Government',
+    distinction: 'State is the permanent sovereign entity (territory, population, constitution, monopoly of force); Government is the transient elected administration/cabinet.'
+  },
+  {
+    pair: 'Economic Growth vs. Economic Development',
+    distinction: 'Growth measures quantitative GDP output; Development encompasses human capital, health, education, equity, and poverty alleviation.'
+  },
+  {
+    pair: 'Equality vs. Equity',
+    distinction: 'Equality applies identical inputs to everyone; Equity allocates differentiated support so disadvantaged groups reach fair parity.'
+  },
+  {
+    pair: 'Literacy vs. Education',
+    distinction: 'Literacy is functional reading/writing ability; Education denotes critical reasoning, technical skill, and civic consciousness.'
+  }
+];
+
+export const CSS_LANGUAGE_AND_FORMAT_RULES = [
+  'First-Mention Acronym Expansion: Expand non-universal institutional/policy acronyms (UNO, IMF, NFC, FBR, PIDE, CPEC, BISP, NADRA) in full with brackets on first occurrence (e.g., "International Monetary Fund (IMF)"); exempt universal everyday terms (GDP, USA, UK, AI, IT, COVID-19). Flag gently as TIER_3_POLISH.',
+  'Single-Digit Numbers in Words: Spell out standalone single-digit numbers ("one" to "nine") in prose ("four pillars", not "4 pillars"), except percentages, dates, years, constitutional articles, or statistics (TIER_3_POLISH).',
+  'Smart Modal Verb Hierarchy: Reserve "must / has to" strictly for binding Constitutional/Statutory obligations (e.g., Article 25-A); use "ought to / should" for policy recommendations and "can / could" for projected dividends. Flag monotonous "The government should..." strings in Solutions (TIER_3_POLISH).',
+  '80:20 Sentence Variety & Subject-Verb Proximity: Encourage ~80% crisp simple/complex + ~20% mature compound/embedded-clause sentences; gently flag clumsy >15-word unpunctuated gaps between Subject and Verb (TIER_3_POLISH).',
+  'Topic Praise & Slashes Ban: Never praise or anthropomorphize the prompt ("This topic is very interesting and talks about..."); never use slashes ("his/her", "he/she", "and/or") inside formal essay prose.'
+];
+
 export const GUARDRAIL_EXCEPTIONS = [
   'TRANSITION_BRIDGE Guardrail: A 1-to-3 sentence transitional bridge paragraph connecting two major sections of the essay (e.g., shifting from Causes to Consequences or Remedies) is a valid structural device. NEVER penalize a TRANSITION_BRIDGE paragraph for being under 100 words or lacking empirical evidence.',
   'CONTEXT_OVERVIEW Guardrail: A secondary contextual heading in the Outline (e.g., "2. Contextualizing the Crisis in Pakistan") may legitimately map to a single overview paragraph without 1.1/1.2 sub-points. Do not flag it as a missing sub-point error.',
   'Forward Transition Hook Guardrail: If the final clause or sentence of a BODY_MAIN paragraph briefly previews the theme of the next paragraph (Mentor 4 Forward Hook), do NOT flag it as a Paragraph Unity violation.',
   'Multiple Complementary Evidences Guardrail: Under "1 Paragraph = 1 Central Argument", a student may cite 1 or multiple complementary pieces of evidence inside a single paragraph as long as they all substantiate that same single central argument.',
   'Consensus Prompt Guardrail: When requiresCounterArgument === false (e.g., universal truths, moral axioms, or consensus prompts like "Democracy and illiteracy cannot move together"), NEVER penalize the student for omitting a Counter-Argument/Rebuttal section.',
-  'Valid English Collocation Guardrail: Phrases like "commit a mistake" or "commit an error" are 100% standard formal English—never flag them as Pinglish. Similarly, calling an issue "important", "key", "big", or "huge" is grammatically valid standard English and must only be suggested as 🔵 Tier 3 Expression Polish, never a Tier 1/2 error.'
+  'Valid English & AI-Cliché Safe Harbor: Phrases like "commit a mistake" / "commit an error" are 100% standard formal English. Calling an issue "important", "key", "big", or "huge" is valid English—at most a gentle 🔵 TIER_3_POLISH suggestion (NEVER Tier 1/2). NEVER penalize phrasing as "ChatGPT/AI buzzwords" (delve into, intricate tapestry, testament to, beacon of hope, multifaceted landscape, paradigm shift).'
 ];
+
+export const SHARED_SAFE_HARBOR_DIRECTIVE = `MENTOR SAFE HARBORS (STRICT):
+1. Valid Transitions/Overview: Never penalize TRANSITION_BRIDGE length or a single-paragraph CONTEXT_OVERVIEW; never penalize Mentor 4 forward hooks at the end of paragraphs.
+2. Evidence & Counter-Argument: Accept 1 or multiple complementary proofs per paragraph (Gondal's 54-evidence spectrum); only expect Counter-Argument when requiresCounterArgument === true.
+3. Collocation & Generic Modifiers: "commit a mistake/error" is valid formal English; "important / key / big / huge" are valid English and must NEVER be flagged as TIER_1_FATAL or TIER_2_MAJOR (only gentle TIER_3_POLISH).
+4. Zero AI-Cliché Penalty: NEVER penalize words like "delve into", "intricate tapestry", "beacon of hope", "multifaceted landscape", or "paradigm shift".
+5. Slip vs. Habit & Thesis Spot: 1–2 isolated pronoun/contraction slips are TIER_3_POLISH (reserve TIER_1/TIER_2 for pervasive habits). Accept Thesis Statements placed either in early Intro (P1.S3–S5) OR closing of P1.`;
 
 export const PINGLISH_INTERFERENCE_RULES = [
   {

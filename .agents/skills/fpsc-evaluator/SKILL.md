@@ -3,7 +3,9 @@ name: fpsc-evaluator
 description: Evaluates CSS answer scripts and 100-mark English Essays using the true Graph Engineering DAG architecture (scripts/evaluate_graph.js & scripts/evaluate_essay_graph.js) inside Antigravity without external API costs.
 ---
 
-# FPSC CSS 6-Agent DAG Graph Evaluation Skill
+# FPSC CSS 6-Agent DAG Graph Evaluation Skill (Local CLI / Subjective Workflow)
+
+> **Architecture Note:** For **FPSC CSS English Essays** in production, the canonical pipeline is the non-scored v3 DAG in `functions/src/rubric/orchestrateEssayPipeline.js` (`executeCssEssayPipelineV2`) backed by `English Essay Rubric.md` and `functions/src/rubric/essayRubricConfig.js`. Use the `.graph_state/` protocol below only for local CLI subjective 20-mark / Precis runs (`scripts/evaluate_graph.js`).
 
 This skill enables Antigravity to run a multi-agent qualitative evaluation on CSS answer papers. Each agent executes as an **isolated step** writing its output to a separate file. A **real Node.js script** (`scripts/evaluate_graph.js`) then programmatically validates, merges, and produces the final evaluation.
 

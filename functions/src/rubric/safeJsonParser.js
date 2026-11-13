@@ -297,7 +297,7 @@ export const callGenAiAgentWithFailover = async ({
       try {
         const config = {
           temperature,
-          maxOutputTokens: Math.max(8192, maxOutputTokens)
+          maxOutputTokens: Math.max(16384, maxOutputTokens)
         };
 
         if (systemInstruction) {
@@ -357,7 +357,8 @@ export const callGenAiAgentWithFailover = async ({
           result: parsed,
           modelName,
           usage,
-          searchSources
+          searchSources,
+          searchGrounded: Boolean(useSearchOnThisAttempt)
         };
       } catch (err) {
         const msg = err?.message || String(err);
@@ -368,15 +369,6 @@ export const callGenAiAgentWithFailover = async ({
           msg.includes('UNAVAILABLE') ||
           msg.includes('500');
 
-        if (useSearchOnThisAttempt && attempt === 0) {
-          console.warn(
-            `[GenAI Runner] ${stageName} on ${modelName} retrying with strict JSON mode (without search tool): ${msg.slice(0, 100)}`
-          );
-          useSearchOnThisAttempt = false;
-          attempt++;
-          continue;
-        }
-
         if (isTransient && attempt < maxRetries) {
           attempt++;
           const waitMs = 1200 + Math.random() * 400;
@@ -384,6 +376,16 @@ export const callGenAiAgentWithFailover = async ({
             `[GenAI Runner] ${stageName} on ${modelName} hit transient error (${msg.slice(0, 80)}). Retrying in ${Math.round(waitMs)}ms...`
           );
           await sleep(waitMs);
+          continue;
+        }
+
+        // Only disable Google Search as final fallback when on the last candidate model or non-transient tool/JSON failure
+        if (useSearchOnThisAttempt && attempt === 0) {
+          console.warn(
+            `[GenAI Runner] ${stageName} on ${modelName} retrying with strict JSON mode (search degraded): ${msg.slice(0, 100)}`
+          );
+          useSearchOnThisAttempt = false;
+          attempt++;
           continue;
         }
 
