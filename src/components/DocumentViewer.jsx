@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import {
   FileText,
   ChevronDown,
@@ -6,22 +6,17 @@ import {
   Cpu,
   Image as ImageIcon,
   Printer,
-  Check,
   X,
   ChevronLeft,
   ChevronRight,
-  Copy,
-  Sparkles,
-  AlertCircle,
-  Bookmark,
-  EyeOff
+  Sparkles
 } from 'lucide-react';
 import {
   cleanSimpleText,
-  getSimpleHeadline,
-  formatLocationLabel,
+  formatPopoverLocationLabel,
   simplifyCategoryTitle,
-  isDiscrepantEvidenceAnnotation
+  isDiscrepantEvidenceAnnotation,
+  tokenizeQuotedSegments
 } from '../utils/textUtils';
 
 const ABBREVIATIONS_GUARD =
@@ -497,6 +492,9 @@ export const parseDocumentSections = (fullText = '', isOutlineOnly = false) => {
   return { renderItems, bodyBlocks };
 };
 
+const POPOVER_MAX_WIDTH = 320;
+const getAnnotationKey = (ann, idx) => ann?.id || `ann-${idx}`;
+
 const getConcisePhrase = (phrase = '', blockText = '') => {
   const clean = String(phrase || '').trim();
   if (!clean) return '';
@@ -518,17 +516,12 @@ export const DocumentViewer = ({
   const [viewMode, setViewMode] = useState('transcribed'); // 'transcribed' | 'original'
   const [isVisualExpanded, setIsVisualExpanded] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all'); // 'all' | 'red' | 'amber' | 'green'
-  const [copied, setCopied] = useState(false);
-  const [bookmarkedAnnIds, setBookmarkedAnnIds] = useState({});
   const [popoverPos, setPopoverPos] = useState(null);
 
   const containerRef = useRef(null);
   const paperRef = useRef(null);
+  const popoverRef = useRef(null);
   const highlightRefs = useRef({});
-
-  const handleToggleBookmark = (id) => {
-    setBookmarkedAnnIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
 
   // Reset refs when evaluation changes
   useEffect(() => {
@@ -587,6 +580,19 @@ export const DocumentViewer = ({
     return base;
   }, [evaluation.annotations, evaluation.factCheck, fullText]);
 
+  const annotationKeyMap = useMemo(() => {
+    const map = new Map();
+    allAnnotations.forEach((ann, idx) => {
+      map.set(ann, getAnnotationKey(ann, idx));
+    });
+    return map;
+  }, [allAnnotations]);
+
+  const resolveAnnKey = useCallback(
+    (ann, fallbackIdx = 0) => annotationKeyMap.get(ann) || getAnnotationKey(ann, fallbackIdx),
+    [annotationKeyMap]
+  );
+
   const isOutlineOnly =
     evaluation.essayMode === 'outline_only' ||
     evaluation.isOutlineOnly === true ||
@@ -603,8 +609,21 @@ export const DocumentViewer = ({
     const map = {};
     if (renderItems.length === 0 || allAnnotations.length === 0) return map;
 
+    const allOutlineIndices = [];
+    const ordinalOutlineIndices = [];
+    renderItems.forEach((item, idx) => {
+      if (item.kind.startsWith('outline_')) {
+        allOutlineIndices.push(idx);
+        if (item.kind !== 'outline_title') {
+          ordinalOutlineIndices.push(idx);
+        }
+      }
+    });
+    const outlineSequence =
+      ordinalOutlineIndices.length > 0 ? ordinalOutlineIndices : allOutlineIndices;
+
     allAnnotations.forEach((ann, idx) => {
-      const annId = ann.id || `ann-${idx}`;
+      const annKey = resolveAnnKey(ann, idx);
       const rawPhrase = String(ann.targetPhrase || '').trim();
       if (!rawPhrase) return;
 
@@ -619,32 +638,54 @@ export const DocumentViewer = ({
           const concise = getConcisePhrase(rawPhrase, renderItems[itemIdx].text);
           const regex = new RegExp(concise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
           if (regex.test(renderItems[itemIdx].text)) {
-            map[annId] = itemIdx;
+            map[annKey] = itemIdx;
             return;
           }
         }
-      } else if (/^O\d+/i.test(loc)) {
-        const outlineIdx = renderItems.findIndex((item) => {
-          if (!item.kind.startsWith('outline_')) return false;
-          const concise = getConcisePhrase(rawPhrase, item.text);
-          return new RegExp(concise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(item.text);
-        });
-        if (outlineIdx !== -1) {
-          map[annId] = outlineIdx;
+      } else {
+        const oMatch = loc.match(/^O(\d+)/i);
+        if (oMatch && allOutlineIndices.length > 0) {
+          const targetOrdinal = parseInt(oMatch[1], 10);
+          const matchingIndices = allOutlineIndices.filter((itemIdx) => {
+            const concise = getConcisePhrase(rawPhrase, renderItems[itemIdx].text);
+            return new RegExp(concise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(
+              renderItems[itemIdx].text
+            );
+          });
+
+          if (matchingIndices.length === 1) {
+            map[annKey] = matchingIndices[0];
+          } else if (matchingIndices.length > 1) {
+            // Prefer the match closest in outline order to targetOrdinal (1-based)
+            let bestIdx = matchingIndices[0];
+            let bestDistance = Infinity;
+            matchingIndices.forEach((itemIdx) => {
+              const seqPos = outlineSequence.indexOf(itemIdx);
+              const ordinal = seqPos >= 0 ? seqPos + 1 : allOutlineIndices.indexOf(itemIdx) + 1;
+              const dist = Math.abs(ordinal - targetOrdinal);
+              if (dist < bestDistance) {
+                bestDistance = dist;
+                bestIdx = itemIdx;
+              }
+            });
+            map[annKey] = bestIdx;
+          }
         }
       }
     });
 
     return map;
-  }, [renderItems, allAnnotations]);
+  }, [renderItems, allAnnotations, resolveAnnKey]);
 
   // Identify currently selected annotation
   const activeAnnotation = useMemo(() => {
     if (!selectedAnnId) return null;
-    return allAnnotations.find(
-      (a, idx) => (a.id || `ann-${idx}`) === selectedAnnId || `ann-${a.targetPhrase}` === selectedAnnId
-    ) || null;
-  }, [selectedAnnId, allAnnotations]);
+    return (
+      allAnnotations.find(
+        (a, idx) => resolveAnnKey(a, idx) === selectedAnnId || `ann-${a.targetPhrase}` === selectedAnnId
+      ) || null
+    );
+  }, [selectedAnnId, allAnnotations, resolveAnnKey]);
 
   // Filtered annotations for the stepper
   const filteredAnnotations = useMemo(() => {
@@ -654,116 +695,189 @@ export const DocumentViewer = ({
 
   const activeIndexInFiltered = useMemo(() => {
     if (!activeAnnotation) return -1;
-    const activeId = activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`;
+    const activeKey = resolveAnnKey(activeAnnotation);
     return filteredAnnotations.findIndex(
-      (a, idx) => (a.id || `ann-${idx}`) === activeId || `ann-${a.targetPhrase}` === activeId
+      (a, idx) => resolveAnnKey(a, idx) === activeKey || a === activeAnnotation
     );
-  }, [filteredAnnotations, activeAnnotation]);
+  }, [filteredAnnotations, activeAnnotation, resolveAnnKey]);
 
-  // Calculate Popover Position Anchored to Underlined Word
-  const updatePopoverPosition = useCallback(() => {
-    if (!selectedAnnId || !paperRef.current) {
-      setPopoverPos(null);
-      return;
-    }
+  // Calculate Popover Position Anchored to Underlined Word (handles line wraps & measured height)
+  const updatePopoverPosition = useCallback(
+    (explicitHeight = null) => {
+      if (!selectedAnnId || !paperRef.current) {
+        setPopoverPos(null);
+        return;
+      }
 
-    const targetEl = highlightRefs.current[selectedAnnId];
-    if (!targetEl) {
-      setPopoverPos(null);
-      return;
-    }
+      const targetEl = highlightRefs.current[selectedAnnId];
+      if (!targetEl) {
+        setPopoverPos(null);
+        return;
+      }
 
-    const targetRect = targetEl.getBoundingClientRect();
-    const paperRect = paperRef.current.getBoundingClientRect();
-    const isMobile = window.innerWidth < 640;
-    const cardWidth = isMobile ? Math.min(320, window.innerWidth - 32) : 360;
+      const paperRect = paperRef.current.getBoundingClientRect();
+      const boundingRect = targetEl.getBoundingClientRect();
+      const clientRects = Array.from(targetEl.getClientRects?.() || []).filter(
+        (r) => r.width > 0 && r.height > 0
+      );
 
-    // Position relative to paper container
-    let top = targetRect.bottom - paperRect.top + 8;
-    let left = targetRect.left - paperRect.left + targetRect.width / 2 - cardWidth / 2;
+      const firstRect = clientRects[0] || boundingRect;
+      const lastRect = clientRects[clientRects.length - 1] || boundingRect;
 
-    // Clamp horizontally inside paper container
-    const minLeft = 8;
-    const maxLeft = paperRect.width - cardWidth - 8;
-    left = Math.max(minLeft, Math.min(left, maxLeft));
+      const cardWidth = Math.min(POPOVER_MAX_WIDTH, Math.max(240, paperRect.width - 16));
+      const measuredHeight =
+        typeof explicitHeight === 'number' && explicitHeight > 0
+          ? explicitHeight
+          : popoverRef.current?.offsetHeight || 156;
 
-    // Calculate pointer arrow notch position pointing directly to the target word
-    const targetCenterOnPaper = targetRect.left - paperRect.left + targetRect.width / 2;
-    const notchLeft = Math.max(16, Math.min(cardWidth - 24, targetCenterOnPaper - left));
+      const gap = 10;
+      const spaceBelowViewport = window.innerHeight - lastRect.bottom;
+      const spaceAboveViewport = firstRect.top;
+      const overflowPaperBottom =
+        lastRect.bottom - paperRect.top + gap + measuredHeight + 12 > paperRect.height;
 
-    // Check vertical clearance
-    const spaceBelow = window.innerHeight - targetRect.bottom;
-    let placement = 'bottom';
-    if (spaceBelow < 220 && targetRect.top > 230) {
-      top = targetRect.top - paperRect.top - 180;
-      placement = 'top';
-    }
+      let placement = 'bottom';
+      if (
+        (overflowPaperBottom || spaceBelowViewport < measuredHeight + 22) &&
+        spaceAboveViewport >= measuredHeight + 22 &&
+        firstRect.top - paperRect.top >= measuredHeight + gap + 8
+      ) {
+        placement = 'top';
+      }
 
-    setPopoverPos({ top, left, width: cardWidth, placement, notchLeft });
-  }, [selectedAnnId]);
+      // Anchor horizontally onto the exact line fragment nearest the notch (last line for bottom, first line for top)
+      const anchorRect = placement === 'top' ? firstRect : lastRect;
+      const targetCenterOnPaper = anchorRect.left - paperRect.left + anchorRect.width / 2;
 
-  // Update position on selection change, resize, or scroll
+      let left = targetCenterOnPaper - cardWidth / 2;
+      const minLeft = 8;
+      const maxLeft = Math.max(minLeft, paperRect.width - cardWidth - 8);
+      left = Math.max(minLeft, Math.min(left, maxLeft));
+
+      const notchLeft = Math.max(22, Math.min(cardWidth - 22, targetCenterOnPaper - left));
+
+      const top =
+        placement === 'top'
+          ? Math.max(8, anchorRect.top - paperRect.top - measuredHeight - gap)
+          : anchorRect.bottom - paperRect.top + gap;
+
+      setPopoverPos({
+        top,
+        left,
+        width: cardWidth,
+        placement,
+        notchLeft,
+        measuredHeight: typeof explicitHeight === 'number' ? explicitHeight : null
+      });
+    },
+    [selectedAnnId]
+  );
+
+  // Update position on selection change; scroll smoothly only if highlight is near/out of viewport
   useEffect(() => {
     if (selectedAnnId && viewMode === 'transcribed') {
       const targetEl = highlightRefs.current[selectedAnnId];
-      if (targetEl && typeof targetEl.scrollIntoView === 'function') {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      let scrollTimer = null;
+
+      if (targetEl) {
+        const rect = targetEl.getBoundingClientRect();
+        const isOutOfComfortableView =
+          rect.top < 96 || rect.bottom > window.innerHeight - 150;
+        if (isOutOfComfortableView && typeof targetEl.scrollIntoView === 'function') {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
       }
 
-      // Allow DOM to settle scroll before calculating rect
-      const timeoutId = setTimeout(updatePopoverPosition, 160);
-      return () => clearTimeout(timeoutId);
+      const rafId = requestAnimationFrame(() => updatePopoverPosition());
+      scrollTimer = setTimeout(() => updatePopoverPosition(), 240);
+
+      return () => {
+        cancelAnimationFrame(rafId);
+        if (scrollTimer) clearTimeout(scrollTimer);
+      };
     } else {
       setPopoverPos(null);
     }
   }, [selectedAnnId, viewMode, updatePopoverPosition]);
 
+  // Measure actual rendered card height synchronously before paint so top-flip placement is exact
+  useLayoutEffect(() => {
+    if (!selectedAnnId || !popoverRef.current || !popoverPos) return;
+    const actualHeight = popoverRef.current.offsetHeight;
+    if (actualHeight > 0 && popoverPos.measuredHeight !== actualHeight) {
+      updatePopoverPosition(actualHeight);
+    }
+  }, [selectedAnnId, activeAnnotation?.comment, popoverPos, updatePopoverPosition]);
+
   useEffect(() => {
-    window.addEventListener('resize', updatePopoverPosition);
-    return () => window.removeEventListener('resize', updatePopoverPosition);
+    const handleResize = () => updatePopoverPosition();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [updatePopoverPosition]);
 
   // Stepper Handlers
-  const handleNextAnnotation = (e) => {
-    e?.stopPropagation();
-    if (filteredAnnotations.length === 0) return;
-    const nextIdx = (activeIndexInFiltered + 1) % filteredAnnotations.length;
-    const nextAnn = filteredAnnotations[nextIdx];
-    if (nextAnn && onSelectAnnId) {
-      onSelectAnnId(nextAnn.id || `ann-${nextAnn.targetPhrase}`);
-    }
-  };
+  const handleNextAnnotation = useCallback(
+    (e) => {
+      e?.stopPropagation();
+      if (filteredAnnotations.length === 0) return;
+      const nextIdx = (activeIndexInFiltered + 1) % filteredAnnotations.length;
+      const nextAnn = filteredAnnotations[nextIdx];
+      if (nextAnn && onSelectAnnId) {
+        onSelectAnnId(resolveAnnKey(nextAnn, nextIdx));
+      }
+    },
+    [filteredAnnotations, activeIndexInFiltered, onSelectAnnId, resolveAnnKey]
+  );
 
-  const handlePrevAnnotation = (e) => {
-    e?.stopPropagation();
-    if (filteredAnnotations.length === 0) return;
-    const prevIdx =
-      (activeIndexInFiltered - 1 + filteredAnnotations.length) % filteredAnnotations.length;
-    const prevAnn = filteredAnnotations[prevIdx];
-    if (prevAnn && onSelectAnnId) {
-      onSelectAnnId(prevAnn.id || `ann-${prevAnn.targetPhrase}`);
-    }
-  };
+  const handlePrevAnnotation = useCallback(
+    (e) => {
+      e?.stopPropagation();
+      if (filteredAnnotations.length === 0) return;
+      const prevIdx =
+        activeIndexInFiltered <= 0
+          ? filteredAnnotations.length - 1
+          : activeIndexInFiltered - 1;
+      const prevAnn = filteredAnnotations[prevIdx];
+      if (prevAnn && onSelectAnnId) {
+        onSelectAnnId(resolveAnnKey(prevAnn, prevIdx));
+      }
+    },
+    [filteredAnnotations, activeIndexInFiltered, onSelectAnnId, resolveAnnKey]
+  );
 
-  const handleCopyFix = (e) => {
-    e?.stopPropagation();
-    if (!activeAnnotation) return;
-    const textToCopy = activeAnnotation.suggestion || activeAnnotation.targetPhrase || '';
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
+  // Keyboard navigation while an inline annotation is active
+  useEffect(() => {
+    if (!selectedAnnId || viewMode !== 'transcribed') return;
+    const handleKeyDown = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) {
+        return;
+      }
 
-  const handleTranscribedClick = (e, ann) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onSelectAnnId?.(null);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNextAnnotation();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevAnnotation();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAnnId, viewMode, onSelectAnnId, handleNextAnnotation, handlePrevAnnotation]);
+
+  const handleTranscribedClick = (e, ann, annIdx) => {
     e.stopPropagation();
-    const annId = ann.id || `ann-${ann.targetPhrase}`;
-    if (selectedAnnId === annId) {
-      // Toggle off if already selected
+    const annKey = resolveAnnKey(ann, annIdx);
+    if (selectedAnnId === annKey) {
       if (onSelectAnnId) onSelectAnnId(null);
     } else {
-      if (onSelectAnnId) onSelectAnnId(annId);
+      if (onSelectAnnId) onSelectAnnId(annKey);
     }
   };
 
@@ -778,8 +892,8 @@ export const DocumentViewer = ({
 
     allAnnotations.forEach((a, idx) => {
       if (!a.targetPhrase || typeof a.targetPhrase !== 'string') return;
-      const annId = a.id || `ann-${idx}`;
-      const lockedIdx = annotationTargetIndexMap[annId];
+      const annKey = resolveAnnKey(a, idx);
+      const lockedIdx = annotationTargetIndexMap[annKey];
       if (typeof lockedIdx === 'number' && lockedIdx !== itemIdx) {
         return;
       }
@@ -790,7 +904,7 @@ export const DocumentViewer = ({
         const key = matchPhrase.toLowerCase();
         if (!seenKeysInBlock.has(key)) {
           seenKeysInBlock.add(key);
-          validAnns.push({ ann: a, matchPhrase });
+          validAnns.push({ ann: a, annIdx: idx, matchPhrase });
         }
       }
     });
@@ -813,8 +927,8 @@ export const DocumentViewer = ({
       );
       if (matchedEntry) {
         const matchedAnn = matchedEntry.ann;
-        const annId = matchedAnn.id || `ann-${matchedAnn.targetPhrase}`;
-        const isSelected = selectedAnnId === annId;
+        const annKey = resolveAnnKey(matchedAnn, matchedEntry.annIdx);
+        const isSelected = selectedAnnId === annKey || selectedAnnId === `ann-${matchedAnn.targetPhrase}`;
         const isDiscrepantEvidence = isDiscrepantEvidenceAnnotation(matchedAnn);
         const colorType = matchedAnn.type || 'amber';
         const underlineClass = isDiscrepantEvidence
@@ -827,16 +941,18 @@ export const DocumentViewer = ({
 
         return (
           <span
-            key={`${annId}-${i}`}
+            key={`${annKey}-${i}`}
             ref={(el) => {
-              if (el && !highlightRefs.current[annId]) {
-                highlightRefs.current[annId] = el;
+              if (el) {
+                if (!highlightRefs.current[annKey] || !highlightRefs.current[annKey].isConnected) {
+                  highlightRefs.current[annKey] = el;
+                }
+              } else if (highlightRefs.current[annKey] && !highlightRefs.current[annKey].isConnected) {
+                delete highlightRefs.current[annKey];
               }
             }}
-            onClick={(e) => handleTranscribedClick(e, matchedAnn)}
-            className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline ${
-              isSelected ? 'ring-2 ring-[#008560] ring-offset-1 rounded-xs' : ''
-            }`}
+            onClick={(e) => handleTranscribedClick(e, matchedAnn, matchedEntry.annIdx)}
+            className={`${underlineClass} ${isSelected ? 'is-selected' : ''} cursor-pointer relative z-10 inline`}
             title={cleanSimpleText(matchedAnn.comment || simplifyCategoryTitle(matchedAnn.category, matchedAnn))}
           >
             {part}
@@ -851,6 +967,23 @@ export const DocumentViewer = ({
   const redCount = allAnnotations.filter((a) => a.type === 'red').length;
   const amberCount = allAnnotations.filter((a) => a.type === 'amber').length;
   const greenCount = allAnnotations.filter((a) => a.type === 'green').length;
+
+  const activeSeverityBadgeClass = activeAnnotation
+    ? isDiscrepantEvidenceAnnotation(activeAnnotation)
+      ? 'editorial-popover-badge-evidence'
+      : activeAnnotation.type === 'red'
+      ? 'editorial-popover-badge-error'
+      : activeAnnotation.type === 'green'
+      ? 'editorial-popover-badge-good'
+      : 'editorial-popover-badge-polish'
+    : 'editorial-popover-badge-polish';
+
+  const activeCommentSegments = activeAnnotation?.comment
+    ? tokenizeQuotedSegments(cleanSimpleText(activeAnnotation.comment))
+    : [];
+  const activeLocationText = activeAnnotation?.locationId
+    ? formatPopoverLocationLabel(activeAnnotation.locationId)
+    : '';
 
   return (
     <div
@@ -1175,108 +1308,119 @@ export const DocumentViewer = ({
               })}
             </div>
 
-            {/* SIMPLE COMPACT FEEDBACK POP-UP CARD */}
+            {/* REDESIGNED EDITORIAL ANNOTATION POPOVER */}
             {activeAnnotation && popoverPos && (
               <div
-                className="grammarly-card animate-in fade-in duration-200 text-left"
+                ref={popoverRef}
+                role="dialog"
+                aria-label={simplifyCategoryTitle(activeAnnotation.category, activeAnnotation)}
+                className="editorial-popover text-left"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   top: `${popoverPos.top}px`,
                   left: `${popoverPos.left}px`,
-                  width: `${Math.min(320, popoverPos.width)}px`
+                  width: `${popoverPos.width}px`
                 }}
               >
-                {/* Pointer Notch */}
+                {/* Seamless Pointer Notch Anchored to Phrase Center */}
                 <div
+                  aria-hidden="true"
                   className={
                     popoverPos.placement === 'top'
-                      ? 'grammarly-pointer-bottom'
-                      : 'grammarly-pointer-top'
+                      ? 'editorial-popover-notch-bottom'
+                      : 'editorial-popover-notch-top'
                   }
                   style={{ left: `${popoverPos.notchLeft || 28}px` }}
                 />
 
-                {/* Header: Dot + Simple Heading + Close */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 font-sans gap-2">
-                  <div className="flex items-center space-x-1.5 min-w-0">
-                    <span
-                      className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${
-                        activeAnnotation.type === 'red'
-                          ? 'bg-rose-500'
-                          : activeAnnotation.type === 'green'
-                          ? 'bg-emerald-500'
-                          : 'bg-amber-500'
-                      }`}
-                    />
-                    <span className="text-[11px] font-bold text-slate-700 tracking-wide truncate">
-                      {simplifyCategoryTitle(activeAnnotation.category, activeAnnotation)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {activeAnnotation.locationId && (
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {formatLocationLabel(activeAnnotation.locationId)}
+                <div className="editorial-popover-inner">
+                  {/* Header: Severity Status Pill + Subtle Location + Close */}
+                  <div className="editorial-popover-header">
+                    <span className={`editorial-popover-badge ${activeSeverityBadgeClass}`}>
+                      <span className="editorial-popover-dot" aria-hidden="true" />
+                      <span className="truncate">
+                        {simplifyCategoryTitle(activeAnnotation.category, activeAnnotation)}
                       </span>
-                    )}
-                    <button
-                      aria-label="Close feedback card"
-                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md transition-colors cursor-pointer"
-                      onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                      type="button"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                </div>
+                    </span>
 
-                {/* Simple Highlighted Word/Phrase + Plain Explanation */}
-                <div className="my-2 space-y-1.5 font-sans">
-                  {activeAnnotation.targetPhrase && (
-                    <div
-                      className={`text-xs font-medium px-2 py-1 rounded border inline-block max-w-full ${
-                        activeAnnotation.type === 'green'
-                          ? 'bg-emerald-50/70 text-emerald-800 border-emerald-200'
-                          : isDiscrepantEvidenceAnnotation(activeAnnotation)
-                          ? 'bg-rose-50 text-red-700 border-rose-200'
-                          : 'bg-slate-50 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      "{getConcisePhrase(activeAnnotation.targetPhrase, fullText)}"
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {activeLocationText && (
+                        <span className="editorial-popover-location">{activeLocationText}</span>
+                      )}
+                      <button
+                        aria-label="Close feedback note"
+                        className="editorial-popover-close"
+                        onClick={() => onSelectAnnId && onSelectAnnId(null)}
+                        title="Close (Esc)"
+                        type="button"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Explanation Body with Inline Scannable Phrase Tokens */}
+                  <div className="editorial-popover-body">
+                    {activeCommentSegments.length > 0 ? (
+                      <p>
+                        {activeCommentSegments.map((seg, idx) =>
+                          seg.isQuoted ? (
+                            <span key={idx} className="editorial-popover-token">
+                              {seg.text}
+                            </span>
+                          ) : (
+                            <React.Fragment key={idx}>{seg.text}</React.Fragment>
+                          )
+                        )}
+                      </p>
+                    ) : (
+                      <p>
+                        Review{' '}
+                        <span className="editorial-popover-token">
+                          {getConcisePhrase(activeAnnotation.targetPhrase, fullText)}
+                        </span>{' '}
+                        carefully for clarity and correctness.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Quiet Utility Stepper Footer */}
+                  {filteredAnnotations.length > 0 && (
+                    <div className="editorial-popover-footer">
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={handlePrevAnnotation}
+                          disabled={filteredAnnotations.length <= 1}
+                          className="editorial-popover-btn"
+                          aria-label="Previous note"
+                          title="Previous note (←)"
+                        >
+                          <ChevronLeft size={13} />
+                          <span>Prev</span>
+                        </button>
+
+                        <span className="editorial-popover-counter">
+                          {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 1} /{' '}
+                          {filteredAnnotations.length}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={handleNextAnnotation}
+                          disabled={filteredAnnotations.length <= 1}
+                          className="editorial-popover-btn"
+                          aria-label="Next note"
+                          title="Next note (→)"
+                        >
+                          <span>Next</span>
+                          <ChevronRight size={13} />
+                        </button>
+                      </div>
+
+                      <span className="editorial-popover-kbd hidden sm:inline">← → · Esc</span>
                     </div>
                   )}
-                  {activeAnnotation.comment && (
-                    <p className="text-[12.5px] text-slate-700 leading-relaxed font-normal">
-                      {cleanSimpleText(activeAnnotation.comment)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Single Clean Action Button */}
-                <div className="pt-2 border-t border-slate-100 mt-1.5 font-sans">
-                  <button
-                    onClick={() =>
-                      handleToggleBookmark(
-                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
-                      )
-                    }
-                    className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-colors border active:scale-95 cursor-pointer ${
-                      bookmarkedAnnIds[
-                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
-                      ]
-                        ? 'bg-[#008560] text-white border-[#008560]'
-                        : 'bg-[#008560]/10 hover:bg-[#008560]/20 text-[#008560] border-[#008560]/30'
-                    }`}
-                    type="button"
-                  >
-                    <Bookmark size={13} />
-                    <span>
-                      {bookmarkedAnnIds[
-                        activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
-                      ]
-                        ? 'Saved in Correction Book'
-                        : 'Add to Correction Book'}
-                    </span>
-                  </button>
                 </div>
               </div>
             )}

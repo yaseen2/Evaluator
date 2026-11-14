@@ -27,6 +27,25 @@ export const formatLocationLabel = (locationId = '') => {
     .replace(/\bP(\d+)\b/gi, 'Paragraph $1');
 };
 
+/**
+ * Compact location subtitle tailored for the inline paper popover, where the
+ * pointer notch already anchors directly onto the underlined phrase.
+ */
+export const formatPopoverLocationLabel = (locationId = '') => {
+  const raw = String(locationId || '')
+    .replace(/^\[+|\]+$/g, '')
+    .trim();
+  if (!raw) return '';
+
+  if (/^O\d+$/i.test(raw)) return 'Outline';
+  if (/^P1(?:\.S\d+)?$/i.test(raw)) return 'Introduction';
+
+  const bodyMatch = raw.match(/^P(\d+)(?:\.S\d+)?$/i);
+  if (bodyMatch) return `Paragraph ${bodyMatch[1]}`;
+
+  return formatLocationLabel(raw);
+};
+
 export const formatRoleLabel = (role = '') => {
   const key = String(role || '').trim().toUpperCase();
   const map = {
@@ -167,5 +186,41 @@ export const getSimpleHeadline = (ann) => {
   }
 
   return 'Tip';
+};
+
+/**
+ * Splits plain-English explanation prose into plain segments and single-quoted
+ * example suggestions ('like this') while leaving mid-word apostrophes untouched.
+ */
+export const tokenizeQuotedSegments = (text = '') => {
+  const input = String(text || '');
+  if (!input) return [];
+
+  const regex = /(^|[\s([{"“/—–])'((?:[^'\n]|'(?=[a-zA-Z]))+?)'(?=$|[\s.,;:!?)\]}"”/—–])/g;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(input)) !== null) {
+    const lead = match[1];
+    const quotedText = match[2];
+    const quoteStart = match.index + lead.length;
+
+    if (!quotedText.trim() || quotedText.length > 120) {
+      continue;
+    }
+
+    if (quoteStart > lastIndex) {
+      segments.push({ text: input.slice(lastIndex, quoteStart), isQuoted: false });
+    }
+    segments.push({ text: quotedText, isQuoted: true });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < input.length) {
+    segments.push({ text: input.slice(lastIndex), isQuoted: false });
+  }
+
+  return segments.length > 0 ? segments : [{ text: input, isQuoted: false }];
 };
 

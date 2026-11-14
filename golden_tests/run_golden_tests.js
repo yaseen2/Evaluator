@@ -27,6 +27,10 @@ import {
 } from '../functions/src/rubric/essayRubricConfig.js';
 import { estimateCreditsPreFlight } from '../functions/src/services/creditsManager.js';
 import { executeCssEssayPipelineV2 } from '../functions/src/rubric/orchestrateEssayPipeline.js';
+import {
+  tokenizeQuotedSegments,
+  formatPopoverLocationLabel
+} from '../src/utils/textUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -363,6 +367,29 @@ Sources: [1] imf.org`;
   console.log(
     `  ✓ Jammed Parenthesis Outline Split: ${jammedPre.outlineNodes.length} outlineNodes | ${jammedPre.paragraphs.length} body paragraphs | Abbreviations & prose guarded.\n`
   );
+  passed++;
+
+  // 6. Test Popover Text Tokenizer & Compact Location Formatting
+  console.log('▶ Test 6: Popover Inline Quote Tokenizer & Compact Location Labels...');
+  const sampleExplanation =
+    "You missed a word here. Write 'transformed a passive audience' or use 'Pakistan's economy'—it isn't vague.";
+  const quoteSegments = tokenizeQuotedSegments(sampleExplanation);
+  const quotedOnly = quoteSegments.filter((s) => s.isQuoted).map((s) => s.text);
+  assertCondition(
+    quotedOnly.length === 2 &&
+      quotedOnly[0] === 'transformed a passive audience' &&
+      quotedOnly[1] === "Pakistan's economy" &&
+      quoteSegments.some((s) => !s.isQuoted && s.text.includes("isn't vague.")),
+    `Expected balanced quote tokens without splitting apostrophes, got: ${JSON.stringify(quoteSegments)}`
+  );
+
+  assertCondition(
+    formatPopoverLocationLabel('O5') === 'Outline' &&
+      formatPopoverLocationLabel('[P1.S3]') === 'Introduction' &&
+      formatPopoverLocationLabel('P4.S2') === 'Paragraph 4',
+    'formatPopoverLocationLabel failed compact label mapping.'
+  );
+  console.log('  ✓ Quoted phrase tokenization & compact popover locations verified.\n');
   passed++;
 
   console.log(`✅ All ${passed} Deterministic & Pre-Processor Golden Suites Passed (0 Tokens)!\n`);
