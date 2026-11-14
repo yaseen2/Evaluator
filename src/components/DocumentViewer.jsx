@@ -25,61 +25,192 @@ import {
 } from '../utils/textUtils';
 
 const ABBREVIATIONS_GUARD =
-  /(?:U\.S\.A|U\.S|U\.K|U\.N|U\.A\.E|P\.M|C\.M|A\.D|B\.C|Mr|Mrs|Ms|Dr|Prof|St|vs|etc|e\.g|i\.e|Fig|Art|Sec|Vol|No)$/i;
+  /(?:^|[\s(\["'])(?:Mr|Mrs|Ms|Dr|Prof|Rev|Hon|Gen|Col|Lt|Sr|Jr|St|Sen|Rep|Gov|Pres|vs|e\.g|i\.e|viz|cf|Fig|Art|Sec|Vol|No|Ch|Rs)\.?$/i;
 
-const isOutlineStartOrMarkersBlock = (blockText = '') => {
-  const trimmed = blockText.trim();
-  if (!trimmed) return false;
-  if (/^outline\b/i.test(trimmed)) return true;
-  const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
-  const words = trimmed.split(/\s+/).filter(Boolean).length;
-  const markerHits = (
-    trimmed.match(
-      /(?:^|[\n:;.]\s*)(?:Outline\b|Thesis\s*Statement\b|[IVXLCDM]+[.)]\s+[A-Z]|[A-Z][.)]\s+[A-Z][a-z]{2,}|\d{1,2}(?:\.\d+)?[.)]\s+[A-Za-z])/g
-    ) || []
-  ).length;
-  if (markerHits >= 2) return true;
-  if (lines.length === 1 && words < 35 && /^(?:[IVXLCDM]+|[A-Z]|\d+(?:\.\d+)*)[.):\-]\s+/i.test(trimmed)) {
+const ROMAN_UPPER_SRC = '(?:X{1,3}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)';
+const ROMAN_LOWER_SRC = '(?:x{1,3}(?:ix|iv|v?i{0,3})|ix|iv|v?i{1,3}|v)';
+
+const NO_SPLIT_BEFORE_ALPHA_PREFIX =
+  /(?:^|[\s(\["'])(?:by|of|for|with|from|to|in|at|on|under|via|as|and|or|the|a|an|sir|lord|king|queen|saint|pope)$/i;
+
+const NO_SPLIT_BEFORE_TITLE_OR_NOUN_ALPHA_PREFIX =
+  /(?:^|[\s(\["'])(?:henry|louis|charles|edward|george|elizabeth|war|phase|part|grade|type|vitamin|plan|option|appendix|section|article|schedule|table|figure|column|category|group|class|tier|series|model|annex)$/i;
+
+const NO_SPLIT_BEFORE_NUM_PREFIX =
+  /(?:^|[\s(\["'])(?:page|para|clause|rule|tier|level|grade|type|phase|step|part|chapter|section|article|amendment|schedule|annex|war|agenda|version|model|fig|table|no|vol|sec|art|ch|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)$/i;
+
+const NO_SPLIT_BEFORE_LOWER_PREFIX =
+  /(?:^|[\s(\["'])(?:plan|option|appendix|vitamin|section|part|grade|type|column|annex|schedule|category|group|class|tier|series|model|table|figure|subpart|clause|item|letter|point)$/i;
+
+const startsWithOutlineMarker = (line = '') => {
+  const t = String(line || '').trim();
+  if (!t) return false;
+  if (/^(?:outline\s*(?::|$)|thesis\s*statement\b)/i.test(t)) return true;
+  if (/^[-•*▪→]\s+/.test(t)) return true;
+
+  // Parenthesis markers at start: 1), A), a), I), i), (1), (a), (i), 1.1)
+  if (
+    new RegExp(
+      `^(?:(?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\)|\\((?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\))[ \\t]+(?=[A-Za-z0-9"'“‘])`
+    ).test(t)
+  ) {
     return true;
   }
+
+  // Decimal sub-headings without trailing dot: 1.1 Causes
+  if (/^\d{1,2}(?:\.\d+)+[ \t]+(?=[A-Z"'“‘])/.test(t)) return true;
+
+  // Period markers at start: I., A., 1., 1.1., a., i. (excluding initials like M. A. Jinnah or U.S. / Dr.)
+  const dotMatch = t.match(
+    new RegExp(
+      `^(${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\.[ \\t]+([A-Za-z0-9"'“‘][^\\n]*)`
+    )
+  );
+  if (dotMatch) {
+    const marker = dotMatch[1];
+    const rest = dotMatch[2];
+    if (ABBREVIATIONS_GUARD.test(`${marker}.`)) return false;
+    if (/^[A-Z]$/.test(marker) && /^[A-Z]\.(?:[ \t]|$)/.test(rest)) return false;
+    return true;
+  }
+
   return false;
 };
 
-const expandInlineOutlineMarkers = (blockText = '') => {
+export const expandInlineOutlineMarkers = (blockText = '') => {
   // Split single jammed outline paragraphs into individual hierarchy lines
-  const normalized = blockText.replace(/\r\n/g, '\n').trim();
+  const normalized = String(blockText || '').replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];
 
-  // Break after "Outline:" or standalone "Outline"
-  let expanded = normalized.replace(/^(Outline\s*:?)\s+/i, '$1\n');
-
-  // Break before Roman numeral or Capital-letter main headings (avoiding U.S., Dr., etc.)
+  // 1. Break after "Outline:" or "Outline <marker>"
+  let expanded = normalized.replace(/^(Outline\s*:)[ \t]+(?=\S)/gim, '$1\n');
   expanded = expanded.replace(
-    /([:;.?!)\]]\s+|\s+)(?=(?:[IVXLCDM]{1,5}[.)]\s+[A-Z][a-z]{2,}|[A-Z][.)]\s+(?:Introduction|Conclusion|[A-Z][a-z]{2,})))/g,
+    new RegExp(
+      `^(Outline)[ \\t]+(?=(?:Thesis\\s+Statement\\b|(?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)[.)][ \\t]+|\\((?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\)[ \\t]+))`,
+      'gim'
+    ),
+    '$1\n'
+  );
+
+  // 2. Break before parenthesis markers: A)..Z), 1)..25), a)..z), I)..X), i)..x), (1), (a), (i), 1.1)
+  //    when preceded by horizontal whitespace (no "." or ";" required!) and followed by ANY word.
+  const parenMarkerPattern = new RegExp(
+    `([ \\t]+)(?=(?:(?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\)|\\((?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\))[ \\t]+[A-Za-z0-9"'“‘])`,
+    'g'
+  );
+  expanded = expanded.replace(parenMarkerPattern, (match, sep, offset, full) => {
+    const before = full.slice(0, offset);
+    const lineBefore = before.slice(before.lastIndexOf('\n') + 1);
+    if (!lineBefore.trim()) return match;
+    // Guard against closing prose parenthetical like "e.g. (see A) next" or "(Fig. 1) shows"
+    if (lineBefore.lastIndexOf('(') > lineBefore.lastIndexOf(')')) {
+      return match;
+    }
+    return '\n';
+  });
+
+  // 3. Break before Thesis Statement (preserving any leading list marker like "b)" or "b." on the Thesis line)
+  expanded = expanded.replace(
+    /([ \t]+)(?=Thesis\s+Statement\s*:)/gi,
     (match, sep, offset, full) => {
-      const before = full.slice(Math.max(0, offset - 10), offset).trim();
-      if (ABBREVIATIONS_GUARD.test(before)) return match;
+      const before = full.slice(0, offset);
+      const lineBefore = before.slice(before.lastIndexOf('\n') + 1).trimEnd();
+      if (!lineBefore) return match;
+      if (
+        /(?:^|\s)(?:[A-Za-z]|[ivxlcdm]{1,5}|\d{1,2})[.)]$/.test(lineBefore) ||
+        /(?:^|\s)\((?:[A-Za-z]|[ivxlcdm]{1,5}|\d{1,2})\)$/.test(lineBefore) ||
+        /(?:^|\s)[-•*▪→]$/.test(lineBefore)
+      ) {
+        return match;
+      }
       return '\n';
     }
   );
 
-  // Break before Thesis Statement
-  expanded = expanded.replace(
-    /([:;.]\s+|\s+)(?=(?:[a-z][.)]\s+)?Thesis\s+Statement\s*:)/gi,
-    '\n'
+  // 4. Break before period "." markers (I., A., 1., 1.1, 1.1., a., i.)
+  //    Handles both punctuation-separated and space-separated markers while protecting U.S., Dr., e.g., M. A. Jinnah.
+  const dotMarkerPattern = new RegExp(
+    `([ \\t]+)(?=(?:(?:${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2}(?:\\.\\d+)*)\\.[ \\t]+[A-Za-z0-9"'“‘]|\\d{1,2}(?:\\.\\d+)+[ \\t]+[A-Z"'“‘][A-Za-z0-9"'“‘]*))`,
+    'g'
   );
+  expanded = expanded.replace(dotMarkerPattern, (match, sep, offset, full) => {
+    const before = full.slice(0, offset);
+    const lineBefore = before.slice(before.lastIndexOf('\n') + 1);
+    if (!lineBefore.trim()) return match;
 
-  // Break before numbered sub-headings (1. , 2. , 1.1 ) when preceded by punctuation or list marker
-  expanded = expanded.replace(
-    /([:;.?!)]\s+)(?=\d{1,2}(?:\.\d+)?[.)]\s+[A-Za-z]{2,})/g,
-    '\n'
-  );
+    const prefixUpToSpace = lineBefore.trimEnd();
+    const trailingPunctMatch = prefixUpToSpace.match(/([:;.?!)\]])$/);
+    const punctPrefix = trailingPunctMatch ? trailingPunctMatch[1] : '';
+    const afterText = full.slice(offset + sep.length);
 
-  // Break before lettered sub-points (a. , b. , c. ) after ":", ";", or sentence end (not e.g. / i.e.)
-  expanded = expanded.replace(
-    /([:;.]\s+)(?!(?:e\.g\.|i\.e\.))(?:(?=[a-z][.)]\s+[A-Za-z]))/g,
-    '\n'
-  );
+    if (ABBREVIATIONS_GUARD.test(prefixUpToSpace)) {
+      return match;
+    }
+
+    const capDotMatch = afterText.match(/^([A-Z])\.[ \t]+([^\n]*)/);
+    if (capDotMatch) {
+      const rest = capDotMatch[2];
+      // Single-initial check: "M. A. Jinnah" (both before "M." and before "A.")
+      if (/^[A-Z]\.(?:[ \t]|$)/.test(rest)) {
+        return match;
+      }
+      if (/(?:^|[\s(\["'])[A-Z]\.$/.test(prefixUpToSpace)) {
+        const beforeSingleCap = prefixUpToSpace.replace(/(?:^|[\s(\["'])[A-Z]\.$/, '').trimEnd();
+        if (!NO_SPLIT_BEFORE_TITLE_OR_NOUN_ALPHA_PREFIX.test(beforeSingleCap)) {
+          return match;
+        }
+      }
+      if (!punctPrefix && NO_SPLIT_BEFORE_TITLE_OR_NOUN_ALPHA_PREFIX.test(prefixUpToSpace)) {
+        return match;
+      }
+      if (
+        !punctPrefix &&
+        NO_SPLIT_BEFORE_ALPHA_PREFIX.test(prefixUpToSpace) &&
+        /^[A-Z][a-z]/.test(rest)
+      ) {
+        return match;
+      }
+      return '\n';
+    }
+
+    const romanUpperMatch = afterText.match(new RegExp(`^(${ROMAN_UPPER_SRC})\\.[ \\t]+([^\\n]*)`));
+    if (romanUpperMatch) {
+      const rest = romanUpperMatch[2];
+      if (!punctPrefix && NO_SPLIT_BEFORE_TITLE_OR_NOUN_ALPHA_PREFIX.test(prefixUpToSpace)) {
+        return match;
+      }
+      if (
+        !punctPrefix &&
+        NO_SPLIT_BEFORE_ALPHA_PREFIX.test(prefixUpToSpace) &&
+        /^[A-Za-z]/.test(rest)
+      ) {
+        return match;
+      }
+      return '\n';
+    }
+
+    const numDotMatch = afterText.match(/^(\d{1,2}(?:\.\d+)*)(\.)?[ \t]+([^\n]*)/);
+    if (numDotMatch) {
+      const hasDot = Boolean(numDotMatch[2]);
+      if (!punctPrefix && NO_SPLIT_BEFORE_NUM_PREFIX.test(prefixUpToSpace)) {
+        return match;
+      }
+      if (!hasDot && /(?:[$€£¥]|Rs\.?|PKR|USD|v\.|ver\.|version)$/i.test(prefixUpToSpace)) {
+        return match;
+      }
+      return '\n';
+    }
+
+    const lowerDotMatch = afterText.match(new RegExp(`^(?:${ROMAN_LOWER_SRC}|[a-z])\\.[ \\t]+([^\\n]*)`));
+    if (lowerDotMatch) {
+      if (!punctPrefix && NO_SPLIT_BEFORE_LOWER_PREFIX.test(prefixUpToSpace)) {
+        return match;
+      }
+      return '\n';
+    }
+
+    return '\n';
+  });
 
   return expanded
     .split('\n')
@@ -87,85 +218,268 @@ const expandInlineOutlineMarkers = (blockText = '') => {
     .filter(Boolean);
 };
 
-const classifyOutlineLine = (line = '') => {
-  const t = line.trim();
-  if (/^outline\s*:?$/i.test(t) || (/^outline\s*:/i.test(t) && t.length < 24)) {
+export const isOutlineStartOrMarkersBlock = (blockText = '') => {
+  const trimmed = String(blockText || '').trim();
+  if (!trimmed) return false;
+  if (/^outline\s*(?::|$)/i.test(trimmed)) return true;
+
+  const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
+  const words = trimmed.split(/\s+/).filter(Boolean).length;
+  if (/^outline\b/i.test(trimmed) && (words < 12 || lines.length >= 2)) return true;
+
+  if (startsWithOutlineMarker(trimmed)) return true;
+
+  const expanded = expandInlineOutlineMarkers(trimmed);
+  const markerLinesCount = expanded.filter((line) => startsWithOutlineMarker(line)).length;
+  if (expanded.length >= 2 && markerLinesCount >= 2) {
+    // Avoid misclassifying multi-sentence prose with inline "(1) ... and (2) ..." enumerations
+    const sentences = trimmed.split(/[.!?]+\s+/).filter(Boolean).length;
+    const hasInlineConjunctionEnum = /\b(?:and|or)\s+\((?:\d{1,2}|[a-z])\)\s+/i.test(trimmed);
+    if (!(hasInlineConjunctionEnum && sentences >= 2 && words >= 15 && markerLinesCount <= 2)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+export const detectOutlineScheme = (lines = []) => {
+  let firstTopNumIdx = -1;
+  let firstCapAlphaIdx = -1;
+  let hasMultiRoman = false;
+  let hasAlphaAfterTopNum = false;
+  let seenTopNum = false;
+
+  const multiRomanRegex = new RegExp(
+    `^(?:X{1,3}(?:IX|IV|V?I{0,3})|IX|IV|V?I{2,3}|VI{1,3})[.):\\-]\\s+`
+  );
+  const topNumRegex = /^\d{1,2}[.):\-]\s+/;
+  const capAlphaRegex = /^[A-Z][.):\-]\s+/;
+
+  lines.forEach((rawLine, idx) => {
+    const t = String(rawLine || '').trim();
+    if (!t) return;
+    if (/^outline\b/i.test(t) || /^(?:(?:[a-z][.)]|[-•*▪→])\s*)?thesis\s*statement\b/i.test(t)) {
+      return;
+    }
+
+    if (multiRomanRegex.test(t)) {
+      hasMultiRoman = true;
+    }
+    if (topNumRegex.test(t)) {
+      if (firstTopNumIdx === -1) firstTopNumIdx = idx;
+      seenTopNum = true;
+    } else if (capAlphaRegex.test(t)) {
+      if (firstCapAlphaIdx === -1) firstCapAlphaIdx = idx;
+      if (seenTopNum && /^A[.):\-]\s+/.test(t)) {
+        hasAlphaAfterTopNum = true;
+      }
+    }
+  });
+
+  if (firstTopNumIdx === -1) return 'ALPHA_TOP';
+  if (firstCapAlphaIdx === -1) return 'NUMERIC_TOP';
+  if (firstTopNumIdx < firstCapAlphaIdx) return 'NUMERIC_TOP';
+  if (!hasMultiRoman && hasAlphaAfterTopNum) return 'NUMERIC_TOP';
+  return 'ALPHA_TOP';
+};
+
+export const classifyOutlineLine = (line = '', outlineScheme = 'ALPHA_TOP') => {
+  const t = String(line || '').trim();
+  if (/^outline\s*:?$/i.test(t) || (/^outline\s*:/i.test(t) && t.length < 24) || /^outline\s+of\b/i.test(t)) {
     return 'outline_title';
   }
-  if (/^(?:[a-z][.)]\s*)?thesis\s*statement\s*:/i.test(t) || /^thesis\s*statement\b/i.test(t)) {
+  if (
+    /^(?:(?:[a-z][.)]|[-•*▪→])\s*)?thesis\s*statement\s*:/i.test(t) ||
+    /^(?:(?:[a-z][.)]|[-•*▪→])\s*)?thesis\s*statement\b/i.test(t)
+  ) {
     return 'outline_thesis';
   }
-  if (/^(?:[IVXLCDM]{1,5}|[A-Z])[.):\-]\s+/.test(t)) {
-    return 'outline_main';
-  }
-  if (/^\d{1,2}(?:\.\d+)*[.):\-]\s+/.test(t)) {
+
+  if (outlineScheme === 'NUMERIC_TOP') {
+    if (/^\d{1,2}[.):\-]\s+/.test(t)) {
+      return 'outline_main';
+    }
+    if (/^(?:[A-Z][.):\-]\s+|\([A-Z]\)\s+|\d{1,2}(?:\.\d+)+[.):\-]?\s+)/.test(t)) {
+      return 'outline_sub';
+    }
+    if (
+      new RegExp(
+        `^(?:[a-z][.)]\\s+|${ROMAN_LOWER_SRC}[.)]\\s+|\\((?:\\d{1,2}|[a-z]|${ROMAN_LOWER_SRC})\\)\\s+|[-•*▪→]\\s+)`
+      ).test(t)
+    ) {
+      return 'outline_point';
+    }
     return 'outline_sub';
   }
-  if (/^(?:[a-z][.)]\s+|[-•*▪→]\s+)/.test(t)) {
+
+  // ALPHA_TOP: Roman numerals & capital letters -> outline_main; numbers -> outline_sub; lowercase/bullets -> outline_point
+  if (
+    new RegExp(
+      `^(?:(?:${ROMAN_UPPER_SRC}|[A-Z])[.):\\-]\\s+|\\((?:${ROMAN_UPPER_SRC}|[A-Z])\\)\\s+)`
+    ).test(t)
+  ) {
+    return 'outline_main';
+  }
+  if (/^(?:\d{1,2}[.):\-]\s+|\d{1,2}(?:\.\d+)+[.):\-]?\s+|\(\d{1,2}\)\s+)/.test(t)) {
+    return 'outline_sub';
+  }
+  if (
+    new RegExp(
+      `^(?:[a-z][.)]\\s+|${ROMAN_LOWER_SRC}[.)]\\s+|\\((?:[a-z]|${ROMAN_LOWER_SRC})\\)\\s+|[-•*▪→]\\s+)`
+    ).test(t)
+  ) {
     return 'outline_point';
   }
   return 'outline_sub';
 };
 
-const parseDocumentSections = (fullText = '') => {
-  const rawBlocks = String(fullText || '')
+const segmentSingleNewlineProseFallback = (rawBlocks) => {
+  if (rawBlocks.length !== 1 || !rawBlocks[0].includes('\n')) {
+    return rawBlocks;
+  }
+
+  const lines = rawBlocks[0]
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const proseLines = lines.filter((line) => {
+    const words = line.split(/\s+/).filter(Boolean).length;
+    const sentences = line.split(/[.!?]+\s+/).filter(Boolean).length;
+    return (
+      !isOutlineStartOrMarkersBlock(line) &&
+      words >= 25 &&
+      sentences >= 2
+    );
+  });
+
+  if (proseLines.length < 2) {
+    return rawBlocks;
+  }
+
+  const blocks = [];
+  let buffer = [];
+  let proseStarted = false;
+
+  lines.forEach((line) => {
+    const words = line.split(/\s+/).filter(Boolean).length;
+    const sentences = line.split(/[.!?]+\s+/).filter(Boolean).length;
+    const isProse = !isOutlineStartOrMarkersBlock(line) && words >= 25 && sentences >= 2;
+
+    if (!proseStarted && !isProse) {
+      buffer.push(line);
+    } else {
+      if (buffer.length > 0) {
+        blocks.push(buffer.join('\n'));
+        buffer = [];
+      }
+      proseStarted = true;
+      blocks.push(line);
+    }
+  });
+
+  if (buffer.length > 0) {
+    blocks.push(buffer.join('\n'));
+  }
+
+  return blocks.length > 0 ? blocks : rawBlocks;
+};
+
+export const parseDocumentSections = (fullText = '', isOutlineOnly = false) => {
+  const initialBlocks = String(fullText || '')
     .replace(/\r\n/g, '\n')
     .split(/\n\s*\n/)
     .map((b) => b.trim())
     .filter(Boolean);
 
-  if (rawBlocks.length === 0) return { renderItems: [], bodyBlocks: [] };
+  if (initialBlocks.length === 0) return { renderItems: [], bodyBlocks: [] };
 
-  // Find where the essay body begins (after the Outline's Conclusion or first continuous prose block)
-  let bodyStartIdx = -1;
-  let sawOutline = false;
-  let sawOutlineConclusion = false;
+  const rawBlocks = isOutlineOnly
+    ? initialBlocks
+    : segmentSingleNewlineProseFallback(initialBlocks);
 
-  for (let i = 0; i < rawBlocks.length; i++) {
-    const blk = rawBlocks[i];
-    const hasMarkers = isOutlineStartOrMarkersBlock(blk);
-    const words = blk.split(/\s+/).filter(Boolean).length;
-    const isShortConclusion = /(?:^|\n|\s)(?:[0-9ivxlcdma-z]+[.):\-]\s*)?conclusion\s*:?\s*$/i.test(blk);
+  let outlineBlocks = [];
+  let bodyBlocks = [];
 
-    if (hasMarkers) {
-      sawOutline = true;
-      if (isShortConclusion || /(?:^|\n|\s)(?:[A-Z]|[IVXLCDM]+|\d+)[.)]\s*Conclusion\b:?/i.test(blk)) {
-        sawOutlineConclusion = true;
+  if (isOutlineOnly) {
+    outlineBlocks = rawBlocks;
+    bodyBlocks = [];
+  } else {
+    // Full Essay mode: scan rawBlocks for outline vs continuous body prose boundary
+    let bodyStartIdx = -1;
+    let sawOutline = false;
+    let sawOutlineConclusion = false;
+
+    for (let i = 0; i < rawBlocks.length; i++) {
+      const blk = rawBlocks[i];
+      const expanded = expandInlineOutlineMarkers(blk);
+      const hasMarkers =
+        isOutlineStartOrMarkersBlock(blk) ||
+        (expanded.length >= 2 && expanded.filter(startsWithOutlineMarker).length >= 2);
+      const words = blk.split(/\s+/).filter(Boolean).length;
+
+      if (hasMarkers) {
+        sawOutline = true;
+        const hasConclusionLine = expanded.some(
+          (line) =>
+            /^(?:(?:[0-9]+|[ivxlcdm]+|[a-z])\s*[.):\-]\s*)?conclusion\b/i.test(line.trim()) &&
+            line.trim().split(/\s+/).filter(Boolean).length <= 20
+        );
+        if (hasConclusionLine) {
+          sawOutlineConclusion = true;
+        }
+        continue;
       }
-      continue;
+
+      const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
+      const sentences = blk.split(/[.!?]+\s+/).filter(Boolean).length;
+      const isContinuousProse =
+        (lines.length === 1 && words >= 15 && sentences >= 2) ||
+        (words >= 30 && sentences >= 2) ||
+        (!sawOutline && words >= 30) ||
+        (sawOutlineConclusion && (words >= 18 || sentences >= 2));
+
+      if (isContinuousProse) {
+        const nextIsProse =
+          i + 1 < rawBlocks.length &&
+          !isOutlineStartOrMarkersBlock(rawBlocks[i + 1]) &&
+          rawBlocks[i + 1].split(/\s+/).filter(Boolean).length >= 15 &&
+          rawBlocks[i + 1].split(/[.!?]+\s+/).filter(Boolean).length >= 2;
+
+        const hasRemainingOutline =
+          !sawOutlineConclusion &&
+          !nextIsProse &&
+          rawBlocks.slice(i + 1).some((laterBlk) => isOutlineStartOrMarkersBlock(laterBlk));
+
+        if (!hasRemainingOutline) {
+          bodyStartIdx = i;
+          break;
+        }
+      }
     }
 
-    // Pure essay prose block (multi-sentence, not an outline header list)
-    const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
-    const sentences = blk.split(/[.!?]+\s+/).filter(Boolean).length;
-    if (lines.length === 1 && words >= 25 && sentences >= 2) {
-      bodyStartIdx = i;
-      break;
-    }
-    if (!sawOutline && words >= 30) {
-      bodyStartIdx = i;
-      break;
-    }
-    if (sawOutlineConclusion && words >= 18) {
-      bodyStartIdx = i;
-      break;
+    if (bodyStartIdx === -1) {
+      outlineBlocks = sawOutline ? rawBlocks : [];
+      bodyBlocks = sawOutline ? [] : rawBlocks;
+    } else {
+      outlineBlocks = sawOutline ? rawBlocks.slice(0, bodyStartIdx) : [];
+      bodyBlocks = sawOutline ? rawBlocks.slice(bodyStartIdx) : rawBlocks;
     }
   }
 
-  const outlineBlocks = bodyStartIdx === -1 ? (sawOutline ? rawBlocks : []) : rawBlocks.slice(0, bodyStartIdx);
-  const bodyBlocks = bodyStartIdx === -1 ? (sawOutline ? [] : rawBlocks) : rawBlocks.slice(bodyStartIdx);
-
-  const renderItems = [];
+  const allExpandedOutlineLines = [];
   outlineBlocks.forEach((blk) => {
-    const lines = expandInlineOutlineMarkers(blk);
-    lines.forEach((line) => {
-      renderItems.push({
-        id: `outline-${renderItems.length}`,
-        kind: classifyOutlineLine(line),
-        text: line
-      });
-    });
+    allExpandedOutlineLines.push(...expandInlineOutlineMarkers(blk));
   });
+
+  const outlineScheme = detectOutlineScheme(allExpandedOutlineLines);
+
+  const renderItems = allExpandedOutlineLines.map((line, idx) => ({
+    id: `outline-${idx}`,
+    kind: classifyOutlineLine(line, outlineScheme),
+    text: line
+  }));
 
   if (outlineBlocks.length > 0 && bodyBlocks.length > 0) {
     renderItems.push({ id: 'essay-divider', kind: 'essay_divider', text: 'Essay' });
@@ -273,7 +587,15 @@ export const DocumentViewer = ({
     return base;
   }, [evaluation.annotations, evaluation.factCheck, fullText]);
 
-  const { renderItems } = useMemo(() => parseDocumentSections(fullText), [fullText]);
+  const isOutlineOnly =
+    evaluation.essayMode === 'outline_only' ||
+    evaluation.isOutlineOnly === true ||
+    evaluation.archetypeId === 'essay_outline';
+
+  const { renderItems } = useMemo(
+    () => parseDocumentSections(fullText, isOutlineOnly),
+    [fullText, isOutlineOnly]
+  );
 
   // Map logical essay coordinates ([O...], [P1..PN]) to renderItems indexes so
   // repeated phrases only highlight inside their intended target line or paragraph.
@@ -819,10 +1141,13 @@ export const DocumentViewer = ({
                   );
                 }
                 if (item.kind === 'outline_sub') {
+                  const subWordCount = item.text.trim().split(/\s+/).filter(Boolean).length;
                   return (
                     <div
                       key={item.id}
-                      className="font-semibold text-slate-900 pl-5 sm:pl-6 my-0.5 text-[15px] leading-snug"
+                      className={`${
+                        subWordCount <= 10 ? 'font-semibold text-slate-900' : 'font-normal text-slate-800'
+                      } pl-5 sm:pl-7 my-0.5 text-[15px] leading-snug`}
                     >
                       {highlightedContent}
                     </div>
@@ -832,7 +1157,7 @@ export const DocumentViewer = ({
                   return (
                     <div
                       key={item.id}
-                      className="font-normal text-slate-800 pl-10 sm:pl-12 my-0.5 text-[14.5px] leading-snug"
+                      className="font-normal text-slate-800 pl-9 sm:pl-12 my-0.5 text-[14.5px] leading-snug"
                     >
                       {highlightedContent}
                     </div>

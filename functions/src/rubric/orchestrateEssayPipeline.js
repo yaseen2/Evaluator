@@ -14,7 +14,8 @@ import { runAgent0VisionOcr } from './agent0VisionOcr.js';
 import {
   preprocessEssaySubmission,
   computeRoleFilteredPacingDecay,
-  reconcileAiStructuralBoundary
+  reconcileAiStructuralBoundary,
+  normalizeOutlineLineBreaks
 } from './deterministicPreprocessor.js';
 import { runAgent1MacroArchitect } from './agent1MacroArchitect.js';
 import { runAgent2ParagraphInspector } from './agent2ParagraphInspector.js';
@@ -168,7 +169,9 @@ export const executeCssEssayPipelineV2 = async ({
     ledger
   });
 
-  const effectiveText = ocrOutput.fullTranscribedText || String(text || '').trim();
+  const effectiveText = normalizeOutlineLineBreaks(
+    ocrOutput.fullTranscribedText || String(text || '').trim()
+  );
   const effectiveTopic =
     examQuestion?.trim() || ocrOutput.detectedTitle || 'FPSC CSS English Essay';
 

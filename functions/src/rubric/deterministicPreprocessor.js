@@ -42,22 +42,173 @@ export const splitIntoSentences = (paragraphText) => {
   return rawSentences.length > 0 ? rawSentences : [cleaned];
 };
 
+const STARTS_WITH_LIST_MARKER_REGEX =
+  /^(?:(?:i{1,3}|iv|vi{0,3}|ix|x{1,3}|[ivxlcdm]{1,5})\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-]|[a-z]\s*[.):\-]|\((?:[ivxlcdm]{1,5}|[a-z]|\d{1,2})\)\s+|[-•*▪→])/i;
+
+const outlineMarkerRegexSafe = (blockText) => {
+  const trimmed = String(blockText || '').trim();
+  if (/^(?:outline\b|thesis\s*statement\b)/i.test(trimmed)) return true;
+  return STARTS_WITH_LIST_MARKER_REGEX.test(maskNonOutlinePeriods(trimmed));
+};
+
+// Sentinel characters for masking non-outline dots (abbreviations and double initials)
+const ABBREV_INTERNAL_DOT = '\u0000';
+const ABBREV_TRAILING_DOT = '\u0001';
+
+// Roman numerals I..XXXIX (avoids false positives on acronyms like LLM, ML, CD, DVD, LCD)
+const ROMAN_OR_CAP_MARKER = '(?:X{1,3}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|[A-Z])';
+const LOWER_ROMAN_OR_LETTER = '(?:i{1,3}|iv|vi{0,3}|ix|x{1,3}|[a-z])';
+const OUTLINE_NUMBER_MARKER = '(?:[1-9]|1\\d|2[0-5])(?:\\.\\d{1,2})*';
+
+const NON_MARKER_PREFIX_WORD_REGEX =
+  /\b(?:war|phase|part|stage|chapter|section|article|title|schedule|annex|appendix|volume|book|act|rule|clause|class|grade|tier|level|type|category|group|division|plan|option|model|factor|generation|vitamin|king|queen|pope|emperor|prince|princess|duke|tsar|czar|sultan|shah|caliph|george|edward|henry|charles|elizabeth|louis|john|paul|pius|leo|gregory|nicholas|alexander|peter|philip|richard|james|william|napoleon|frederick|constantine|justinian|by|of|with|from|to|for|in|on|at|as|and|or|nor|but|the|a|an|between|among|under|over|into|onto|per|against|via|versus)$/i;
+
+const NON_NUMBER_PREFIX_WORD_REGEX =
+  /\b(?:article|section|chapter|part|phase|stage|tier|level|clause|rule|grade|class|figure|table|annex|appendix|schedule|item|point|step|page|para|paragraph)$/i;
+
+/**
+ * Masks periods inside abbreviations (U.S., Dr., Mr., e.g., i.e., etc.) and consecutive
+ * single-letter initials (M. A. Jinnah, A. Q. Khan) so outline detection and splitting never
+ * break mid-abbreviation or mid-name.
+ *
+ * Prefix titles/labels/connectors use ABBREV_INTERNAL_DOT so a following initial or number
+ * ("Dr. A. Khan", "Mr. B. Ali", "Fig. 1.", "e.g. a.") is never mistaken for an outline marker.
+ * Entity/sentence-ending abbreviations use ABBREV_TRAILING_DOT on their final dot so an
+ * outline item ending in "U.S.", "U.K.", or "etc." can still break before the next marker.
+ */
+const maskNonOutlinePeriods = (text) => {
+  if (!text) return '';
+  let masked = String(text);
+
+  // Prefix titles, labels, and Latin introducers: keep final dot as ABBREV_INTERNAL_DOT
+  masked = masked.replace(
+    /\b(e\.g|i\.e|viz|vs|cf|Mrs|Mr|Ms|Dr|Prof|Rev|Hon|Sr|Jr|St|Gen|Col|Lt|Govt|Dept|Fig|Art|Sec|Vol|No|Ch|Rs)\./gi,
+    (m) => m.replaceAll('.', ABBREV_INTERNAL_DOT)
+  );
+
+  // Entity, time, and clause-ending abbreviations: final dot becomes ABBREV_TRAILING_DOT
+  masked = masked.replace(
+    /\b(U\.S\.A|U\.S|U\.K|U\.N|U\.A\.E|P\.M|C\.M|B\.C|A\.D|A\.M|Ph\.D|a\.m|p\.m|etc|al)\./gi,
+    (m) => {
+      const lastDot = m.lastIndexOf('.');
+      const head = m.slice(0, lastDot).replaceAll('.', ABBREV_INTERNAL_DOT);
+      return `${head}${ABBREV_TRAILING_DOT}`;
+    }
+  );
+
+  // Double or multiple initials such as "M. A. Jinnah" / "M.A. Jinnah" / "A. Q. Khan" / "I. H. Qureshi"
+  masked = masked.replace(
+    /(?<![A-Za-z0-9.])([A-Z]\.(?:\s*[A-Z]\.)+)(?=\s|$)/g,
+    (m) => m.replaceAll('.', ABBREV_INTERNAL_DOT)
+  );
+
+  return masked;
+};
+
+const unmaskNonOutlinePeriods = (text) =>
+  String(text || '')
+    .replaceAll(ABBREV_INTERNAL_DOT, '.')
+    .replaceAll(ABBREV_TRAILING_DOT, '.');
+
+const isInsideUnclosedParen = (str, offset) => {
+  const lastNewline = str.lastIndexOf('\n', offset);
+  const lastClose = str.lastIndexOf(')', offset);
+  const segment = str.slice(Math.max(lastNewline, lastClose) + 1, offset);
+  return /\([^()]*$/.test(segment);
+};
+
+/**
+ * Returns true when a space-separated period marker at `offset` is part of an abbreviation-prefixed
+ * name/label ("Dr. A. Khan", "Fig. 1."), historical/legal title ("World War I.", "Phase II."),
+ * or preposition-led name ("by A. Smith") rather than a standalone outline marker.
+ */
+const isGuardedInlinePeriodPrefix = (str, offset, isNumericMarker = false) => {
+  if (offset <= 0) return false;
+  const before = str.slice(0, offset);
+  if (new RegExp(`${ABBREV_INTERNAL_DOT}[ \\t]*$`).test(before)) {
+    return true;
+  }
+  const trimmedRight = before.replace(/[ \t]+$/, '');
+  if (!trimmedRight || trimmedRight.endsWith('\n')) return false;
+  if (new RegExp(`[:;.?!\\)\\]${ABBREV_TRAILING_DOT}]$`).test(trimmedRight)) {
+    return false;
+  }
+  return isNumericMarker
+    ? NON_NUMBER_PREFIX_WORD_REGEX.test(trimmedRight)
+    : NON_MARKER_PREFIX_WORD_REGEX.test(trimmedRight);
+};
+
+/**
+ * Counts inline outline markers across all CSS formats:
+ * - Parenthesis markers: 2), 3), A), a), (1), (a), (i)
+ * - Period markers: I., A., 1., 1.1., a. (guarding abbreviations, double initials, & mid-title Romans)
+ */
+export const countInlineOutlineMarkers = (text) => {
+  if (!text || typeof text !== 'string') return 0;
+  const masked = maskNonOutlinePeriods(text);
+  let count = 0;
+
+  // 1a. Suffix parenthesis markers: 2), 3), A)..Z), a)..z), i)..xiii), 1.1)
+  const parenSuffixRegex = new RegExp(
+    `(?:^|(?<=\\s))(?:${ROMAN_OR_CAP_MARKER}|\\d{1,2}(?:\\.\\d+)*|${LOWER_ROMAN_OR_LETTER})\\)\\s+(?=[A-Za-z0-9"'“(])`,
+    'g'
+  );
+  for (const match of masked.matchAll(parenSuffixRegex)) {
+    if (!isInsideUnclosedParen(masked, match.index)) {
+      count++;
+    }
+  }
+
+  // 1b. Wrapped parenthesis markers: (1), (A), (a), (i), (iv)
+  const parenWrappedRegex = new RegExp(
+    `(?:^|(?<=\\s))\\((?:${ROMAN_OR_CAP_MARKER}|${LOWER_ROMAN_OR_LETTER}|\\d{1,2})\\)\\s+(?=[A-Za-z0-9"'“(])`,
+    'g'
+  );
+  const wrappedMatches = masked.match(parenWrappedRegex);
+  if (wrappedMatches) count += wrappedMatches.length;
+
+  // 2a. Roman numeral / Capital / Numbered period markers: I., A., 1., 1.1.
+  const periodMainRegex = new RegExp(
+    `(?:^|(?<=[\\s:;.)\\]${ABBREV_TRAILING_DOT}]))(?:${ROMAN_OR_CAP_MARKER}|${OUTLINE_NUMBER_MARKER})\\.\\s+(?=[A-Za-z0-9"'“(])`,
+    'g'
+  );
+  for (const match of masked.matchAll(periodMainRegex)) {
+    const isNumeric = /^\d/.test(match[0]);
+    if (!isGuardedInlinePeriodPrefix(masked, match.index, isNumeric)) {
+      count++;
+    }
+  }
+
+  // 2b. Lowercase period markers after :, ;, . (or at start of text)
+  const periodLowerRegex = new RegExp(
+    `(?:^|[:;.${ABBREV_TRAILING_DOT}]\\s+)[a-z]\\.\\s+(?=[A-Za-z0-9"'“(])`,
+    'g'
+  );
+  const periodLowerMatches = masked.match(periodLowerRegex);
+  if (periodLowerMatches) count += periodLowerMatches.length;
+
+  return count;
+};
+
 /**
  * Checks if a single line or block looks like an Outline header/sub-point rather than continuous essay prose.
  */
 const isOutlineLineOrBlock = (blockText) => {
-  const lines = blockText
+  const trimmed = String(blockText || '').trim();
+  if (!trimmed) return false;
+
+  if (/^outline\b/i.test(trimmed) || countInlineOutlineMarkers(trimmed) >= 2) {
+    return true;
+  }
+
+  const lines = trimmed
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length === 0) return false;
 
-  const totalWords = countExactWords(blockText);
-  const sentences = splitIntoSentences(blockText);
-
-  // Explicit outline marker at start of line
-  const outlineMarkerRegex =
-    /^(?:outline\b|thesis\s*statement\b|[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-]|[a-z]\s*[.):\-]|[-•*▪→])/i;
+  const totalWords = countExactWords(trimmed);
+  const sentences = splitIntoSentences(trimmed);
 
   // Multi-line block where average line length is short (< 20 words per line)
   if (lines.length >= 2 && totalWords / lines.length < 20) {
@@ -69,13 +220,13 @@ const isOutlineLineOrBlock = (blockText) => {
     lines.length === 1 &&
     totalWords < 35 &&
     sentences.length <= 2 &&
-    !(sentences.length >= 2 && totalWords >= 20 && !outlineMarkerRegex.test(lines[0]))
+    !(sentences.length >= 2 && totalWords >= 20 && !outlineMarkerRegexSafe(lines[0]))
   ) {
     return true;
   }
 
   // Starts with an outline marker and is not a long multi-sentence paragraph
-  if (outlineMarkerRegex.test(lines[0]) && (totalWords < 55 || sentences.length <= 2)) {
+  if (outlineMarkerRegexSafe(lines[0]) && (totalWords < 55 || sentences.length <= 2)) {
     return true;
   }
 
@@ -86,14 +237,21 @@ const isOutlineLineOrBlock = (blockText) => {
  * Checks if a block is a true continuous multi-sentence prose paragraph (e.g., [P1] Essay Introduction).
  */
 const isContinuousProseParagraph = (blockText) => {
-  const lines = blockText
+  const trimmed = String(blockText || '').trim();
+  if (!trimmed) return false;
+
+  if (/^outline\b/i.test(trimmed) || countInlineOutlineMarkers(trimmed) >= 2) {
+    return false;
+  }
+
+  const lines = trimmed
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length === 0) return false;
 
-  const totalWords = countExactWords(blockText);
-  const sentences = splitIntoSentences(blockText);
+  const totalWords = countExactWords(trimmed);
+  const sentences = splitIntoSentences(trimmed);
 
   // If it's a multi-line list of short bullet points, it is NOT a continuous prose paragraph
   if (lines.length >= 3 && totalWords / lines.length < 18) {
@@ -110,10 +268,10 @@ const isContinuousProseParagraph = (blockText) => {
   // Also recognize concise 2-sentence paragraphs (e.g., short Intro/Transition) not formatted as outline markers
   if (
     lines.length === 1 &&
-    !outlineMarkerRegexSafe(blockText) &&
+    !outlineMarkerRegexSafe(trimmed) &&
     totalWords >= 22 &&
     sentences.length >= 2 &&
-    /[.!?]["'”’)]*$/.test(blockText.trim())
+    /[.!?]["'”’)]*$/.test(trimmed)
   ) {
     return true;
   }
@@ -121,14 +279,22 @@ const isContinuousProseParagraph = (blockText) => {
   return false;
 };
 
-const outlineMarkerRegexSafe = (blockText) =>
-  /^(?:outline\b|thesis\s*statement\b|[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-]|[a-z]\s*[.):\-]|[-•*▪→])/i.test(
-    String(blockText || '').trim()
-  );
+/**
+ * Detects whether the outline uses numbered top-level headings (e.g. 1), 2), 3) or 1., 2.)
+ * with capital-letter sub-items (A), B) or A., B.) nested beneath them.
+ */
+const isNumericTopOutlineContext = (text) => {
+  const numIdx = text.search(/(?:^|\n|\s)\d{1,2}[.)]\s+[A-Za-z0-9"'“(]/);
+  if (numIdx === -1) return false;
+  const alphaIdx = text.search(/(?:^|\n|\s)[A-Z][.)]\s+[A-Za-z0-9"'“(]/);
+  if (alphaIdx === -1) return true;
+  return numIdx < alphaIdx;
+};
 
 /**
- * Expands jammed single-line outlines (e.g. "Outline: A. Intro: a. ...; b. ... B. Causes:")
- * into proper line-by-line outline entries BEFORE essay prose begins, without ever modifying body prose.
+ * Expands jammed single-line outlines (e.g. "3) Arguments... A) ... B) ..." or
+ * "Outline: A. Intro: a. ...; b. ... B. Causes:") into proper line-by-line outline entries
+ * BEFORE essay prose begins, without ever modifying continuous body prose.
  */
 export const normalizeOutlineLineBreaks = (rawText = '') => {
   const normalized = String(rawText || '').replace(/\r\n/g, '\n');
@@ -137,6 +303,7 @@ export const normalizeOutlineLineBreaks = (rawText = '') => {
   const lines = normalized.split('\n');
   const outLines = [];
   let proseStarted = false;
+  const numericTopContext = isNumericTopOutlineContext(normalized);
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -145,12 +312,14 @@ export const normalizeOutlineLineBreaks = (rawText = '') => {
       continue;
     }
 
+    const inlineMarkerCount = countInlineOutlineMarkers(trimmed);
+
     if (
       !proseStarted &&
       countExactWords(trimmed) >= 45 &&
       splitIntoSentences(trimmed).length >= 2 &&
-      !/^outline\b/i.test(trimmed) &&
-      !outlineMarkerRegexSafe(trimmed)
+      !outlineMarkerRegexSafe(trimmed) &&
+      inlineMarkerCount < 2
     ) {
       proseStarted = true;
     }
@@ -160,36 +329,105 @@ export const normalizeOutlineLineBreaks = (rawText = '') => {
       continue;
     }
 
-    const markerMatches =
-      trimmed.match(
-        /(?:^|[\s:;.(])(?:(?:[IVXLCDM]{1,5}|[A-Z]|[a-z]|\d{1,2}(?:\.\d+)*)\.\s+(?=[A-Za-z0-9"']))/g
-      ) || [];
-    const hasInlineOutlineAfterTag = /^outline\b\s*:.*\S/i.test(trimmed) && markerMatches.length >= 1;
+    if (/^outline\b\s*:/i.test(trimmed) || inlineMarkerCount >= 2) {
+      let expanded = maskNonOutlinePeriods(trimmed);
 
-    if (hasInlineOutlineAfterTag || markerMatches.length >= 3) {
-      let expanded = trimmed;
-      if (/^outline\b\s*:\s*\S/i.test(expanded)) {
-        expanded = expanded.replace(/^(outline\s*:)\s*/i, '$1\n');
-      }
-      // Split before Roman numeral or Capital-letter main outline headings (avoiding double initials like "M. A. Jinnah")
-      expanded = expanded.replace(
-        /(\S{2,}[:;.]|\([A-Z]+\))\s+((?:[IVXLCDM]{1,4}|[A-Z])\.\s+(?=[A-Z][a-z]))/g,
-        '$1\n$2'
+      // 1. Break after "Outline:" at line start when content follows
+      expanded = expanded.replace(/^(outline\s*:)[ \t]*(?=\S)/i, '$1\n');
+
+      // 2. Break before "(marker)? Thesis Statement:" while keeping any marker attached to Thesis Statement
+      const thesisClauseRegex = new RegExp(
+        `(?<=\\S)[ \\t]+((?:(?:${ROMAN_OR_CAP_MARKER}|[A-Za-z]|\\d{1,2}(?:\\.\\d+)*)[.)][ \\t]+|\\((?:${ROMAN_OR_CAP_MARKER}|[A-Za-z]|\\d{1,2})\\)[ \\t]+)?Thesis[ \\t]+Statement[ \\t]*:)`,
+        'gi'
+      );
+      expanded = expanded.replace(thesisClauseRegex, (full, clause, offset, str) => {
+        const linePrefix = str.slice(str.lastIndexOf('\n', offset) + 1, offset);
+        const startsWithMarker = /^(?:[IVXLCDM]{1,5}|[A-Za-z]|\d{1,2}(?:\.\d+)*)[.)]|\((?:[IVXLCDM]{1,5}|[A-Za-z]|\d{1,2})\)/.test(
+          clause
+        );
+        const prefixIsOnlyMarker = /^(?:\s*(?:[IVXLCDM]{1,5}|[A-Za-z]|\d{1,2}(?:\.\d+)*)[.)]|\s*\((?:[IVXLCDM]{1,5}|[A-Za-z]|\d{1,2})\))$/i.test(
+          linePrefix
+        );
+        if (!startsWithMarker && prefixIsOnlyMarker) {
+          return full;
+        }
+        const indent = /^(?:[a-z][.)]|\([a-z]\))/i.test(clause) && !/^[A-Z][.)]/.test(clause)
+          ? '    '
+          : '  ';
+        return `\n${indent}${clause}`;
+      });
+
+      // 3a. Parenthesis suffix markers: 2), 3), A)..Z), a)..z), i)..xiii), 1.1)
+      const parenSuffixSplitRegex = new RegExp(
+        `(?<=\\S)[ \\t]+((?:${ROMAN_OR_CAP_MARKER}|${OUTLINE_NUMBER_MARKER}|${LOWER_ROMAN_OR_LETTER})\\)\\s+(?=[A-Za-z0-9"'“(]))`,
+        'g'
+      );
+      expanded = expanded.replace(parenSuffixSplitRegex, (full, marker, offset, str) => {
+        if (isInsideUnclosedParen(str, offset)) {
+          return full;
+        }
+        if (/^(?:[a-z]|i{1,3}|iv|vi{0,3}|ix|x{1,3})\)/.test(marker)) {
+          return `\n    ${marker}`;
+        }
+        if (/^[A-Z]\)/.test(marker) && numericTopContext) {
+          return `\n  ${marker}`;
+        }
+        if (/^\d/.test(marker) && !numericTopContext) {
+          return `\n  ${marker}`;
+        }
+        return `\n${marker}`;
+      });
+
+      // 3b. Wrapped parenthesis markers: (1), (A), (a), (i)
+      const parenWrappedSplitRegex = new RegExp(
+        `(?<=\\S)[ \\t]+(\\((?:${ROMAN_OR_CAP_MARKER}|${LOWER_ROMAN_OR_LETTER}|${OUTLINE_NUMBER_MARKER})\\)\\s+(?=[A-Za-z0-9"'“(]))`,
+        'g'
+      );
+      expanded = expanded.replace(parenWrappedSplitRegex, '\n    $1');
+
+      // 4. Roman numeral / Capital period markers: I., II., A., B.
+      const capRomanPeriodSplitRegex = new RegExp(
+        `(?<=\\S)([:;.?!\\)\\]${ABBREV_TRAILING_DOT}]?[ \\t]+|[:;.?!\\)\\]${ABBREV_TRAILING_DOT}][ \\t]*)(${ROMAN_OR_CAP_MARKER}\\.\\s+(?=[A-Za-z0-9"'“(]))`,
+        'g'
       );
       expanded = expanded.replace(
-        /(\S{2,})\s+((?:[IVXLCDM]{1,4}|[B-Z])\.\s+(?:Introduction|Conclusion|Thesis|Overview|Causes|Symptoms|Effects|Impacts|Challenges|Solutions|Way Forward|Recommendations|[A-Z][a-z]{2,}))/g,
-        '$1\n$2'
+        capRomanPeriodSplitRegex,
+        (full, punct, marker, offset, str) => {
+          if (isGuardedInlinePeriodPrefix(str, offset + punct.length, false)) {
+            return full;
+          }
+          return `${punct.trimEnd()}\n${marker}`;
+        }
       );
-      // Split before numbered outline headings (e.g. "1. High Inflation", "1.1 Causes")
+
+      // 5. Numbered period markers (1..25 or decimals like 1.1., never 4-digit years like 2024.)
+      const numPeriodSplitRegex = new RegExp(
+        `(?<=\\S)([:;.?!\\)\\]${ABBREV_TRAILING_DOT}]?[ \\t]+|[:;.?!\\)\\]${ABBREV_TRAILING_DOT}][ \\t]*)(${OUTLINE_NUMBER_MARKER}\\.\\s+(?=[A-Za-z0-9"'“(]))`,
+        'g'
+      );
+      expanded = expanded.replace(numPeriodSplitRegex, (full, punct, marker, offset, str) => {
+        if (isGuardedInlinePeriodPrefix(str, offset + punct.length, true)) {
+          return full;
+        }
+        const isSubDecimal = /^\d+\.\d+/.test(marker);
+        const indent = isSubDecimal || !numericTopContext ? '  ' : '';
+        return `${punct.trimEnd()}\n${indent}${marker}`;
+      });
+
+      // 6. Lowercase period markers after :, ;, . (abbreviations like e.g./i.e./viz./vs./etc. stay masked)
+      const lowerPeriodSplitRegex = new RegExp(
+        `(?<=\\S)([:;.${ABBREV_TRAILING_DOT}]|\\([A-Z]+\\))[ \\t]+([a-z]\\.\\s+(?=[A-Za-z0-9"'“(]))`,
+        'g'
+      );
       expanded = expanded.replace(
-        /(\S{2,}[:;.]|\([A-Z]+\))\s+((?:\d{1,2}(?:\.\d+)*)\.\s+(?=[A-Za-z]))/g,
-        '$1\n  $2'
+        lowerPeriodSplitRegex,
+        (_, punct, marker) => `${punct}\n    ${marker}`
       );
-      // Split before lowercase letter sub-points (e.g. ": a. ...; b. ...")
-      expanded = expanded.replace(
-        /([:;.]|\([A-Z]+\))\s+([a-z]\.\s+(?=[A-Za-z0-9]))/g,
-        '$1\n    $2'
-      );
+
+      expanded = unmaskNonOutlinePeriods(expanded)
+        .split('\n')
+        .map((l) => l.trimEnd())
+        .join('\n');
       outLines.push(expanded);
     } else {
       outLines.push(trimmed);
@@ -215,7 +453,11 @@ const segmentRawBlocksWithNewlineFallback = (normalized) => {
 
   const lines = normalized.split('\n').map((l) => l.trim()).filter(Boolean);
   const longProseLines = lines.filter(
-    (l) => countExactWords(l) >= 25 && splitIntoSentences(l).length >= 2
+    (l) =>
+      countExactWords(l) >= 25 &&
+      splitIntoSentences(l).length >= 2 &&
+      !outlineMarkerRegexSafe(l) &&
+      countInlineOutlineMarkers(l) < 2
   );
 
   // Only invoke single-newline splitting if we genuinely see >= 3 single-line prose paragraphs jammed together
@@ -231,7 +473,8 @@ const segmentRawBlocksWithNewlineFallback = (normalized) => {
     const isProseLine =
       countExactWords(line) >= 22 &&
       splitIntoSentences(line).length >= 2 &&
-      !outlineMarkerRegexSafe(line);
+      !outlineMarkerRegexSafe(line) &&
+      countInlineOutlineMarkers(line) < 2;
 
     if (!proseStarted && !isProseLine) {
       outlineBuffer.push(line);
@@ -301,7 +544,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
     const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
     const hasShortConclusionHeader = lines.some(
       (line) =>
-        /^(?:[0-9ivxlcdm]+[.):\-]?\s*)?conclusion\b/i.test(line) &&
+        /^(?:(?:\([a-z0-9]{1,5}\)|[a-z0-9]{1,5}[.):\-])\s+)?conclusion\b/i.test(line) &&
         countExactWords(line) <= 20
     );
 
@@ -333,9 +576,7 @@ export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
           nextTwo.every(
             (nb) =>
               isOutlineLineOrBlock(nb) &&
-              /^(?:[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-]|[a-z]\s*[.):\-]|[-•*])/i.test(
-                nb.trim()
-              )
+              STARTS_WITH_LIST_MARKER_REGEX.test(nb.trim())
           );
 
         if (!followedByOutlineList) {

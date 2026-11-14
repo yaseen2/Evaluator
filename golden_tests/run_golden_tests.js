@@ -12,7 +12,9 @@ import { fileURLToPath } from 'url';
 import {
   preprocessEssaySubmission,
   computeRoleFilteredPacingDecay,
-  splitIntoSentences
+  splitIntoSentences,
+  normalizeOutlineLineBreaks,
+  countInlineOutlineMarkers
 } from '../functions/src/rubric/deterministicPreprocessor.js';
 import { safeParseJsonWithGrounding } from '../functions/src/rubric/safeJsonParser.js';
 import {
@@ -236,6 +238,131 @@ Sources: [1] imf.org`;
     `Expected outline_only digital preflight credits === 6, got ${outlineCredits}`
   );
   console.log('  ✓ v3 Pre-Processor, Abbreviations, Bounded Split, Spotlight Zones & Outline Credits Verified.\n');
+  passed++;
+
+  // 5. Regression Test: Jammed Handwritten Parenthesis Outline (Exact User Sample + Edge Cases)
+  console.log('▶ Test 5: Jammed Parenthesis/Mixed Outline Splitting & Abbreviation/Prose Guards...');
+  const jammedParenOutlineSample = [
+    '2) Undastanding the increasing Role of AI in Modern World',
+    '3) Arguments Which Prove that AI is a Catalyst for Human Development A) The democratization of knowledge by AI has transformed passive audience into informed participants through technical insight B) Large language Models provide value inputs in research and academic progress. C) Online chatbots and learning platforms help individuals learn new skills empowering their economic development. D) Automated outbound sales agent and specialized tools can perform bussiness and official tasks without any breaks, thus maximizing efficiency E) AI powered robotic nurses can provide personalized care and companionship for elderly and vulnerable individuals F) Data gathering and analysis by AI models can give better and neutral performance reviews increasing political accountability and transparency G) Algorithms can aid judical system in connecting precedents and fast tracking the case filling process H) Automated one window operations can overcome bureaucratic redtapism and enhance service delivery. I) LLM backed audits and financial scrutiny along with automated E-tendering can reduce corruption J) Continuous monitoring of remote areas by AI can enhance efficiency of Early warning systems which are essential for combating climate change and natural disasters. K) constant monitoring of soil conditions and specially devised solutions by AI can encourage optimum soil growth while preventing heavy metals leaching in ground water. I) live data sharing and AI monitored traffic signals along with structural health monitoring can reduce damage caused by accidents J) AI powered robots can increase the pace of intergalactic missions and spacial discoveries.',
+    'Artificial intelligence has emerged as a defining technological force of the twenty-first century, transforming economic productivity, public administration, and scientific inquiry across developing and industrialized states alike. Nations that invest in digital literacy and accountable algorithms capture sustained human development gains, whereas unprepared societies risk widening structural inequalities.',
+    'Nevertheless, unchecked automation also creates profound ethical, legal, and labor-market disruptions that demand deliberate constitutional and regulatory oversight. Governments must therefore pair algorithmic innovation with transparent procurement rules, social safety nets, and inclusive technical education so technological progress genuinely empowers citizens.'
+  ].join('\n\n');
+
+  const jammedPre = preprocessEssaySubmission(
+    jammedParenOutlineSample,
+    'Role of AI in Modern World'
+  );
+  assertCondition(
+    jammedPre.outlineNodes.length >= 14,
+    `Jammed parenthesis outline must split into >= 14 outlineNodes, got ${jammedPre.outlineNodes.length}`
+  );
+  assertCondition(
+    jammedPre.paragraphs.length === 2,
+    `Expected 2 body paragraphs after jammed parenthesis outline, got ${jammedPre.paragraphs.length}`
+  );
+  assertCondition(
+    !jammedPre.paragraphs[0].fullText.includes('Arguments Which Prove') &&
+      !jammedPre.paragraphs[0].fullText.includes('A) The democratization'),
+    'paragraphs[0] must NOT contain "3) Arguments... A) ... J) ..." outline block!'
+  );
+  assertCondition(
+    jammedPre.outlineNodes.some((o) => o.text.startsWith('3) Arguments Which Prove')) &&
+      jammedPre.outlineNodes.some((o) => o.text.startsWith('E) AI powered robotic nurses')) &&
+      jammedPre.outlineNodes.some((o) => o.text.startsWith('I) LLM backed audits')) &&
+      jammedPre.outlineNodes.some((o) => o.text.startsWith('K) constant monitoring')) &&
+      jammedPre.outlineNodes.some((o) => o.text.startsWith('I) live data sharing')) &&
+      jammedPre.outlineNodes.some((o) => o.text.startsWith('J) AI powered robots')),
+    'All parenthesis outline sub-items (including ALL-CAPS E/I and lowercase K/I) must become separate outlineNodes.'
+  );
+
+  // Verify mixed CSS outline formats + abbreviation/initial/year protection
+  const mixedOutline =
+    'Outline: A. Introduction: a. Background in U.S. and U.K.; b. Thesis Statement: M. A. Jinnah and A.Q. Khan shaped national resilience. B. Policy Challenges in 2024. (1) Fiscal deficit (a) Revenue shortfall (i) Tax evasion C. Conclusion';
+  const expandedMixed = normalizeOutlineLineBreaks(mixedOutline);
+  const expandedLines = expandedMixed.split('\n').map((l) => l.trim()).filter(Boolean);
+  assertCondition(
+    expandedLines.length >= 9 &&
+      expandedLines.some((l) => l.includes('U.S. and U.K.')) &&
+      expandedLines.some((l) => l.includes('M. A. Jinnah and A.Q. Khan')) &&
+      expandedLines.some((l) => l.includes('2024.') && l.startsWith('B. Policy Challenges')),
+    `Mixed outline expansion failed or broke abbreviations/initials/year: ${JSON.stringify(expandedLines)}`
+  );
+
+  const proseStartingWithInitials =
+    'M. A. Jinnah envisioned a constitutional democracy anchored in rule of law, civic equality, and institutional accountability across every province. Throughout his addresses, he urged citizens and civil servants to uphold integrity above partisan interest.';
+  const initialsOutlinePlusProse = [
+    '1) Historical Foundations 2) Constitutional Vision',
+    proseStartingWithInitials
+  ].join('\n\n');
+  const initialsPre = preprocessEssaySubmission(initialsOutlinePlusProse, 'Vision of Pakistan');
+  assertCondition(
+    initialsPre.outlineNodes.length === 2 &&
+      initialsPre.paragraphs.length === 1 &&
+      initialsPre.paragraphs[0].fullText.startsWith('M. A. Jinnah envisioned'),
+    `Prose starting with initials M. A. Jinnah was misclassified: outline=${initialsPre.outlineNodes.length}, paras=${initialsPre.paragraphs.length}`
+  );
+
+  const proseWithAbbrevs =
+    'In 2024. U.S. foreign policy and U.K. trade agreements shifted rapidly while Dr. Ahmed and Mr. Ali examined historical speeches by M. A. Jinnah and A. Q. Khan (e.g. constitutionalism; i.e. institutional parity, etc.). Meanwhile, domestic economic reforms progressed steadily across federal and provincial ministries throughout the fiscal quarter.';
+  assertCondition(
+    countInlineOutlineMarkers(proseWithAbbrevs) === 0,
+    `Expected 0 inline outline markers in prose with abbreviations/initials, got ${countInlineOutlineMarkers(proseWithAbbrevs)}`
+  );
+  assertCondition(
+    normalizeOutlineLineBreaks(proseWithAbbrevs) === proseWithAbbrevs,
+    'normalizeOutlineLineBreaks must NOT modify continuous body prose containing abbreviations, initials, or 4-digit years.'
+  );
+
+  // Verifier regression guards: title/label prefixes + mid-title Roman numerals & names
+  const titleInitialsLine = 'Dr. A. Khan and Mr. B. Ali wrote about U.S. policy.';
+  assertCondition(
+    countInlineOutlineMarkers(titleInitialsLine) === 0 &&
+      normalizeOutlineLineBreaks(titleInitialsLine) === titleInitialsLine,
+    `Title-prefixed initials must not count or split as markers: ${normalizeOutlineLineBreaks(titleInitialsLine)}`
+  );
+
+  const worldWarLine =
+    '1. Growth of 3.5 percent in 2024. 2. World War I. and World War II. 3. M. A. Jinnah and A. Q. Khan';
+  const worldWarLines = normalizeOutlineLineBreaks(worldWarLine)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  assertCondition(
+    countInlineOutlineMarkers(worldWarLine) === 3 &&
+      worldWarLines.length === 3 &&
+      worldWarLines[0] === '1. Growth of 3.5 percent in 2024.' &&
+      worldWarLines[1] === '2. World War I. and World War II.' &&
+      worldWarLines[2] === '3. M. A. Jinnah and A. Q. Khan',
+    `Mid-title Roman numerals or initials split unexpectedly: ${JSON.stringify(worldWarLines)}`
+  );
+
+  const entityAbbrevBoundary = 'A. Impact in U.S. B. Impact in China';
+  const entityLines = normalizeOutlineLineBreaks(entityAbbrevBoundary)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  assertCondition(
+    entityLines.length === 2 &&
+      entityLines[0] === 'A. Impact in U.S.' &&
+      entityLines[1] === 'B. Impact in China',
+    `Entity abbreviation ending ("U.S.") must still allow splitting before next marker: ${JSON.stringify(entityLines)}`
+  );
+
+  const mixedPrefixGuard =
+    '1. Phase I. and Phase II. 2. King George V. and by A. Smith 3. Fig. 1. and Art. 2. overview';
+  const mixedPrefixLines = normalizeOutlineLineBreaks(mixedPrefixGuard)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  assertCondition(
+    countInlineOutlineMarkers(mixedPrefixGuard) === 3 && mixedPrefixLines.length === 3,
+    `Title/label/preposition prefix guard failed: ${JSON.stringify(mixedPrefixLines)}`
+  );
+
+  console.log(
+    `  ✓ Jammed Parenthesis Outline Split: ${jammedPre.outlineNodes.length} outlineNodes | ${jammedPre.paragraphs.length} body paragraphs | Abbreviations & prose guarded.\n`
+  );
   passed++;
 
   console.log(`✅ All ${passed} Deterministic & Pre-Processor Golden Suites Passed (0 Tokens)!\n`);

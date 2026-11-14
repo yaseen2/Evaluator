@@ -22,9 +22,9 @@ CRITICAL VERBATIM TRANSCRIPTION RULES:
 1. Transcribe the handwritten text 100% VERBATIM in exact sequential page order.
 2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles ("a"/"the"), wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper.
 3. OUTLINE & PARAGRAPH NEWLINE PRESERVATION (STRICT — READ CAREFULLY):
-   - Every single Outline title, heading, numbered item, lettered sub-heading, or bullet MUST start on its OWN SEPARATE LINE (\\n), indented proportionally just like on the handwritten page.
-   - NEVER join outline points on the same line with spaces or semicolons if they appeared on separate lines on the page!
-   - Example of how your "transcribedText" MUST format an outline:
+   - Every single Outline title, heading, numbered item, lettered sub-heading, or bullet — whether written with period markers (\`I.\`, \`A.\`, \`1.\`, \`1.1.\`, \`a.\`) OR parenthesis markers (\`1)\`, \`2)\`, \`3)\`, \`A)\`, \`B)\`, \`a)\`, \`(1)\`, \`(a)\`, \`(i)\`) — MUST start on its OWN SEPARATE LINE (\\n), indented proportionally just like on the handwritten page.
+   - Place EVERY marker on its own new \\n line. NEVER join multiple outline markers (e.g., \`3) ... A) ... B) ...\` or \`A. ... a. ... b. ...\`) onto the same line with spaces or semicolons!
+   - Examples of how your "transcribedText" MUST format an outline:
 Outline:
 A. Introduction
    a. First point
@@ -34,6 +34,13 @@ B. Main Heading
       a. Supporting detail
    2. Second sub-heading
 C. Conclusion
+
+(Or if the student uses parenthesis markers:)
+1) Introduction
+2) Main Heading
+   A) First sub-point
+   B) Second sub-point
+3) Conclusion
 
    - Separate normal essay body paragraphs using double newlines (\\n\\n).
 4. If the student crossed out a phrase, omit the crossed-out words from the main text.
