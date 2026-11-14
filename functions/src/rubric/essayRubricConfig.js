@@ -96,10 +96,15 @@ export const PARAGRAPH_ROLES = {
   CONCLUSION: 'CONCLUSION'
 };
 
-export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `SIMPLE & CLEAR FEEDBACK RULES (STRICT):
-1. Student-Friendly English Everywhere: Write ALL feedback headings ("category"), "observation", "suggested_fix", "micro_rule", summaries, Model Thesis statements, and Rewrites in simple, everyday English that any Pakistani CSS student immediately understands (use clear category labels like 'Grammar Mistake', 'Wrong Word Choice', 'Missing Proof / Example', 'Weak Topic Sentence', 'Off-Topic Point', 'Outline & Essay Mismatch', 'Outdated Fact', 'Strong Point' — NEVER confusing jargon like 'Deal-Breaker', 'Signifier', 'Mode-Lock', 'Lexical Register', 'Franken-Paragraph', or 'Hawai Firing'). Use clear natural academic English—never artificial thesaurus jargon.
-2. Terminology: Always refer to the exam question as the "Essay Title" or "Topic" (NEVER call it the "prompt").
-3. "Recommended" vs. "Must": Reserve strict "must" commands ONLY for true pass/fail rules (answering the Essay Title, grammatical correctness, writing all promised outline points, and avoiding inline headings/bullets in the essay body). Phrase structural/style best practices constructively ("Recommended", "Ideally", "Consider...").`;
+export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `SIMPLE & CLEAR ENGLISH RULES FOR PAKISTANI STUDENTS (STRICT):
+1. Speak Directly in Everyday English: Address the student as "you" and "your" (NEVER say "the candidate", "the script", or repeat "FPSC" / "Examiner"). Explain problems as if a helpful teacher is sitting beside a Pakistani student who finds hard English difficult.
+2. NEVER Write Internal Codes Inside Feedback: NEVER write "P1", "P2", "P1.S5", "O15", or "O24" inside feedback sentences! Always write "Introduction", "Paragraph 2", "Sentence 5 of Paragraph 1", or "Outline point 15".
+3. Zero Difficult Jargon or Grammar Terms: NEVER use words like "definite/indefinite article", "singular countable noun", "determiner", "syntax", "introductory funnel", "terminal sentence", "thesis architecture", "premature termination", "lexical", "demarcating", "quagmire", "rentierism", "hemorrhage", "hawai firing", "franken-paragraph", or "signifier". Instead say: "Add 'a' or 'the' before...", "Your last sentence is too general...", "Start explaining here instead of just listing your outline...".
+4. Short & Simple Boxes: Keep EVERY feedback "observation" to 1 or 2 short, clear sentences (under 28 words total). Never repeat the heading inside the comment.
+5. Short Category Headings (2–4 words): Use simple everyday labels like "Grammar Mistake", "Missing 'a' / 'the'", "Wrong Word", "Wrong or Outdated Fact", "Unclear Sentence", "Weak Main Point", "Outline Missing Point", "Too Short", "Helpful Tip", or "Strong Point".
+6. Underline Only the Exact Wrong Word(s): Quote ONLY 1 to 4 exact words in "exact_verbatim_quote" (just the wrong word or tiny broken phrase, NEVER a whole sentence or 10-word clause).
+7. Easy English in Rewrites, Sample Outlines & Thesis: Keep Sample Thesis Statements, Sample Improved Outlines, and Paragraph Rewrites in clean, simple, natural English (never showy thesaurus words).
+8. Terminology & Tone: Call the essay question the "Topic" (never "prompt"). Reserve strict "must" rules ONLY for passing essentials (answering the Topic, correct grammar, covering your Outline points, and no inline headings inside essay paragraphs).`;
 
 export const PROMPT_DECODING_TRAP_RULES = [
   'Dual-Choice or Comparative Titles: Use natural comprehension to detect any title weighing two options or claims (e.g., "X or Y", "Not X, but Y", "Myth or Reality?", "Blessing or Curse?"). The candidate should engage substantively with both sides before proving why their chosen position prevails.',

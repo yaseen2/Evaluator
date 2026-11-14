@@ -127,6 +127,79 @@ const outlineMarkerRegexSafe = (blockText) =>
   );
 
 /**
+ * Expands jammed single-line outlines (e.g. "Outline: A. Intro: a. ...; b. ... B. Causes:")
+ * into proper line-by-line outline entries BEFORE essay prose begins, without ever modifying body prose.
+ */
+export const normalizeOutlineLineBreaks = (rawText = '') => {
+  const normalized = String(rawText || '').replace(/\r\n/g, '\n');
+  if (!normalized.trim()) return normalized;
+
+  const lines = normalized.split('\n');
+  const outLines = [];
+  let proseStarted = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      outLines.push('');
+      continue;
+    }
+
+    if (
+      !proseStarted &&
+      countExactWords(trimmed) >= 45 &&
+      splitIntoSentences(trimmed).length >= 2 &&
+      !/^outline\b/i.test(trimmed) &&
+      !outlineMarkerRegexSafe(trimmed)
+    ) {
+      proseStarted = true;
+    }
+
+    if (proseStarted) {
+      outLines.push(trimmed);
+      continue;
+    }
+
+    const markerMatches =
+      trimmed.match(
+        /(?:^|[\s:;.(])(?:(?:[IVXLCDM]{1,5}|[A-Z]|[a-z]|\d{1,2}(?:\.\d+)*)\.\s+(?=[A-Za-z0-9"']))/g
+      ) || [];
+    const hasInlineOutlineAfterTag = /^outline\b\s*:.*\S/i.test(trimmed) && markerMatches.length >= 1;
+
+    if (hasInlineOutlineAfterTag || markerMatches.length >= 3) {
+      let expanded = trimmed;
+      if (/^outline\b\s*:\s*\S/i.test(expanded)) {
+        expanded = expanded.replace(/^(outline\s*:)\s*/i, '$1\n');
+      }
+      // Split before Roman numeral or Capital-letter main outline headings (avoiding double initials like "M. A. Jinnah")
+      expanded = expanded.replace(
+        /(\S{2,}[:;.]|\([A-Z]+\))\s+((?:[IVXLCDM]{1,4}|[A-Z])\.\s+(?=[A-Z][a-z]))/g,
+        '$1\n$2'
+      );
+      expanded = expanded.replace(
+        /(\S{2,})\s+((?:[IVXLCDM]{1,4}|[B-Z])\.\s+(?:Introduction|Conclusion|Thesis|Overview|Causes|Symptoms|Effects|Impacts|Challenges|Solutions|Way Forward|Recommendations|[A-Z][a-z]{2,}))/g,
+        '$1\n$2'
+      );
+      // Split before numbered outline headings (e.g. "1. High Inflation", "1.1 Causes")
+      expanded = expanded.replace(
+        /(\S{2,}[:;.]|\([A-Z]+\))\s+((?:\d{1,2}(?:\.\d+)*)\.\s+(?=[A-Za-z]))/g,
+        '$1\n  $2'
+      );
+      // Split before lowercase letter sub-points (e.g. ": a. ...; b. ...")
+      expanded = expanded.replace(
+        /([:;.]|\([A-Z]+\))\s+([a-z]\.\s+(?=[A-Za-z0-9]))/g,
+        '$1\n    $2'
+      );
+      outLines.push(expanded);
+    } else {
+      outLines.push(trimmed);
+    }
+  }
+
+  return outLines.join('\n').trim();
+};
+
+/**
  * Splits digital scripts pasted with single newlines (\n) when standard \n\n splitting
  * collapses multiple long prose paragraphs into <= 2 giant blocks.
  */
@@ -190,9 +263,7 @@ const segmentRawBlocksWithNewlineFallback = (normalized) => {
  *     more outline-marker lists.
  */
 export const preprocessEssaySubmission = (rawText = '', examQuestion = '') => {
-  const normalized = String(rawText || '')
-    .replace(/\r\n/g, '\n')
-    .trim();
+  const normalized = normalizeOutlineLineBreaks(rawText);
 
   if (!normalized) {
     return {
@@ -522,8 +593,8 @@ export const computeRoleFilteredPacingDecay = (paragraphs = [], paragraphRoleMap
     decayPercent,
     pacingDecayFlag,
     summary: pacingDecayFlag
-      ? `PACING_DECAY_DETECTED: 2nd-half substantive body paragraphs (${secondHalf.map((p) => p.id).join(', ')}: avg ${secondHalfAvgWords} words) dropped by ${Math.abs(decayPercent)}% compared to 1st-half body paragraphs (${firstHalf.map((p) => p.id).join(', ')}: avg ${firstHalfAvgWords} words).`
-      : `Balanced Pacing: 1st-half substantive body paragraphs avg ${firstHalfAvgWords} words vs. 2nd-half avg ${secondHalfAvgWords} words (${decayPercent >= 0 ? '+' : ''}${decayPercent}%).`
+      ? `Your later body paragraphs (${secondHalf.map((p) => p.id.replace(/^P(\d+)$/i, 'Paragraph $1')).join(', ')}) average ${secondHalfAvgWords} words, dropping ${Math.abs(decayPercent)}% compared to your earlier paragraphs (${firstHalf.map((p) => p.id.replace(/^P(\d+)$/i, 'Paragraph $1')).join(', ')}, avg ${firstHalfAvgWords} words). Try to keep later paragraphs strong and well-explained.`
+      : `Balanced paragraph lengths: earlier paragraphs average ${firstHalfAvgWords} words and later paragraphs average ${secondHalfAvgWords} words (${decayPercent >= 0 ? '+' : ''}${decayPercent}%).`
   };
 };
 
@@ -551,7 +622,7 @@ export const reconcileAiStructuralBoundary = (
     return preprocessed;
   }
 
-  const normalized = String(rawText).replace(/\r\n/g, '\n').trim();
+  const normalized = normalizeOutlineLineBreaks(rawText);
   const blocks = segmentRawBlocksWithNewlineFallback(normalized);
   const needle = correctionQuote.toLowerCase().slice(0, 48);
   const splitIdx = blocks.findIndex((blk) => blk.toLowerCase().includes(needle));

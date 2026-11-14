@@ -24,7 +24,7 @@ const buildTranscriptFromParagraphs = (paragraphs = []) =>
   paragraphs.map((p) => `[${p.id} | ${p.wordCount}w] ${p.taggedText}`).join('\n\n');
 
 const buildAgent3aFactPrompt = ({ examQuestion, preprocessed, agent1Output }) => `
-You are Agent 3A: FPSC CSS FACT, TIME-WARP & CONCEPTUAL PRECISION CRITIC (with Selective Google Search Grounding).
+You are Agent 3A: Fact, Citation & Term Accuracy Checker (with Selective Google Search Grounding).
 CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 === CONTEXT ===
@@ -64,13 +64,11 @@ Return ONLY this JSON object:
   ],
   "factAndConceptDiagnostics": [
     {
-      "location_id": "string (e.g. P4.S2)",
-      "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the candidate's text)",
+      "location_id": "string (e.g. P4.S2 — internal coordinate only)",
+      "exact_verbatim_quote": "string (ONLY 1 to 4 exact words showing the wrong number, outdated fact, or wrong term — NEVER a whole sentence)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (Simple heading: e.g. Outdated Fact, Wrong Number / Fact, Wrong Term Choice, Unverified Quote, Strong Evidence)",
-      "observation": "string (Simple, clear explanation referencing accurate data or terminology)",
-      "suggested_fix": "string (Exact factual or word correction in plain English)",
-      "micro_rule": "string (1-sentence simple exam takeaway)"
+      "category": "string (Simple 2-4 word label: Outdated Fact, Wrong Number / Fact, Wrong Word Choice, Quote Not Verified, Strong Evidence)",
+      "observation": "string (1-2 short everyday sentences using 'you'/'your' telling the student what is wrong and what the accurate figure/term is; ZERO P/O codes and ZERO jargon)"
     }
   ],
   "analyticalDepthStatus": {
@@ -87,7 +85,7 @@ const buildAgent3bLanguagePrompt = ({
   sliceLabel,
   sliceTranscript
 }) => `
-You are Agent 3B: FPSC CSS BRITISH SYNTAX, PINGLISH & FORMAT CRITIC (${sliceLabel}).
+You are Agent 3B: English Grammar, Phrasing & Format Checker (${sliceLabel}).
 CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 === CONTEXT ===
@@ -112,10 +110,12 @@ ${SHARED_SAFE_HARBOR_DIRECTIVE}
 
 ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 
-STRICT CALIBRATION OVERRIDES (NEVER VIOLATE):
-- CRITICAL GRAMMAR PRIORITY: In FPSC CSS English Essay, real English grammar mistakes fail essays. Scan EVERY sentence in the target slice from start to finish using your full native command of British English so NO genuine grammar error is missed, while NEVER inventing false grammar complaints on valid sentences. Mark clear grammar, syntax, or punctuation errors as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" when repeated or breaking sentence meaning).
-- SIMPLE WORDS ([WW]): Calling an issue "important", "key", "big", or "huge" is valid standard English. Academic upgrades ("grave", "chronic", "pervasive") are STRICTLY 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
-- SLIP VS. SERIOUS MISTAKE: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for genuine grammar mistakes, repeated errors, or structural taboos (inline headings, bullets, tables in body).
+STRICT CALIBRATION & SIMPLE ENGLISH RULES (NEVER VIOLATE):
+- CRITICAL GRAMMAR PRIORITY: Real English grammar mistakes hurt essay marks. Scan EVERY sentence in the target slice using formal British English so NO real grammar error is missed, while NEVER inventing false complaints on good sentences. Mark clear grammar, tense, agreement, or punctuation errors as 🟠 "TIER_2_MAJOR" (or 🔴 "TIER_1_FATAL" when repeated or breaking sentence meaning).
+- SIMPLE WORDS: Calling an issue "important", "key", "big", or "huge" is valid standard English. Academic upgrades ("grave", "chronic", "pervasive") stay strictly 🔵 "TIER_3_POLISH" — NEVER Tier 1 or Tier 2.
+- SLIP VS. SERIOUS MISTAKE: 1–2 isolated contractions ("it's", "don't") or first-person pronouns ("we", "our") are 🔵 "TIER_3_POLISH". Reserve 🔴/🟠 for genuine grammar mistakes, repeated errors, or structural taboos (headings, bullets, or tables inside essay body paragraphs).
+- QUOTE ONLY THE WRONG WORD(S): Keep "exact_verbatim_quote" strictly 1 to 4 exact words (just the missing/wrong word or tiny phrase—NEVER highlight a full sentence or long clause!).
+- NO JARGON OR CODES IN COMMENTS: Write "observation" in 1–2 short everyday sentences using "you"/"your". NEVER write "singular countable noun", "definite/indefinite article", "determiner", "syntax", "FPSC", "candidate", or "P1/P2/O4" codes inside "observation" or "pillarStatuses.*.feedback"! For example, say: "Say 'a strong economic base' here — add 'a' before a single noun." instead of grammar jargon.
 
 === TARGET TEXT SLICE TO AUDIT ===
 ${sliceTranscript}
@@ -132,13 +132,11 @@ Return ONLY this JSON object:
 {
   "languageDiagnostics": [
     {
-      "location_id": "string (e.g. O2, P1.S2, P12.S3)",
-      "exact_verbatim_quote": "string (EXACT 2-12 word verbatim substring from the slice)",
+      "location_id": "string (e.g. O2, P1.S2, P12.S3 — internal coordinate only)",
+      "exact_verbatim_quote": "string (ONLY 1 to 4 exact words showing JUST the wrong word/phrase — NEVER a whole sentence)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string (Simple student-friendly heading: e.g. Grammar Mistake, Sentence & Punctuation, Pinglish Phrasing, Acronym Tip, Word Choice, Style Improvement, Strong Point)",
-      "observation": "string (Simple, clear explanation in plain English)",
-      "suggested_fix": "string (Exact drop-in replacement phrase/sentence)",
-      "micro_rule": "string (1-sentence simple exam takeaway)"
+      "category": "string (Simple 2-4 word label: Grammar Mistake, Missing 'a' / 'the', Punctuation Error, Unnatural Phrasing, Acronym Tip, Word Choice, Style Tip, Strong Point)",
+      "observation": "string (1-2 short everyday sentences using 'you'/'your' clearly showing what to fix; ZERO grammar jargon and ZERO P/O codes)"
     }
   ],
   "pillarStatuses": {
@@ -149,12 +147,12 @@ Return ONLY this JSON object:
 `;
 
 const buildOutlineOnlyLanguagePrompt = ({ examQuestion, preprocessed }) => `
-You are Agent 3: FPSC CSS OUTLINE LANGUAGE & TERMINOLOGY CRITIC (Outline-Only Mode).
+You are Agent 3: Outline Grammar & Word Choice Checker (Outline-Only Mode).
 CRITICAL JSON RULE: Never use unescaped double quotes (") inside JSON string values; always use single quotes ('...') when quoting words or phrases inside a string.
 
 Essay Topic: "${examQuestion}"
 
-=== PAKISTANI "PINGLISH" & CSS RULES ===
+=== PAKISTANI "PINGLISH" & ESSAY FORMATTING RULES ===
 ${PINGLISH_DIRECTION_TEXT}
 
 ${SHARED_SAFE_HARBOR_DIRECTIVE}
@@ -165,19 +163,17 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 ${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(Empty outline)'}
 ====================
 
-Audit EVERY Outline line [O1..On] thoroughly for British English grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if repeated), Pinglish phrasing, spelling, unexpanded acronyms, fake question marks, and clarity in simple student-friendly English. Do NOT invent body-paragraph complaints.
+Audit EVERY Outline line thoroughly for British English grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if repeated), Pinglish phrasing, spelling, unexpanded acronyms, fake question marks, and clarity in simple student-friendly English (using "you"/"your", ZERO O1/O2 codes, ZERO jargon). Quote ONLY 1 to 4 exact words in "exact_verbatim_quote". Do NOT invent body-paragraph complaints.
 
 Return ONLY this JSON object:
 {
   "languageDiagnostics": [
     {
-      "location_id": "string (e.g. O4)",
-      "exact_verbatim_quote": "string (EXACT 2-12 word substring from that outline line)",
+      "location_id": "string (e.g. O4 — internal coordinate only)",
+      "exact_verbatim_quote": "string (ONLY 1 to 4 exact words from that outline line)",
       "tier": "TIER_1_FATAL" | "TIER_2_MAJOR" | "TIER_3_POLISH" | "EARNED_SIGNIFIER",
-      "category": "string",
-      "observation": "string",
-      "suggested_fix": "string",
-      "micro_rule": "string"
+      "category": "string (Simple 2-4 word label)",
+      "observation": "string (1-2 short everyday sentences using 'you'/'your'; ZERO jargon and ZERO O1/O2 codes)"
     }
   ],
   "pillarStatuses": {
@@ -195,10 +191,7 @@ const tagSpotlightZones = (items = [], spotlightZoneIds = []) => {
     return {
       ...item,
       inSpotlightZone,
-      observation:
-        inSpotlightZone && item.tier !== 'EARNED_SIGNIFIER' && !String(item.observation || '').includes('[Spotlight Zone]')
-          ? `[Spotlight Zone — 2x Examiner Visibility] ${item.observation || ''}`.trim()
-          : item.observation || ''
+      observation: String(item.observation || '').trim()
     };
   });
 };

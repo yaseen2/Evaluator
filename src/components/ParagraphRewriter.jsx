@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Check, Sparkles, BookOpen } from 'lucide-react';
+import { cleanSimpleText, formatLocationLabel } from '../utils/textUtils';
 
 export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
   const [selectedTier, setSelectedTier] = useState('highScorer'); // 'basic' | 'cssStandard' | 'highScorer'
@@ -82,7 +83,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                       textTransform: 'uppercase'
                     }}
                   >
-                    Flaw: {item.issue || 'Non-Parallel / Vague Header'}
+                    Issue: {cleanSimpleText(item.issue || 'Unclear Heading')}
                   </span>
                 </div>
 
@@ -153,7 +154,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                       style={{ flexShrink: 0, marginTop: '2px' }}
                     />
                     <span>
-                      <strong>Rule:</strong> {item.rule}
+                      <strong>Why:</strong> {cleanSimpleText(item.rule)}
                     </span>
                   </div>
                 )}
@@ -199,7 +200,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 style={{ padding: '4px 8px', fontSize: '0.68rem' }}
                 onClick={() => setSelectedTier('basic')}
               >
-                Grammar Fix
+                Simple Fix
               </button>
               <button
                 type="button"
@@ -207,7 +208,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 style={{ padding: '4px 8px', fontSize: '0.68rem' }}
                 onClick={() => setSelectedTier('cssStandard')}
               >
-                CSS Standard
+                Good Standard
               </button>
               <button
                 type="button"
@@ -215,7 +216,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                 style={{ padding: '4px 8px', fontSize: '0.68rem' }}
                 onClick={() => setSelectedTier('highScorer')}
               >
-                70+ Qualifier
+                Top Standard
               </button>
             </div>
           </div>
@@ -254,7 +255,9 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                         textTransform: 'uppercase'
                       }}
                     >
-                      {rw.locationId || rw.targetType || 'Paragraph Improvement'}
+                      {rw.locationId
+                        ? formatLocationLabel(rw.locationId)
+                        : rw.targetType || 'Paragraph Improvement'}
                     </span>
                     {rw.issueDiagnosed && (
                       <span
@@ -264,7 +267,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                           color: 'var(--warning-amber)'
                         }}
                       >
-                        {rw.issueDiagnosed}
+                        {cleanSimpleText(rw.issueDiagnosed)}
                       </span>
                     )}
                   </div>
@@ -300,10 +303,10 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                   <strong style={{ color: 'var(--pass-green)' }}>
                     After (
                     {selectedTier === 'basic'
-                      ? '50-Mark Pass'
+                      ? 'Simple Fix'
                       : selectedTier === 'cssStandard'
-                      ? '60-Mark Standard'
-                      : '70+ Qualifier'}
+                      ? 'Good Standard'
+                      : 'Top Standard'}
                     ):
                   </strong>{' '}
                   "{currentRewriteText}"
@@ -341,7 +344,7 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
                       border: '1px solid var(--border)'
                     }}
                   >
-                    💡 <strong>What Changed &amp; Why:</strong> {rw.whatChanged}
+                    💡 <strong>What Changed &amp; Why:</strong> {cleanSimpleText(rw.whatChanged)}
                   </div>
                 )}
               </div>

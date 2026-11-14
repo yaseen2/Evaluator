@@ -12,7 +12,13 @@ import {
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
-import { cleanSimpleText } from '../utils/textUtils';
+import {
+  cleanSimpleText,
+  formatLocationLabel,
+  formatRoleLabel,
+  simplifyCategoryTitle,
+  isDiscrepantEvidenceAnnotation
+} from '../utils/textUtils';
 
 const GENRE_LABELS = {
   DESCRIPTIVE_ISSUE: 'Descriptive / Issue-Based',
@@ -21,14 +27,15 @@ const GENRE_LABELS = {
   ABSTRACT_PHILOSOPHICAL: 'Abstract / Philosophical'
 };
 
-export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
+export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts' | 'agent_log'
   const [selectedParamId, setSelectedParamId] = useState(null);
   const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'tier1' | 'tier2' | 'polish' | 'green'
   const cardRefs = useRef({});
   const agentTrace = evaluation?.agentTrace || null;
   const tokenStages = evaluation?.tokenUsage?.stages || agentTrace?.tokenStages || [];
-  const hasAgentLog = Boolean(agentTrace || tokenStages.length > 0);
+  const showAgentLog = Boolean(isAdmin);
+  const hasAgentLog = Boolean(showAgentLog);
 
   if (!evaluation) return null;
 
@@ -211,32 +218,32 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
 
     if (steps.length < 3 && evaluation.outlineAlignment?.missingFromBody?.length) {
       steps.push({
-        title: 'Fulfill Outline Sections',
-        description: `Ensure all points promised in your outline are developed in full prose paragraphs (e.g. ${evaluation.outlineAlignment.missingFromBody[0]}).`
+        title: 'Write Every Outline Point in the Essay',
+        description: `Include full paragraphs for every point listed in your outline (for example: ${cleanSimpleText(evaluation.outlineAlignment.missingFromBody[0])}).`
       });
     }
     if (steps.length < 3 && evaluation.thesisAudit?.status === 'Needs Polish') {
       steps.push({
-        title: 'Formulate Explicit Thesis',
+        title: 'Write a Clear Main Argument',
         description:
-          'Under Introduction, provide a clear two-dimensional thesis statement outlining your core analytical contention.'
+          'At the end of your introduction, clearly state your main point of view in one or two direct sentences.'
       });
     }
 
     if (steps.length === 0) {
       steps.push(
         {
-          title: 'Adopt Rigorous Diction',
-          description: 'Replace informal phraseology with authoritative civil service terminology.'
+          title: 'Use Clear, Natural English',
+          description: 'Avoid casual phrases and write in clean, formal sentences.'
         },
         {
-          title: 'Formulate Explicit Thesis',
-          description: 'Provide a clear thesis statement outlining your core contention.'
+          title: 'Write a Clear Main Argument',
+          description: 'State your main answer to the topic clearly at the end of your introduction.'
         },
         {
-          title: 'Expand Outline Granularity',
+          title: 'Make Outline Points Specific',
           description:
-            'Flesh out primary roman numerals into parallel, self-explanatory analytical assertions.'
+            'Write clear, complete outline points so your essay plan is easy to follow.'
         }
       );
     }
@@ -244,7 +251,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
     return steps.slice(0, 3);
   }, [evaluation]);
 
-  const topicTitle = evaluation.topic || evaluation.examQuestion || "Candidate's Answer Script";
+  const topicTitle = evaluation.topic || evaluation.examQuestion || 'Your Essay';
   const genreDisplay = evaluation.essayGenre
     ? GENRE_LABELS[evaluation.essayGenre] || evaluation.essayGenre
     : null;
@@ -315,7 +322,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           <span>All Corrections ({allAnnotations.length})</span>
         </button>
 
-        {hasAgentLog && (
+        {showAgentLog && (
           <button
             className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'agent_log'
@@ -492,14 +499,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     ) : (
                       item.feedback && (
                         <div className="mt-1.5 text-[11px] text-slate-500 line-clamp-2 leading-snug">
-                          {item.feedback}
+                          {cleanSimpleText(item.feedback)}
                         </div>
                       )
                     )}
 
                     {isSelected && item.feedback && (
                       <div className="mt-2 pt-2 border-t border-slate-200/80 text-[11px] text-slate-700 font-normal leading-relaxed animate-in fade-in duration-150">
-                        {item.feedback}
+                        {cleanSimpleText(item.feedback)}
                       </div>
                     )}
                   </div>
@@ -513,14 +520,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             <div className="flex items-center space-x-2">
               <FileText className="w-4 h-4 text-brand-600" />
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-                Examiner's Overall Feedback
+                Overall Feedback
               </h4>
             </div>
             <div className="bg-white border border-slate-200 rounded-md p-4 text-slate-600 text-sm leading-relaxed space-y-2 font-academic text-[15px]">
               <p>
                 {examinerSummary
-                  ? `"${examinerSummary}"`
-                  : `"The candidate addresses foundational themes across the topic directive. However, structural rigor and analytical precision must be deepened to satisfy FPSC civil service examination benchmark standards."`}
+                  ? `"${cleanSimpleText(examinerSummary)}"`
+                  : `"Your essay covers the main topic, but stronger structure, clearer examples, and cleaner sentences will improve your overall standard."`}
               </p>
             </div>
           </div>
@@ -542,11 +549,11 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                        {sig.category || 'Earned Qualifier Strength'}
+                        {simplifyCategoryTitle(sig.category, { type: 'green' })}
                       </span>
                       {sig.location_id && (
-                        <span className="text-[10px] font-mono text-emerald-700">
-                          [{sig.location_id}]
+                        <span className="text-[10px] font-sans text-emerald-700">
+                          {formatLocationLabel(sig.location_id)}
                         </span>
                       )}
                     </div>
@@ -556,7 +563,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                       </div>
                     )}
                     {sig.observation && (
-                      <p className="text-slate-600 leading-relaxed">{sig.observation}</p>
+                      <p className="text-slate-600 leading-relaxed">{cleanSimpleText(sig.observation)}</p>
                     )}
                   </div>
                 ))}
@@ -576,7 +583,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     {idx + 1}
                   </span>
                   <span>
-                    <strong>{step.title}:</strong> {step.description}
+                    <strong>{cleanSimpleText(step.title)}:</strong> {cleanSimpleText(step.description)}
                   </span>
                 </li>
               ))}
@@ -602,12 +609,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                 </div>
               )}
               {evaluation.thesisAudit.critique && (
-                <p className="text-slate-600 leading-relaxed">{evaluation.thesisAudit.critique}</p>
+                <p className="text-slate-600 leading-relaxed">{cleanSimpleText(evaluation.thesisAudit.critique)}</p>
               )}
               {evaluation.thesisAudit.modelTopperThesis && (
                 <div className="p-2.5 rounded bg-emerald-50/70 border border-emerald-200 text-emerald-950">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
-                    Model Thesis Statement
+                    Sample Thesis Statement
                   </div>
                   <div className="font-academic text-[13px] leading-relaxed">
                     "{evaluation.thesisAudit.modelTopperThesis}"
@@ -631,11 +638,13 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                 )}
               </div>
               {evaluation.outlineAlignment.summary && (
-                <p className="text-slate-600 leading-relaxed">{evaluation.outlineAlignment.summary}</p>
+                <p className="text-slate-600 leading-relaxed">
+                  {cleanSimpleText(evaluation.outlineAlignment.summary)}
+                </p>
               )}
               {evaluation.outlineAlignment.bodyHeadingWarning && (
                 <div className="p-2 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">
-                  <strong>Structural Warning:</strong> {evaluation.outlineAlignment.bodyHeadingWarning}
+                  <strong>Important Note:</strong> {cleanSimpleText(evaluation.outlineAlignment.bodyHeadingWarning)}
                 </div>
               )}
               {evaluation.outlineAlignment.missingFromBody?.length > 0 && (
@@ -645,7 +654,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   </div>
                   <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
                     {evaluation.outlineAlignment.missingFromBody.map((m, i) => (
-                      <li key={i}>{m}</li>
+                      <li key={i}>{cleanSimpleText(m)}</li>
                     ))}
                   </ul>
                 </div>
@@ -657,7 +666,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   </div>
                   <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
                     {evaluation.outlineAlignment.orphanBodyParagraphs.map((m, i) => (
-                      <li key={i}>{m}</li>
+                      <li key={i}>{cleanSimpleText(m)}</li>
                     ))}
                   </ul>
                 </div>
@@ -678,14 +687,16 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     {Object.entries(evaluation.paragraphRoleMap).map(([pId, role]) => (
                       <span
                         key={pId}
-                        className="text-[10px] px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-mono"
+                        className="text-[10px] px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-sans"
                       >
-                        <strong>{pId}:</strong> {role}
+                        <strong>{formatLocationLabel(pId)}:</strong> {formatRoleLabel(role)}
                       </span>
                     ))}
                   </div>
                   {evaluation.pacingMetrics?.summary && (
-                    <p className="text-[11px] text-slate-500 pt-1">{evaluation.pacingMetrics.summary}</p>
+                    <p className="text-[11px] text-slate-500 pt-1">
+                      {cleanSimpleText(evaluation.pacingMetrics.summary)}
+                    </p>
                   )}
                 </div>
               )}
@@ -710,14 +721,15 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             </div>
           )}
 
-          {/* Chief Examiner QA Audit & Handwriting Physical Layout */}
-          {(evaluation.qaAuditLog || evaluation.handwritingAudit || evaluation.stageDegradations?.length > 0) && (
+          {/* Paper Layout Check (Students) & Internal QA Audit (Admin Only) */}
+          {(evaluation.handwritingAudit ||
+            (showAgentLog && (evaluation.qaAuditLog || evaluation.stageDegradations?.length > 0))) && (
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 text-[11px] text-slate-600 font-sans">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
-                  Quality Check & Paper Layout
+                  {evaluation.handwritingAudit ? 'Paper Layout Check' : 'Admin Pipeline Notice'}
                 </span>
-                {typeof evaluation.qaAuditLog?.falsePositivesDeleted === 'number' && (
+                {showAgentLog && typeof evaluation.qaAuditLog?.falsePositivesDeleted === 'number' && (
                   <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
                     Quality Check: Reviewed {evaluation.qaAuditLog.totalFlagsReviewed || 0} • Removed{' '}
                     {evaluation.qaAuditLog.falsePositivesDeleted} False Alarms
@@ -725,7 +737,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                 )}
               </div>
 
-              {evaluation.qaAuditLog?.deletionNotes?.length > 0 && (
+              {showAgentLog && evaluation.qaAuditLog?.deletionNotes?.length > 0 && (
                 <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
                   {evaluation.qaAuditLog.deletionNotes.slice(0, 3).map((note, idx) => (
                     <li key={idx}>{note}</li>
@@ -734,19 +746,18 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               )}
 
               {evaluation.handwritingAudit && (
-                <div className="pt-1.5 border-t border-slate-200/80 space-y-1">
+                <div className="space-y-1">
                   <div className="font-semibold text-slate-700">
-                    Paper Layout Check: Margins{' '}
-                    {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Need Neat Margins'} • Indentation{' '}
-                    {evaluation.handwritingAudit.indentationConsistent ? 'Consistent' : 'Inconsistent'}
+                    Margins: {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Leave Neater Side Margins'} •{' '}
+                    Paragraph Indents: {evaluation.handwritingAudit.indentationConsistent ? 'Consistent' : 'Start Each Paragraph Slightly Indented'}
                     {evaluation.handwritingAudit.samePageOutlineBodyStart
-                      ? ' • ⚠️ Started essay on the same page where Outline ended'
+                      ? ' • Tip: Start the Essay Introduction on a fresh page after your Outline.'
                       : ''}
                   </div>
                 </div>
               )}
 
-              {evaluation.stageDegradations?.length > 0 && (
+              {showAgentLog && evaluation.stageDegradations?.length > 0 && (
                 <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
                   Partial Stage Notice: {evaluation.stageDegradations.join(' | ')}
                 </div>
@@ -799,8 +810,8 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     {item.verified
                       ? '✓ Verified Fact'
                       : isUnverifiedQuote
-                      ? '🔵 Unverified / Paraphrased Citation'
-                      : '✗ Factual / 2026 Baseline Discrepancy'}
+                      ? '🔵 Quote Not Found Online'
+                      : '✗ Wrong or Outdated Fact'}
                   </span>
                   {item.source && (
                     <span className="text-[10px] text-slate-400 font-mono">
@@ -818,7 +829,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     }`}
                   >
                     <strong>{isUnverifiedQuote ? 'Note:' : 'Correction:'}</strong>{' '}
-                    {item.correctedFact}
+                    {cleanSimpleText(item.correctedFact)}
                   </div>
                 )}
               </div>
@@ -870,23 +881,23 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
               </div>
             </div>
             {evaluation.genreRationale && (
-              <p className="text-slate-600 leading-relaxed pt-1">{evaluation.genreRationale}</p>
+              <p className="text-slate-600 leading-relaxed pt-1">{cleanSimpleText(evaluation.genreRationale)}</p>
             )}
             {directiveAnalysis.feedback && (
-              <p className="text-slate-600 leading-relaxed pt-1">{directiveAnalysis.feedback}</p>
+              <p className="text-slate-600 leading-relaxed pt-1">{cleanSimpleText(directiveAnalysis.feedback)}</p>
             )}
           </div>
 
           <div className="bg-rose-50/50 border border-rose-200 rounded-lg p-4 space-y-2">
             <h4 className="font-bold text-rose-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
               <ShieldAlert size={14} className="text-rose-600" />
-              <span>Serious Mistakes That Cause Failure in CSS Essay</span>
+              <span>Serious Mistakes to Avoid</span>
             </h4>
             <ul className="space-y-1.5 text-slate-700">
               {dealBreakers.map((rule, idx) => (
                 <li key={idx} className="flex items-start gap-1.5">
                   <span className="text-rose-600 font-bold">•</span>
-                  <span>{rule}</span>
+                  <span>{cleanSimpleText(rule)}</span>
                 </li>
               ))}
             </ul>
@@ -927,6 +938,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
           {filteredAnnotations.map((ann, idx) => {
             const annId = ann.id || `ann-${idx}`;
             const isSelected = selectedAnnId === annId;
+            const isEvidenceErr = isDiscrepantEvidenceAnnotation(ann);
             return (
               <div
                 key={annId}
@@ -938,20 +950,20 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span
                     className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      ann.type === 'red'
+                      isEvidenceErr || ann.type === 'red'
                         ? 'bg-rose-50 text-rose-700 border border-rose-200'
                         : ann.type === 'green'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : 'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}
                   >
-                    {ann.category || 'Diagnostic'}
+                    {simplifyCategoryTitle(ann.category, ann)}
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    {ann.locationId ? `[${ann.locationId}] • ` : ''}Click to view on paper
+                  <span className="text-[10px] text-slate-400 text-right">
+                    {ann.locationId ? `${formatLocationLabel(ann.locationId)} • ` : ''}View
                   </span>
                 </div>
 
@@ -959,25 +971,18 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   <span
                     className={
                       ann.type === 'green'
-                        ? 'text-emerald-800 font-medium mr-2'
-                        : 'line-through text-red-600 mr-2'
+                        ? 'text-emerald-800 font-medium'
+                        : isEvidenceErr
+                        ? 'text-red-600 font-semibold underline decoration-red-500/80'
+                        : 'text-red-600 font-medium underline decoration-wavy decoration-red-400'
                     }
                   >
                     {ann.targetPhrase}
                   </span>
-                  {ann.suggestion && (
-                    <span className="text-[#007a64] font-semibold">→ {ann.suggestion}</span>
-                  )}
                 </div>
 
                 {ann.comment && (
                   <p className="text-slate-600 leading-relaxed">{cleanSimpleText(ann.comment)}</p>
-                )}
-                {ann.microLesson && (
-                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
-                    <strong className="text-slate-800">Examiner Rule: </strong>
-                    {cleanSimpleText(ann.microLesson)}
-                  </div>
                 )}
               </div>
             );
@@ -985,48 +990,82 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
         </div>
       )}
 
-      {activeTab === 'agent_log' && hasAgentLog && (
-        <div className="space-y-3 text-xs">
-          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
-            <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 mb-1">
-              <Activity size={14} className="text-brand-600" />
-              <span>Agent Pipeline Execution Log</span>
+      {activeTab === 'agent_log' && showAgentLog && (
+        <div className="space-y-3 text-xs font-sans">
+          <div className="p-3 rounded-lg bg-slate-900 text-slate-100 border border-slate-800 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5 text-emerald-400">
+                <Activity size={14} />
+                <span>Admin Only • Full Agent Pipeline Log</span>
+              </div>
+              <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200">
+                  Rubric v{evaluation.rubricVersion || 'legacy'}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200">
+                  Mode: {evaluation.essayMode || (evaluation.isOutlineOnly ? 'OUTLINE_ONLY' : 'FULL_ESSAY')}
+                </span>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-600">
-              See exactly what each stage of the evaluation pipeline extracted, flagged, checked, and filtered for this submission.
+            <p className="text-[11px] text-slate-300">
+              Complete internal trace: OCR extraction, structural outline/paragraph split, every raw agent output, QA false-positive deletions, Google Search grounding links, final pillar decisions, and token usage.
             </p>
           </div>
 
-          {agentTrace?.stage0_ocr && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
-              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Stage 0 • Vision OCR & Layout Check
-              </div>
-              {agentTrace.stage0_ocr.skipped ? (
-                <p className="text-slate-600">Skipped — typed text submission (no handwritten pages uploaded).</p>
-              ) : (
-                <div className="space-y-1 text-slate-700">
-                  <div>
-                    Pages Processed: <strong>{agentTrace.stage0_ocr.pagesProcessed || 0}</strong>
-                    {agentTrace.stage0_ocr.detectedTitle ? (
-                      <> • Detected Title: <strong>{agentTrace.stage0_ocr.detectedTitle}</strong></>
-                    ) : null}
-                  </div>
-                  {agentTrace.stage0_ocr.handwritingAudit && (
-                    <div className="text-[11px] text-slate-600">
-                      Margins: {agentTrace.stage0_ocr.handwritingAudit.marginsRespected ? 'Clean' : 'Needs Improvement'} •{' '}
-                      Indentation: {agentTrace.stage0_ocr.handwritingAudit.indentationConsistent ? 'Consistent' : 'Inconsistent'} •{' '}
-                      Excessive Scratch-outs: {agentTrace.stage0_ocr.handwritingAudit.excessiveScratchOuts ? 'Yes' : 'No'} •{' '}
-                      Outline & Body on Same Page: {agentTrace.stage0_ocr.handwritingAudit.samePageOutlineBodyStart ? 'Yes' : 'No'}
-                    </div>
-                  )}
-                </div>
-              )}
+          {!agentTrace && (
+            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+              Note: This essay was evaluated before full per-agent tracing was saved. Showing all saved metadata below (run a fresh evaluation to inspect raw per-agent drafts and QA deletions).
             </div>
           )}
 
+          {/* Stage 0: Vision OCR & Layout */}
+          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Stage 0 • Vision OCR & Layout Check
+              </span>
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                {agentTrace?.stage0_ocr
+                  ? agentTrace.stage0_ocr.skipped
+                    ? 'Typed Text'
+                    : `${agentTrace.stage0_ocr.pagesProcessed || 0} Scanned Pages`
+                  : evaluation.handwritingAudit
+                  ? 'Scanned Pages'
+                  : 'Typed / Legacy'}
+              </span>
+            </div>
+            {agentTrace?.stage0_ocr?.detectedTitle && (
+              <div className="text-[11px] text-slate-700">
+                Detected Title: <strong>{agentTrace.stage0_ocr.detectedTitle}</strong>
+              </div>
+            )}
+            {(agentTrace?.stage0_ocr?.handwritingAudit || evaluation.handwritingAudit) && (() => {
+              const hw = agentTrace?.stage0_ocr?.handwritingAudit || evaluation.handwritingAudit;
+              return (
+                <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-200/80">
+                  Margins: <strong>{hw.marginsRespected ? 'Clean' : 'Needs Improvement'}</strong> •{' '}
+                  Indentation: <strong>{hw.indentationConsistent ? 'Consistent' : 'Inconsistent'}</strong> •{' '}
+                  Excessive Scratch-outs: <strong>{hw.excessiveScratchOuts ? 'Yes' : 'No'}</strong> •{' '}
+                  Outline & Body Same Page: <strong>{hw.samePageOutlineBodyStart ? 'Yes' : 'No'}</strong>
+                  {hw.observations ? <div className="pt-1 text-slate-500">{hw.observations}</div> : null}
+                </div>
+              );
+            })()}
+            {(agentTrace?.rawOcrText || evaluation.rawText) && (
+              <details>
+                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  View Exact OCR / Submitted Text ({(agentTrace?.rawOcrText || evaluation.rawText).length.toLocaleString()} chars)
+                </summary>
+                <pre className="mt-2 p-2.5 rounded bg-slate-900 text-slate-100 text-[10px] font-mono whitespace-pre-wrap max-h-56 overflow-y-auto leading-relaxed">
+                  {agentTrace?.rawOcrText || evaluation.rawText}
+                </pre>
+              </details>
+            )}
+          </div>
+
+          {/* Stage 0B: Structural Indexer & Splitter */}
           {agentTrace?.stage0b_splitter && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
               <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
                 Stage 0B • Outline & Paragraph Splitter
               </div>
@@ -1061,66 +1100,139 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                   Inline Headings Caught Inside Essay Body: {agentTrace.stage0b_splitter.inlineHeadingsCaught}
                 </div>
               )}
-            </div>
-          )}
-
-          {agentTrace?.stage1_macro && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Agent 1 • Big-Picture & Outline Alignment
-                </span>
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                  {agentTrace.stage1_macro.rawFlagsCount || 0} raw flags
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-700">
-                Topic Type: <strong>{agentTrace.stage1_macro.essayGenre || 'General'}</strong> •{' '}
-                Counter-Argument Helpful?: <strong>{agentTrace.stage1_macro.requiresCounterArgument ? 'Yes' : 'No / Optional'}</strong>
-              </div>
-              {agentTrace.stage1_macro.genreRationale && (
-                <p className="text-[11px] text-slate-600">{agentTrace.stage1_macro.genreRationale}</p>
-              )}
-              {agentTrace.stage1_macro.rawFlags?.length > 0 && (
-                <details className="pt-1">
+              {(agentTrace.outlineNodes?.length > 0 || agentTrace.paragraphs?.length > 0) && (
+                <details>
                   <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
-                    View Agent 1 Raw Output ({agentTrace.stage1_macro.rawFlags.length})
+                    View Parsed Structure ({agentTrace.outlineNodes?.length || 0} Outline lines • {agentTrace.paragraphs?.length || 0} Body paragraphs)
                   </summary>
-                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {agentTrace.stage1_macro.rawFlags.map((flag, i) => (
-                      <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                        <div className="font-semibold text-slate-800">
-                          [{flag.locationId || 'GLOBAL'}] {flag.severity || flag.type} • {flag.category}
-                        </div>
-                        {flag.targetPhrase && (
-                          <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
-                        )}
-                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                  <div className="mt-2 space-y-2 max-h-56 overflow-y-auto pr-1 text-[11px]">
+                    {agentTrace.outlineNodes?.length > 0 && (
+                      <div className="p-2 rounded bg-slate-50 border border-slate-200 space-y-0.5 font-mono text-[10px]">
+                        <div className="font-sans font-bold text-slate-700 mb-1">Outline Nodes:</div>
+                        {agentTrace.outlineNodes.map((o, idx) => (
+                          <div key={idx} className="text-slate-700">
+                            <span className="text-brand-700 font-bold">{o.id}:</span> {o.text}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                    {agentTrace.paragraphs?.length > 0 && (
+                      <div className="p-2 rounded bg-slate-50 border border-slate-200 space-y-1 font-mono text-[10px]">
+                        <div className="font-sans font-bold text-slate-700">Paragraph Slices:</div>
+                        {agentTrace.paragraphs.map((p, idx) => (
+                          <div key={idx} className="text-slate-700">
+                            <span className="text-brand-700 font-bold">{p.id}</span> ({p.wordCount}w, {p.sentenceCount}s): {p.preview}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </details>
               )}
             </div>
           )}
 
-          {agentTrace?.stage1post_pacing && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1">
-              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Stage 1-Post • Paragraph Length Balance Check
-              </div>
-              <p className="text-[11px] text-slate-700">
-                {agentTrace.stage1post_pacing.summary ||
-                  `Checked ${agentTrace.stage1post_pacing.evaluatedParagraphCount || 0} body paragraphs (1st half avg ${agentTrace.stage1post_pacing.firstHalfAvgWords || 0}w vs 2nd half avg ${agentTrace.stage1post_pacing.secondHalfAvgWords || 0}w).`}
-              </p>
+          {/* Stage 1: Agent 1 Macro & Outline Alignment */}
+          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Agent 1 • Big-Picture, Topic Scope & Outline Alignment
+              </span>
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                {agentTrace?.stage1_macro?.rawFlagsCount ?? 0} raw flags
+              </span>
             </div>
-          )}
+            <div className="text-[11px] text-slate-700 space-y-1">
+              <div>
+                Genre: <strong>{agentTrace?.stage1_macro?.essayGenre || evaluation.essayGenre || 'General'}</strong> •{' '}
+                Counter-Argument Needed:{' '}
+                <strong>
+                  {(agentTrace?.stage1_macro?.requiresCounterArgument ?? evaluation.requiresCounterArgument) ? 'Yes' : 'No / Optional'}
+                </strong>
+              </div>
+              {(agentTrace?.stage1_macro?.directiveAnalysis || evaluation.directiveAnalysis) && (() => {
+                const da = agentTrace?.stage1_macro?.directiveAnalysis || evaluation.directiveAnalysis;
+                return (
+                  <div className="text-slate-600">
+                    Scope: <strong>{da.directiveWord || 'N/A'}</strong> ({da.targetTimeframe || 'N/A'}) — {da.feedback || ''}
+                  </div>
+                );
+              })()}
+              {(agentTrace?.stage1_macro?.genreRationale || evaluation.genreRationale) && (
+                <div className="text-slate-600">
+                  Rationale: {agentTrace?.stage1_macro?.genreRationale || evaluation.genreRationale}
+                </div>
+              )}
+              {(agentTrace?.stage1_macro?.thesisAudit || evaluation.thesisAudit) && (() => {
+                const ta = agentTrace?.stage1_macro?.thesisAudit || evaluation.thesisAudit;
+                return (
+                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 space-y-0.5">
+                    <div>
+                      <strong>Thesis Audit ({ta.status}):</strong> {ta.critique}
+                    </div>
+                    {ta.extractedThesis && <div className="italic text-slate-500">Extracted: "{ta.extractedThesis}"</div>}
+                  </div>
+                );
+              })()}
+              {(agentTrace?.stage1_macro?.outlineAlignment || evaluation.outlineAlignment) && (() => {
+                const oa = agentTrace?.stage1_macro?.outlineAlignment || evaluation.outlineAlignment;
+                return (
+                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 space-y-0.5">
+                    <div>
+                      <strong>Outline Alignment ({oa.status}):</strong> {oa.summary}
+                    </div>
+                    {oa.missingFromBody?.length > 0 && (
+                      <div className="text-rose-700">Skipped in Essay: {oa.missingFromBody.join(' | ')}</div>
+                    )}
+                    {oa.orphanBodyParagraphs?.length > 0 && (
+                      <div className="text-amber-700">Orphan Body Paragraphs: {oa.orphanBodyParagraphs.join(' | ')}</div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+            {agentTrace?.stage1_macro?.rawFlags?.length > 0 && (
+              <details className="pt-1">
+                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  View Agent 1 Raw Flags ({agentTrace.stage1_macro.rawFlags.length})
+                </summary>
+                <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {agentTrace.stage1_macro.rawFlags.map((flag, i) => (
+                    <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                      <div className="font-semibold text-slate-800">
+                        [{flag.locationId || 'GLOBAL'}] {flag.severity || flag.type} • {flag.category}
+                      </div>
+                      {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
+                      {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
 
+          {/* Stage 1-Post: Pacing */}
+          {(agentTrace?.stage1post_pacing || evaluation.pacingMetrics) && (() => {
+            const pm = agentTrace?.stage1post_pacing || evaluation.pacingMetrics;
+            return (
+              <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Stage 1-Post • Deterministic Length & Fatigue Check
+                </div>
+                <p className="text-[11px] text-slate-700">
+                  {pm.summary ||
+                    `Checked ${pm.evaluatedParagraphCount || 0} body paragraphs (1st half avg ${pm.firstHalfAvgWords || 0}w vs 2nd half avg ${pm.secondHalfAvgWords || 0}w, change ${pm.decayPercent || 0}%).`}
+                </p>
+              </div>
+            );
+          })()}
+
+          {/* Agent 2: Paragraphs */}
           {agentTrace?.stage2_paragraphs && (
             <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Agent 2 • Paragraph Structure & Flow
+                  Agent 2 • Paragraph Logic, Evidence & Unity
                 </span>
                 <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                   {agentTrace.stage2_paragraphs.skipped
@@ -1128,61 +1240,18 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
                     : `${agentTrace.stage2_paragraphs.rawFlagsCount || 0} raw flags`}
                 </span>
               </div>
-              {!agentTrace.stage2_paragraphs.skipped &&
-                agentTrace.stage2_paragraphs.rawFlags?.length > 0 && (
-                  <details className="pt-1">
-                    <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
-                      View Agent 2 Raw Output ({agentTrace.stage2_paragraphs.rawFlags.length})
-                    </summary>
-                    <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {agentTrace.stage2_paragraphs.rawFlags.map((flag, i) => (
-                        <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                          <div className="font-semibold text-slate-800">
-                            [{flag.locationId || 'BODY'}] {flag.severity || flag.type} • {flag.category}
-                          </div>
-                          {flag.targetPhrase && (
-                            <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
-                          )}
-                          {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
-            </div>
-          )}
-
-          {agentTrace?.stage3_fact_language && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Agent 3 • Facts, Language & Style
-                </span>
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                  {agentTrace.stage3_fact_language.factChecksCount || 0} facts •{' '}
-                  {agentTrace.stage3_fact_language.rawFlagsCount || 0} language flags
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-600">
-                Google Search Verification: <strong>{agentTrace.stage3_fact_language.searchGrounded ? 'Enabled & Grounded' : 'Standard Knowledge'}</strong>
-                {agentTrace.stage3_fact_language.searchSources?.length > 0
-                  ? ` (${agentTrace.stage3_fact_language.searchSources.length} web sources cited)`
-                  : ''}
-              </div>
-              {agentTrace.stage3_fact_language.rawFlags?.length > 0 && (
+              {!agentTrace.stage2_paragraphs.skipped && agentTrace.stage2_paragraphs.rawFlags?.length > 0 && (
                 <details className="pt-1">
                   <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
-                    View Agent 3 Raw Output ({agentTrace.stage3_fact_language.rawFlags.length})
+                    View Agent 2 Raw Flags ({agentTrace.stage2_paragraphs.rawFlags.length})
                   </summary>
-                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {agentTrace.stage3_fact_language.rawFlags.map((flag, i) => (
+                  <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {agentTrace.stage2_paragraphs.rawFlags.map((flag, i) => (
                       <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
                         <div className="font-semibold text-slate-800">
-                          [{flag.locationId || 'TEXT'}] {flag.severity || flag.type} • {flag.category}
+                          [{flag.locationId || 'BODY'}] {flag.severity || flag.type} • {flag.category}
                         </div>
-                        {flag.targetPhrase && (
-                          <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>
-                        )}
+                        {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
                         {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
                       </div>
                     ))}
@@ -1192,56 +1261,193 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId }) => {
             </div>
           )}
 
-          {agentTrace?.stage4_qa_coach && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5">
-              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Agent 4 • Final Quality Check & Final Report
-              </div>
-              <div className="text-[11px] text-slate-700 space-y-0.5">
-                <div>
-                  Overall Status: <strong>{agentTrace.stage4_qa_coach.overallReadiness}</strong>
+          {/* Agent 3: Facts + Language */}
+          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Agent 3 • Search-Grounded Facts & Grammar/Expression
+              </span>
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                {agentTrace?.stage3_fact_language?.factChecksCount ?? factChecks.length} facts •{' '}
+                {agentTrace?.stage3_fact_language?.rawFlagsCount ?? 0} language flags
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-600">
+              Google Search Verification:{' '}
+              <strong>
+                {agentTrace?.stage3_fact_language?.searchGrounded || evaluation.searchSources?.length > 0
+                  ? 'Enabled & Grounded'
+                  : 'Standard Knowledge'}
+              </strong>
+              {(agentTrace?.stage3_fact_language?.searchSources?.length || evaluation.searchSources?.length || 0) > 0
+                ? ` (${(agentTrace?.stage3_fact_language?.searchSources || evaluation.searchSources).length} web sources cited)`
+                : ''}
+            </div>
+            {(agentTrace?.stage3_fact_language?.searchSources?.length || evaluation.searchSources?.length) > 0 && (
+              <details>
+                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  View Grounding Search Sources ({(agentTrace?.stage3_fact_language?.searchSources || evaluation.searchSources).length})
+                </summary>
+                <div className="mt-1.5 flex flex-col gap-1 max-h-40 overflow-y-auto">
+                  {(agentTrace?.stage3_fact_language?.searchSources || evaluation.searchSources).map((src, i) => (
+                    <a
+                      key={i}
+                      href={src.startsWith('http') ? src : undefined}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-mono text-brand-700 hover:underline truncate"
+                    >
+                      {src}
+                    </a>
+                  ))}
                 </div>
-                <div>
-                  Raw Flags Reviewed: <strong>{agentTrace.stage4_qa_coach.qaAuditLog?.totalFlagsReviewed || 0}</strong> •{' '}
-                  False Alarms Removed: <strong>{agentTrace.stage4_qa_coach.qaAuditLog?.falsePositivesDeleted || 0}</strong> •{' '}
-                  Final Kept Feedback: <strong>{agentTrace.stage4_qa_coach.verifiedFlagsCount || 0}</strong> •{' '}
-                  Sample Rewrites: <strong>{agentTrace.stage4_qa_coach.rewritesCount || 0}</strong>
+              </details>
+            )}
+            {agentTrace?.stage3_fact_language?.rawFlags?.length > 0 && (
+              <details>
+                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  View Agent 3 Raw Language Flags ({agentTrace.stage3_fact_language.rawFlags.length})
+                </summary>
+                <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {agentTrace.stage3_fact_language.rawFlags.map((flag, i) => (
+                    <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                      <div className="font-semibold text-slate-800">
+                        [{flag.locationId || 'TEXT'}] {flag.severity || flag.type} • {flag.category}
+                      </div>
+                      {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
+                      {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                    </div>
+                  ))}
                 </div>
+              </details>
+            )}
+          </div>
+
+          {/* Agent 4: QA Verifier, Deleted False Alarms & Pillar Calibration */}
+          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Agent 4 • QA Verifier, Pruned False Alarms & Rewrites
+              </span>
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                Kept {agentTrace?.stage4_qa_coach?.verifiedFlagsCount ?? allAnnotations.length} • Deleted{' '}
+                {agentTrace?.stage4_qa_coach?.qaAuditLog?.falsePositivesDeleted ??
+                  evaluation.qaAuditLog?.falsePositivesDeleted ??
+                  0}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-700 space-y-1">
+              <div>
+                Overall Readiness: <strong>{agentTrace?.stage4_qa_coach?.overallReadiness || evaluation.overallReadiness}</strong> •{' '}
+                Rewrites Generated: <strong>{agentTrace?.stage4_qa_coach?.rewritesCount ?? rewrites.length}</strong> •{' '}
+                Outline Heading Upgrades: <strong>{headerUpgrades.length}</strong>
               </div>
+              {(agentTrace?.stage4_qa_coach?.qaAuditLog?.deletionNotes || evaluation.qaAuditLog?.deletionNotes)?.length > 0 && (
+                <div className="p-2 rounded bg-rose-50/70 border border-rose-200 text-[11px] space-y-0.5">
+                  <div className="font-bold text-rose-800">QA Removal Reasons:</div>
+                  <ul className="list-disc pl-4 text-rose-900">
+                    {(agentTrace?.stage4_qa_coach?.qaAuditLog?.deletionNotes || evaluation.qaAuditLog?.deletionNotes).map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {agentTrace?.stage4_qa_coach?.prunedFlags?.length > 0 && (
+                <details>
+                  <summary className="cursor-pointer text-[11px] font-semibold text-rose-700 hover:underline">
+                    View Exact Pruned False Alarms ({agentTrace.stage4_qa_coach.prunedFlags.length})
+                  </summary>
+                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {agentTrace.stage4_qa_coach.prunedFlags.map((flag, i) => (
+                      <div key={i} className="p-2 rounded bg-rose-50/50 border border-rose-200 text-[11px]">
+                        <div className="font-semibold text-rose-900">
+                          [DELETED • {flag.locationId || 'GLOBAL'}] {flag.category}
+                        </div>
+                        {flag.targetPhrase && <div className="italic text-rose-800">"{flag.targetPhrase}"</div>}
+                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+              {Object.keys(breakdown).length > 0 && (
+                <details>
+                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                    View Final Calibrated Pillar Decisions ({Object.keys(breakdown).length})
+                  </summary>
+                  <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {Object.entries(breakdown).map(([k, v]) => (
+                      <div key={k} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                        <div className="font-semibold text-slate-800">
+                          {k}: <span className="text-brand-700">{v?.status}</span>
+                        </div>
+                        {v?.feedback && <div className="text-slate-600">{v.feedback}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+
+          {evaluation.stageDegradations?.length > 0 && (
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+              <div className="font-bold uppercase tracking-wider text-[10px] mb-1">Stage Degradations / Warnings</div>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {evaluation.stageDegradations.map((d, idx) => (
+                  <li key={idx}>{d}</li>
+                ))}
+              </ul>
             </div>
           )}
 
-          {tokenStages.length > 0 && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
-              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Actual Token & Model Usage by Stage
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-1 pr-2">Stage</th>
-                      <th className="py-1 pr-2">Model</th>
-                      <th className="py-1 pr-2 text-right">In</th>
-                      <th className="py-1 pr-2 text-right">Out</th>
-                      <th className="py-1 text-right">Think</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tokenStages.map((s, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 last:border-0 font-mono text-[10px] text-slate-700">
-                        <td className="py-1 pr-2 font-sans font-medium">{s.stage}</td>
-                        <td className="py-1 pr-2">{s.model}</td>
-                        <td className="py-1 pr-2 text-right">{(s.inputTokens || 0).toLocaleString()}</td>
-                        <td className="py-1 pr-2 text-right">{(s.outputTokens || 0).toLocaleString()}</td>
-                        <td className="py-1 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
+          {tokenStages.length > 0 && (() => {
+            const totals = tokenStages.reduce(
+              (acc, s) => ({
+                in: acc.in + (s.inputTokens || 0),
+                out: acc.out + (s.outputTokens || 0),
+                think: acc.think + (s.thinkingTokens || 0)
+              }),
+              { in: 0, out: 0, think: 0 }
+            );
+            return (
+              <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                  Actual Token & Model Usage by Stage
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[11px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500">
+                        <th className="py-1 pr-2">Stage</th>
+                        <th className="py-1 pr-2">Model</th>
+                        <th className="py-1 pr-2 text-right">In</th>
+                        <th className="py-1 pr-2 text-right">Out</th>
+                        <th className="py-1 text-right">Think</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {tokenStages.map((s, idx) => (
+                        <tr key={idx} className="border-b border-slate-100 font-mono text-[10px] text-slate-700">
+                          <td className="py-1 pr-2 font-sans font-medium">{s.stage}</td>
+                          <td className="py-1 pr-2">{s.model}</td>
+                          <td className="py-1 pr-2 text-right">{(s.inputTokens || 0).toLocaleString()}</td>
+                          <td className="py-1 pr-2 text-right">{(s.outputTokens || 0).toLocaleString()}</td>
+                          <td className="py-1 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-slate-300 font-mono text-[10px] font-bold text-slate-900 bg-slate-50">
+                        <td className="py-1.5 pr-2 font-sans" colSpan={2}>Total Tokens Consumed</td>
+                        <td className="py-1.5 pr-2 text-right">{totals.in.toLocaleString()}</td>
+                        <td className="py-1.5 pr-2 text-right">{totals.out.toLocaleString()}</td>
+                        <td className="py-1.5 text-right">{totals.think.toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

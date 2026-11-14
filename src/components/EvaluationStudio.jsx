@@ -197,6 +197,7 @@ export const EvaluationStudio = ({
               <RubricTabs
                 evaluation={evaluation}
                 selectedAnnId={selectedAnnId}
+                isAdmin={userProfile?.role === 'admin'}
                 onSelectAnnId={(id) => {
                   setSelectedAnnId(id);
                   if (id) setMobileTab('paper');

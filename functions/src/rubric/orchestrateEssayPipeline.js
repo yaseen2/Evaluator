@@ -91,41 +91,44 @@ const createEssayTokenLedger = () => {
 };
 
 /**
- * Extracts a clean 2-to-12 word verbatim substring from the candidate's text
- * so DocumentViewer can highlight it on the ruled notebook sheet with 100% accuracy.
+ * Extracts a concise 1-to-5 word verbatim substring from the student's text
+ * so DocumentViewer underlines only the specific faulty word/phrase rather than full sentences.
  */
 const resolveVerbatimHighlightPhrase = (quote = '', fullText = '') => {
   if (!quote || !fullText) return '';
   const cleaned = String(quote)
     .replace(/^\[[A-Z0-9.]+\]\s*/i, '')
     .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
   if (!cleaned) return '';
 
   const lowerFull = fullText.toLowerCase();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+
   if (lowerFull.includes(cleaned.toLowerCase())) {
-    // If longer than 14 words, take the first 10 words that still match uniquely
-    const words = cleaned.split(/\s+/);
-    if (words.length > 14) {
-      const slice10 = words.slice(0, 10).join(' ');
-      if (lowerFull.includes(slice10.toLowerCase())) return slice10;
+    if (words.length <= 5) {
+      return cleaned;
     }
-    return cleaned;
+    const slice4 = words.slice(0, 4).join(' ');
+    if (lowerFull.includes(slice4.toLowerCase())) return slice4;
+    const slice3 = words.slice(0, 3).join(' ');
+    if (lowerFull.includes(slice3.toLowerCase())) return slice3;
+    return words.slice(0, 5).join(' ');
   }
 
-  // Try matching a 4–8 word sliding window from the quote against fullText
-  const words = cleaned.split(/\s+/);
-  for (let len = Math.min(8, words.length); len >= 3; len--) {
+  // Try matching a 2–5 word sliding window from the quote against fullText
+  for (let len = Math.min(5, words.length); len >= 2; len--) {
     for (let start = 0; start <= words.length - len; start++) {
       const candidate = words.slice(start, start + len).join(' ');
-      if (candidate.length >= 8 && lowerFull.includes(candidate.toLowerCase())) {
+      if (candidate.length >= 4 && lowerFull.includes(candidate.toLowerCase())) {
         return candidate;
       }
     }
   }
 
-  return cleaned.slice(0, 80);
+  return words.slice(0, 4).join(' ').slice(0, 60);
 };
 
 export const executeCssEssayPipelineV2 = async ({
@@ -371,7 +374,7 @@ export const executeCssEssayPipelineV2 = async ({
             scored: false,
             isNonScored: true,
             feedback:
-              'Audits uniform phrasing (consistent noun phrases or declarative clauses), fake question traps, and single-word labels.'
+              'Checks whether all outline headings follow a clear, consistent style without vague one-word labels.'
           },
           coverage_originality: buildPillarEntry(
             'analytical_depth',
@@ -405,7 +408,12 @@ export const executeCssEssayPipelineV2 = async ({
           conclusion: buildPillarEntry('conclusion', 'Balanced')
         };
 
-  // Deterministically map verifiedDiagnostics into inline paper annotations
+  const isEvidenceDiscrepancyCategory = (category = '') =>
+    /(fact|outdated|discrepanc|citation|reference|evidence|stat|figure|data|quote|number|date)/i.test(
+      String(category || '')
+    ) && !/strong|good|unverified/i.test(String(category || ''));
+
+  // Deterministically map verifiedDiagnostics into concise inline paper annotations
   const seenPhrases = new Set();
   const finalAnnotations = [];
 
@@ -432,18 +440,86 @@ export const executeCssEssayPipelineV2 = async ({
           : d.tier === 'EARNED_SIGNIFIER'
           ? 'green'
           : 'amber',
-      category: d.category || 'Diagnostic',
+      category: d.category || 'Feedback',
       inSpotlightZone: Boolean(d.inSpotlightZone),
+      isDiscrepantEvidence:
+        d.tier !== 'EARNED_SIGNIFIER' && isEvidenceDiscrepancyCategory(d.category),
       comment: d.observation || '',
-      suggestion: d.suggested_fix || null,
-      microLesson: d.micro_rule || ''
+      suggestion: null,
+      microLesson: ''
+    });
+  }
+
+  // Ensure every discrepant factCheck from Agent 3A highlights in red font on the essay paper
+  for (const fc of agent3Output.factChecks || []) {
+    if (!fc || fc.verified !== false || fc.status === 'UNVERIFIED_CITATION' || !fc.claim) {
+      continue;
+    }
+    const targetPhrase = resolveVerbatimHighlightPhrase(fc.claim, effectiveText);
+    if (!targetPhrase || targetPhrase.length < 2) continue;
+
+    const key = targetPhrase.toLowerCase();
+    const existing = finalAnnotations.find(
+      (a) =>
+        a.targetPhrase.toLowerCase() === key ||
+        fc.claim.toLowerCase().includes(a.targetPhrase.toLowerCase())
+    );
+    if (existing) {
+      existing.isDiscrepantEvidence = true;
+      continue;
+    }
+    seenPhrases.add(key);
+
+    finalAnnotations.push({
+      id: `ann-${finalAnnotations.length + 1}`,
+      locationId: fc.location_id || fc.locationId || '',
+      tier: 'TIER_2_MAJOR',
+      targetPhrase,
+      type: 'red',
+      category: fc.status === 'OUTDATED_2026' ? 'Outdated Fact / Data' : 'Wrong Fact / Reference',
+      inSpotlightZone: false,
+      isDiscrepantEvidence: true,
+      comment: fc.correctedFact || `Check this number or fact: '${fc.claim}'.`,
+      suggestion: null,
+      microLesson: ''
     });
   }
 
   const introWordCount = preprocessed.paragraphs[0]?.wordCount || 0;
   const tokenUsage = ledger.finalize();
 
+  const normalizeFlagForTrace = (f = {}) => ({
+    locationId: f.location_id || f.locationId || '',
+    severity: f.tier || f.severity || '',
+    category: f.category || '',
+    targetPhrase: f.exact_verbatim_quote || f.targetPhrase || '',
+    comment: f.observation || f.comment || ''
+  });
+
+  const verifiedQuoteSet = new Set(
+    verifiedList
+      .map((v) => `${String(v.location_id || '').trim().toLowerCase()}::${String(v.exact_verbatim_quote || '').trim().toLowerCase().slice(0, 40)}`)
+  );
+  const prunedFlags = rawCombined
+    .filter((r) => {
+      const k = `${String(r.location_id || '').trim().toLowerCase()}::${String(r.exact_verbatim_quote || '').trim().toLowerCase().slice(0, 40)}`;
+      return !verifiedQuoteSet.has(k);
+    })
+    .map(normalizeFlagForTrace);
+
   const agentTrace = {
+    rawOcrText: effectiveText,
+    outlineNodes: preprocessed.outlineNodes.map((o) => ({
+      id: o.id,
+      text: o.text,
+      wordCount: o.wordCount
+    })),
+    paragraphs: preprocessed.paragraphs.map((p) => ({
+      id: p.id,
+      wordCount: p.wordCount,
+      sentenceCount: p.sentenceCount,
+      preview: p.rawFirstSentence
+    })),
     stage0_ocr: {
       skipped: Boolean(ocrOutput.skipped),
       pagesProcessed: imageArray?.length || 0,
@@ -465,17 +541,20 @@ export const executeCssEssayPipelineV2 = async ({
       essayGenre: agent1Output.essayGenre,
       requiresCounterArgument: agent1Output.requiresCounterArgument,
       genreRationale: agent1Output.genreRationale,
+      directiveAnalysis: agent1Output.directiveAnalysis,
       thesisAudit: agent1Output.thesisAudit,
       outlineAlignment: agent1Output.outlineAlignment,
+      headerUpgrades: agent1Output.headerUpgrades || [],
       paragraphRoleMap: agent1Output.paragraphRoleMap,
+      pillarStatuses: agent1Output.pillarStatuses || {},
       rawFlagsCount: (agent1Output.macroDiagnostics || []).length,
-      rawFlags: agent1Output.macroDiagnostics || []
+      rawFlags: (agent1Output.macroDiagnostics || []).map(normalizeFlagForTrace)
     },
     stage1post_pacing: pacingMetrics,
     stage2_paragraphs: {
       skipped: effectiveEssayMode === 'outline_only',
       rawFlagsCount: (agent2Output.paragraphDiagnostics || []).length,
-      rawFlags: agent2Output.paragraphDiagnostics || [],
+      rawFlags: (agent2Output.paragraphDiagnostics || []).map(normalizeFlagForTrace),
       pillarStatuses: agent2Output.pillarStatuses || {}
     },
     stage3_fact_language: {
@@ -484,13 +563,16 @@ export const executeCssEssayPipelineV2 = async ({
       factChecksCount: (agent3Output.factChecks || []).length,
       factChecks: agent3Output.factChecks || [],
       rawFlagsCount: (agent3Output.languageAndFactDiagnostics || []).length,
-      rawFlags: agent3Output.languageAndFactDiagnostics || [],
+      rawFlags: (agent3Output.languageAndFactDiagnostics || []).map(normalizeFlagForTrace),
       pillarStatuses: agent3Output.pillarStatuses || {}
     },
     stage4_qa_coach: {
       overallReadiness: agent4Output.overallReadiness,
+      examinerSummary: agent4Output.examinerSummary,
+      thingsToInclude: agent4Output.thingsToInclude || [],
       qaAuditLog: agent4Output.qaAuditLog,
       verifiedFlagsCount: verifiedList.length,
+      prunedFlags,
       rewritesCount: (agent4Output.surgicalRewrites || []).length,
       recalibratedPillars: agent4Output.recalibratedPillarStatuses || {}
     },
@@ -503,12 +585,12 @@ export const executeCssEssayPipelineV2 = async ({
     essayMode: effectiveEssayMode,
     scored: false,
     isNonScoredEssay: true,
-    rubricVersion: '3.2',
+    rubricVersion: '3.3',
     archetypeId: effectiveEssayMode === 'outline_only' ? 'essay_outline' : 'essay',
     archetypeLabel:
       effectiveEssayMode === 'outline_only'
-        ? 'FPSC Essay Outline & Thesis Review'
-        : 'FPSC CSS English Essay Evaluation',
+        ? 'Essay Outline & Thesis Review'
+        : 'CSS English Essay Evaluation',
     evaluatedModelId: 'gemini-3.8-flash',
     evaluatedModelName: 'Gemini 3.8 Flash',
     topic: effectiveTopic,

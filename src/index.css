@@ -731,6 +731,19 @@ body {
   padding: 0 3px;
 }
 
+.mark-evidence-error {
+  color: #dc2626 !important;
+  font-weight: 600;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  background-color: rgba(254, 226, 226, 0.75);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
 .mark-polish {
   text-decoration-line: underline;
   text-decoration-style: wavy;

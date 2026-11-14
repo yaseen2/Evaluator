@@ -9,18 +9,33 @@
  */
 
 import { callGenAiAgentWithFailover } from './safeJsonParser.js';
+import { normalizeOutlineLineBreaks } from './deterministicPreprocessor.js';
 
 const BATCH_SIZE = 4;
 
 const buildBatchOcrPrompt = ({ batchIndex, startPage, endPage, totalPages, userExamQuestion }) => `
-You are Agent 0: FPSC CSS VERBATIM OCR DIGITIZER & HANDWRITTEN SCRIPT INSPECTOR.
+You are Agent 0: Verbatim Handwritten Paper Digitizer & Layout Auditor.
 You are transcribing Pages ${startPage} to ${endPage} (out of ${totalPages} total pages).
-${userExamQuestion ? `Candidate's Selected Essay Title / Topic: "${userExamQuestion}"` : ''}
+${userExamQuestion ? `Student's Selected Topic: "${userExamQuestion}"` : ''}
 
 CRITICAL VERBATIM TRANSCRIPTION RULES:
 1. Transcribe the handwritten text 100% VERBATIM in exact sequential page order.
-2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles, wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper so downstream examiners can teach the student.
-3. OUTLINE & PARAGRAPH NEWLINE PRESERVATION (CRITICAL): Every individual Outline heading, sub-heading, and sub-point (I, II, A, B, 1, 2, 1.1, a, b, bullet, etc.) MUST start on its own separate new line (\\n) exactly as written on the handwritten page—NEVER merge multiple outline points together into a single line or paragraph block! Separate essay body paragraphs using double newlines (\\n\\n).
+2. NEVER auto-correct spelling mistakes, grammatical errors, missing articles ("a"/"the"), wrong prepositions, or punctuation errors—preserve every mistake exactly as written on the paper.
+3. OUTLINE & PARAGRAPH NEWLINE PRESERVATION (STRICT — READ CAREFULLY):
+   - Every single Outline title, heading, numbered item, lettered sub-heading, or bullet MUST start on its OWN SEPARATE LINE (\\n), indented proportionally just like on the handwritten page.
+   - NEVER join outline points on the same line with spaces or semicolons if they appeared on separate lines on the page!
+   - Example of how your "transcribedText" MUST format an outline:
+Outline:
+A. Introduction
+   a. First point
+   b. Thesis statement: ...
+B. Main Heading
+   1. Sub-heading
+      a. Supporting detail
+   2. Second sub-heading
+C. Conclusion
+
+   - Separate normal essay body paragraphs using double newlines (\\n\\n).
 4. If the student crossed out a phrase, omit the crossed-out words from the main text.
 5. Audit ONLY these 4 objective page-layout facts on these pages: paragraph indentation consistency, left/right margin discipline, excessive scratch-outs, and whether the Essay body prose starts on the same page where the Outline ends (do NOT attempt to judge handwriting beauty, neatness, or font size).
 
@@ -102,10 +117,12 @@ export const runAgent0VisionOcr = async ({
   // Sort strictly by batchIndex to guarantee exact sequential page stitching
   batchResults.sort((a, b) => a.batchIndex - b.batchIndex);
 
-  const stitchedText = batchResults
-    .map((r) => r.transcribedText)
-    .filter(Boolean)
-    .join('\n\n');
+  const stitchedText = normalizeOutlineLineBreaks(
+    batchResults
+      .map((r) => r.transcribedText)
+      .filter(Boolean)
+      .join('\n\n')
+  );
 
   const detectedTitle =
     batchResults.find((r) => r.detectedTitle)?.detectedTitle || examQuestion || '';

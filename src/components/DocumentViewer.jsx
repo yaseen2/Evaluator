@@ -16,7 +16,184 @@ import {
   Bookmark,
   EyeOff
 } from 'lucide-react';
-import { cleanSimpleText, getSimpleHeadline } from '../utils/textUtils';
+import {
+  cleanSimpleText,
+  getSimpleHeadline,
+  formatLocationLabel,
+  simplifyCategoryTitle,
+  isDiscrepantEvidenceAnnotation
+} from '../utils/textUtils';
+
+const ABBREVIATIONS_GUARD =
+  /(?:U\.S\.A|U\.S|U\.K|U\.N|U\.A\.E|P\.M|C\.M|A\.D|B\.C|Mr|Mrs|Ms|Dr|Prof|St|vs|etc|e\.g|i\.e|Fig|Art|Sec|Vol|No)$/i;
+
+const isOutlineStartOrMarkersBlock = (blockText = '') => {
+  const trimmed = blockText.trim();
+  if (!trimmed) return false;
+  if (/^outline\b/i.test(trimmed)) return true;
+  const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
+  const words = trimmed.split(/\s+/).filter(Boolean).length;
+  const markerHits = (
+    trimmed.match(
+      /(?:^|[\n:;.]\s*)(?:Outline\b|Thesis\s*Statement\b|[IVXLCDM]+[.)]\s+[A-Z]|[A-Z][.)]\s+[A-Z][a-z]{2,}|\d{1,2}(?:\.\d+)?[.)]\s+[A-Za-z])/g
+    ) || []
+  ).length;
+  if (markerHits >= 2) return true;
+  if (lines.length === 1 && words < 35 && /^(?:[IVXLCDM]+|[A-Z]|\d+(?:\.\d+)*)[.):\-]\s+/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+};
+
+const expandInlineOutlineMarkers = (blockText = '') => {
+  // Split single jammed outline paragraphs into individual hierarchy lines
+  const normalized = blockText.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+
+  // Break after "Outline:" or standalone "Outline"
+  let expanded = normalized.replace(/^(Outline\s*:?)\s+/i, '$1\n');
+
+  // Break before Roman numeral or Capital-letter main headings (avoiding U.S., Dr., etc.)
+  expanded = expanded.replace(
+    /([:;.?!)\]]\s+|\s+)(?=(?:[IVXLCDM]{1,5}[.)]\s+[A-Z][a-z]{2,}|[A-Z][.)]\s+(?:Introduction|Conclusion|[A-Z][a-z]{2,})))/g,
+    (match, sep, offset, full) => {
+      const before = full.slice(Math.max(0, offset - 10), offset).trim();
+      if (ABBREVIATIONS_GUARD.test(before)) return match;
+      return '\n';
+    }
+  );
+
+  // Break before Thesis Statement
+  expanded = expanded.replace(
+    /([:;.]\s+|\s+)(?=(?:[a-z][.)]\s+)?Thesis\s+Statement\s*:)/gi,
+    '\n'
+  );
+
+  // Break before numbered sub-headings (1. , 2. , 1.1 ) when preceded by punctuation or list marker
+  expanded = expanded.replace(
+    /([:;.?!)]\s+)(?=\d{1,2}(?:\.\d+)?[.)]\s+[A-Za-z]{2,})/g,
+    '\n'
+  );
+
+  // Break before lettered sub-points (a. , b. , c. ) after ":", ";", or sentence end (not e.g. / i.e.)
+  expanded = expanded.replace(
+    /([:;.]\s+)(?!(?:e\.g\.|i\.e\.))(?:(?=[a-z][.)]\s+[A-Za-z]))/g,
+    '\n'
+  );
+
+  return expanded
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+};
+
+const classifyOutlineLine = (line = '') => {
+  const t = line.trim();
+  if (/^outline\s*:?$/i.test(t) || (/^outline\s*:/i.test(t) && t.length < 24)) {
+    return 'outline_title';
+  }
+  if (/^(?:[a-z][.)]\s*)?thesis\s*statement\s*:/i.test(t) || /^thesis\s*statement\b/i.test(t)) {
+    return 'outline_thesis';
+  }
+  if (/^(?:[IVXLCDM]{1,5}|[A-Z])[.):\-]\s+/.test(t)) {
+    return 'outline_main';
+  }
+  if (/^\d{1,2}(?:\.\d+)*[.):\-]\s+/.test(t)) {
+    return 'outline_sub';
+  }
+  if (/^(?:[a-z][.)]\s+|[-•*▪→]\s+)/.test(t)) {
+    return 'outline_point';
+  }
+  return 'outline_sub';
+};
+
+const parseDocumentSections = (fullText = '') => {
+  const rawBlocks = String(fullText || '')
+    .replace(/\r\n/g, '\n')
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  if (rawBlocks.length === 0) return { renderItems: [], bodyBlocks: [] };
+
+  // Find where the essay body begins (after the Outline's Conclusion or first continuous prose block)
+  let bodyStartIdx = -1;
+  let sawOutline = false;
+  let sawOutlineConclusion = false;
+
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const blk = rawBlocks[i];
+    const hasMarkers = isOutlineStartOrMarkersBlock(blk);
+    const words = blk.split(/\s+/).filter(Boolean).length;
+    const isShortConclusion = /(?:^|\n|\s)(?:[0-9ivxlcdma-z]+[.):\-]\s*)?conclusion\s*:?\s*$/i.test(blk);
+
+    if (hasMarkers) {
+      sawOutline = true;
+      if (isShortConclusion || /(?:^|\n|\s)(?:[A-Z]|[IVXLCDM]+|\d+)[.)]\s*Conclusion\b:?/i.test(blk)) {
+        sawOutlineConclusion = true;
+      }
+      continue;
+    }
+
+    // Pure essay prose block (multi-sentence, not an outline header list)
+    const lines = blk.split('\n').map((l) => l.trim()).filter(Boolean);
+    const sentences = blk.split(/[.!?]+\s+/).filter(Boolean).length;
+    if (lines.length === 1 && words >= 25 && sentences >= 2) {
+      bodyStartIdx = i;
+      break;
+    }
+    if (!sawOutline && words >= 30) {
+      bodyStartIdx = i;
+      break;
+    }
+    if (sawOutlineConclusion && words >= 18) {
+      bodyStartIdx = i;
+      break;
+    }
+  }
+
+  const outlineBlocks = bodyStartIdx === -1 ? (sawOutline ? rawBlocks : []) : rawBlocks.slice(0, bodyStartIdx);
+  const bodyBlocks = bodyStartIdx === -1 ? (sawOutline ? [] : rawBlocks) : rawBlocks.slice(bodyStartIdx);
+
+  const renderItems = [];
+  outlineBlocks.forEach((blk) => {
+    const lines = expandInlineOutlineMarkers(blk);
+    lines.forEach((line) => {
+      renderItems.push({
+        id: `outline-${renderItems.length}`,
+        kind: classifyOutlineLine(line),
+        text: line
+      });
+    });
+  });
+
+  if (outlineBlocks.length > 0 && bodyBlocks.length > 0) {
+    renderItems.push({ id: 'essay-divider', kind: 'essay_divider', text: 'Essay' });
+  }
+
+  bodyBlocks.forEach((blk, bIdx) => {
+    renderItems.push({
+      id: `body-${bIdx}`,
+      kind: 'body',
+      bodyParaNumber: bIdx + 1,
+      text: blk
+    });
+  });
+
+  return { renderItems, bodyBlocks };
+};
+
+const getConcisePhrase = (phrase = '', blockText = '') => {
+  const clean = String(phrase || '').trim();
+  if (!clean) return '';
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length <= 5) return clean;
+  const shortened = words.slice(0, 4).join(' ');
+  if (blockText && blockText.toLowerCase().includes(shortened.toLowerCase())) {
+    return shortened;
+  }
+  return clean;
+};
 
 export const DocumentViewer = ({
   evaluation,
@@ -49,62 +226,95 @@ export const DocumentViewer = ({
   if (!evaluation) return null;
 
   const evaluatedModelName = evaluation.evaluatedModelName || 'Gemini 3.8 Flash';
-  const allAnnotations = evaluation.annotations || [];
   const suggestedVisual = evaluation.suggestedVisual || null;
   const fullText = evaluation.fullTranscribedText || evaluation.text || '';
   const imagePages = evaluation.imagePages?.length > 0 ? evaluation.imagePages : submissionImages;
 
-  const paragraphs = useMemo(() => fullText.split(/\n\s*\n/).filter(Boolean), [fullText]);
+  // Merge discrepant factCheck claims that are not already in annotations so wrong facts appear in red font
+  const allAnnotations = useMemo(() => {
+    const base = Array.isArray(evaluation.annotations) ? [...evaluation.annotations] : [];
+    const existingLower = new Set(base.map((a) => String(a.targetPhrase || '').toLowerCase().trim()));
+    const factChecks = Array.isArray(evaluation.factCheck) ? evaluation.factCheck : [];
+    const lowerFull = fullText.toLowerCase();
 
-  // Map logical essay coordinates ([O...], [P1..PN]) to UI paragraph block indexes so
-  // repeated phrases only highlight inside their intended target paragraph.
-  const annotationTargetIndexMap = useMemo(() => {
-    const map = {};
-    if (paragraphs.length === 0 || allAnnotations.length === 0) return map;
+    factChecks.forEach((fc, idx) => {
+      if (!fc || fc.verified === true || fc.status === 'VERIFIED') return;
+      const claim = String(fc.claim || '').trim();
+      if (!claim || claim.length < 3 || !lowerFull.includes(claim.toLowerCase())) return;
 
-    const firstProseIdx = paragraphs.findIndex((blk) => {
-      const words = blk.trim().split(/\s+/).filter(Boolean).length;
-      const isHeadingOnly =
-        /^(?:outline\b|thesis\s*statement\b|[ivxlcdm]+\s*[.):\-]|[0-9]+(?:\.[0-9]+)*\s*[.):\-])/i.test(
-          blk.trim()
-        ) && words < 45;
-      return !isHeadingOnly && words >= 22 && /[.!?]/.test(blk);
+      // Trim very long claims to <= 5 words for concise red-font highlighting
+      const words = claim.split(/\s+/);
+      const displayClaim =
+        words.length > 5 && lowerFull.includes(words.slice(0, 5).join(' ').toLowerCase())
+          ? words.slice(0, 5).join(' ')
+          : claim;
+
+      const key = displayClaim.toLowerCase();
+      const alreadyCovered = Array.from(existingLower).some(
+        (p) => p && (p.includes(key) || key.includes(p))
+      );
+      if (alreadyCovered) return;
+      existingLower.add(key);
+
+      base.push({
+        id: `fact-ann-${idx + 1}`,
+        locationId: fc.location_id || '',
+        tier: fc.status === 'UNVERIFIED_CITATION' ? 'TIER_3_POLISH' : 'TIER_2_MAJOR',
+        type: fc.status === 'UNVERIFIED_CITATION' ? 'amber' : 'red',
+        isDiscrepantEvidence: true,
+        targetPhrase: displayClaim,
+        category: 'Incorrect Fact / Reference',
+        comment: fc.correctedFact
+          ? `${fc.correctedFact}${fc.source ? ` (${fc.source})` : ''}`
+          : 'This fact or reference needs verification.'
+      });
     });
 
-    const proseIndices =
-      firstProseIdx === -1
-        ? []
-        : paragraphs.map((_, idx) => idx).filter((idx) => idx >= firstProseIdx);
+    return base;
+  }, [evaluation.annotations, evaluation.factCheck, fullText]);
+
+  const { renderItems } = useMemo(() => parseDocumentSections(fullText), [fullText]);
+
+  // Map logical essay coordinates ([O...], [P1..PN]) to renderItems indexes so
+  // repeated phrases only highlight inside their intended target line or paragraph.
+  const annotationTargetIndexMap = useMemo(() => {
+    const map = {};
+    if (renderItems.length === 0 || allAnnotations.length === 0) return map;
 
     allAnnotations.forEach((ann, idx) => {
       const annId = ann.id || `ann-${idx}`;
-      const phrase = String(ann.targetPhrase || '').trim();
-      if (!phrase) return;
-      const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escaped, 'i');
+      const rawPhrase = String(ann.targetPhrase || '').trim();
+      if (!rawPhrase) return;
 
       const loc = String(ann.locationId || '').trim();
       const pMatch = loc.match(/^P(\d+)/i);
       if (pMatch) {
-        const targetProseNum = parseInt(pMatch[1], 10);
-        const candidateIdx = proseIndices[targetProseNum - 1];
-        if (typeof candidateIdx === 'number' && regex.test(paragraphs[candidateIdx])) {
-          map[annId] = candidateIdx;
-          return;
+        const targetBodyNum = parseInt(pMatch[1], 10);
+        const itemIdx = renderItems.findIndex(
+          (item) => item.kind === 'body' && item.bodyParaNumber === targetBodyNum
+        );
+        if (itemIdx !== -1) {
+          const concise = getConcisePhrase(rawPhrase, renderItems[itemIdx].text);
+          const regex = new RegExp(concise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+          if (regex.test(renderItems[itemIdx].text)) {
+            map[annId] = itemIdx;
+            return;
+          }
         }
-      } else if (/^O\d+/i.test(loc) && firstProseIdx > 0) {
-        const outlineIdx = paragraphs
-          .slice(0, firstProseIdx)
-          .findIndex((blk) => regex.test(blk));
+      } else if (/^O\d+/i.test(loc)) {
+        const outlineIdx = renderItems.findIndex((item) => {
+          if (!item.kind.startsWith('outline_')) return false;
+          const concise = getConcisePhrase(rawPhrase, item.text);
+          return new RegExp(concise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(item.text);
+        });
         if (outlineIdx !== -1) {
           map[annId] = outlineIdx;
-          return;
         }
       }
     });
 
     return map;
-  }, [paragraphs, allAnnotations]);
+  }, [renderItems, allAnnotations]);
 
   // Identify currently selected annotation
   const activeAnnotation = useMemo(() => {
@@ -236,48 +446,62 @@ export const DocumentViewer = ({
   };
 
   /**
-   * Coordinate-Aware Underline Highlighter
+   * Coordinate-Aware Concise Underline & Discrepant Evidence Color Highlighter
    */
-  const renderHighlightedParagraph = (text, paraIdx) => {
+  const renderHighlightedParagraph = (text, itemIdx) => {
     if (!allAnnotations || allAnnotations.length === 0) return text;
 
-    const validAnns = allAnnotations.filter((a, idx) => {
-      if (!a.targetPhrase || typeof a.targetPhrase !== 'string') return false;
+    const validAnns = [];
+    const seenKeysInBlock = new Set();
+
+    allAnnotations.forEach((a, idx) => {
+      if (!a.targetPhrase || typeof a.targetPhrase !== 'string') return;
       const annId = a.id || `ann-${idx}`;
       const lockedIdx = annotationTargetIndexMap[annId];
-      if (typeof lockedIdx === 'number' && lockedIdx !== paraIdx) {
-        return false;
+      if (typeof lockedIdx === 'number' && lockedIdx !== itemIdx) {
+        return;
       }
-      const escaped = a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(escaped, 'i').test(text);
+      const matchPhrase = getConcisePhrase(a.targetPhrase, text);
+      if (!matchPhrase || matchPhrase.length < 2) return;
+      const escaped = matchPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(escaped, 'i').test(text)) {
+        const key = matchPhrase.toLowerCase();
+        if (!seenKeysInBlock.has(key)) {
+          seenKeysInBlock.add(key);
+          validAnns.push({ ann: a, matchPhrase });
+        }
+      }
     });
 
     if (validAnns.length === 0) return text;
 
     // Longest first to avoid partial substring collisions
-    validAnns.sort((a, b) => b.targetPhrase.length - a.targetPhrase.length);
+    validAnns.sort((a, b) => b.matchPhrase.length - a.matchPhrase.length);
 
     const regexPattern = new RegExp(
-      `(${validAnns.map((a) => a.targetPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+      `(${validAnns.map((v) => v.matchPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
       'gi'
     );
 
     const parts = text.split(regexPattern);
 
     return parts.map((part, i) => {
-      const matchedAnn = validAnns.find(
-        (a) => a.targetPhrase.toLowerCase() === part.toLowerCase()
+      const matchedEntry = validAnns.find(
+        (v) => v.matchPhrase.toLowerCase() === part.toLowerCase()
       );
-      if (matchedAnn) {
+      if (matchedEntry) {
+        const matchedAnn = matchedEntry.ann;
         const annId = matchedAnn.id || `ann-${matchedAnn.targetPhrase}`;
         const isSelected = selectedAnnId === annId;
+        const isDiscrepantEvidence = isDiscrepantEvidenceAnnotation(matchedAnn);
         const colorType = matchedAnn.type || 'amber';
-        const underlineClass =
-          colorType === 'red'
-            ? 'mark-error'
-            : colorType === 'green'
-            ? 'mark-good'
-            : 'mark-polish';
+        const underlineClass = isDiscrepantEvidence
+          ? 'mark-evidence-error'
+          : colorType === 'red'
+          ? 'mark-error'
+          : colorType === 'green'
+          ? 'mark-good'
+          : 'mark-polish';
 
         return (
           <span
@@ -291,7 +515,7 @@ export const DocumentViewer = ({
             className={`${underlineClass} cursor-pointer relative z-10 transition-colors inline ${
               isSelected ? 'ring-2 ring-[#008560] ring-offset-1 rounded-xs' : ''
             }`}
-            title={cleanSimpleText(matchedAnn.comment || matchedAnn.category || '')}
+            title={cleanSimpleText(matchedAnn.comment || simplifyCategoryTitle(matchedAnn.category, matchedAnn))}
           >
             {part}
           </span>
@@ -495,13 +719,13 @@ export const DocumentViewer = ({
 
             {/* Document Meta Header */}
             <div className="pb-3 border-b border-slate-200/60 mb-4 pl-6 sm:pl-10 font-sans text-xs text-slate-500 flex justify-between items-center">
-              <span>{evaluation.subject || 'FPSC Answer Paper'}</span>
+              <span>{evaluation.subject || 'CSS English Essay'}</span>
               <span className="font-mono text-slate-400">
                 {evaluation.date || new Date().toISOString().split('T')[0]}
               </span>
             </div>
 
-            {/* Recommended Structural Visual Blueprint (if provided by Stage 2 Coach) */}
+            {/* Recommended Sample Outline (if provided) */}
             {suggestedVisual && suggestedVisual.diagramText && (
               <div className="mb-4 ml-6 sm:ml-10 rounded-lg border border-slate-200 bg-slate-50/90 font-sans overflow-hidden">
                 <button
@@ -515,11 +739,18 @@ export const DocumentViewer = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <Sparkles size={14} className="text-brand-600 shrink-0" />
                     <span className="text-xs font-bold text-slate-800 truncate">
-                      {suggestedVisual.title || 'Model Topper Outline Blueprint'}
+                      {suggestedVisual.title
+                        ? cleanSimpleText(
+                            suggestedVisual.title
+                              .replace(/\bModel\s+FPSC\s+Topper\s+Outline\s+Blueprint\b/gi, 'Sample Improved Outline')
+                              .replace(/\bModel\s+Topper\s+Outline\s+Blueprint\b/gi, 'Sample Improved Outline')
+                              .replace(/\bFPSC\b/gi, '')
+                          )
+                        : 'Sample Improved Outline'}
                     </span>
                   </div>
                   <span className="text-[11px] font-semibold text-brand-600 inline-flex items-center gap-1 shrink-0">
-                    <span>{isVisualExpanded ? 'Hide Blueprint' : 'View Blueprint'}</span>
+                    <span>{isVisualExpanded ? 'Hide Sample Outline' : 'View Sample Outline'}</span>
                     {isVisualExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </span>
                 </button>
@@ -530,7 +761,7 @@ export const DocumentViewer = ({
                   >
                     {suggestedVisual.description && (
                       <p className="text-[11px] text-slate-600 leading-relaxed">
-                        {suggestedVisual.description}
+                        {cleanSimpleText(suggestedVisual.description)}
                       </p>
                     )}
                     <pre className="text-[11px] leading-relaxed font-mono bg-white border border-slate-200 rounded-md p-3 text-slate-800 overflow-x-auto whitespace-pre">
@@ -541,24 +772,77 @@ export const DocumentViewer = ({
               </div>
             )}
 
-            {/* Formatted Transcribed Paragraphs on Ruled Canvas */}
+            {/* Formatted Outline Hierarchy & Transcribed Essay Paragraphs on Ruled Canvas */}
             <div className="notebook-ruled-body text-slate-900 pl-6 sm:pl-10 font-academic">
-              {paragraphs.map((para, pIdx) => {
-                const trimmed = para.trim();
-                const isHeading =
-                  trimmed.length < 90 &&
-                  !trimmed.endsWith('.') &&
-                  (trimmed.includes(':') || /^[0-9A-IVX]+[.\-)]/.test(trimmed));
-                const highlightedContent = renderHighlightedParagraph(para, pIdx);
+              {renderItems.map((item, idx) => {
+                if (item.kind === 'essay_divider') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="my-5 pt-2 border-t border-slate-300/70 text-center font-sans text-[11px] font-bold uppercase tracking-widest text-slate-400"
+                    >
+                      Essay
+                    </div>
+                  );
+                }
+
+                const highlightedContent = renderHighlightedParagraph(item.text, idx);
+
+                if (item.kind === 'outline_title') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="font-bold text-slate-950 uppercase tracking-wide text-[16px] mt-1 mb-1.5 leading-snug"
+                    >
+                      {highlightedContent}
+                    </div>
+                  );
+                }
+                if (item.kind === 'outline_main') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="font-bold text-slate-950 text-[15.5px] mt-2.5 mb-0.5 leading-snug"
+                    >
+                      {highlightedContent}
+                    </div>
+                  );
+                }
+                if (item.kind === 'outline_thesis') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="font-semibold text-slate-900 pl-4 my-1.5 py-0.5 bg-amber-50/70 border-l-2 border-amber-400 rounded-r text-[15px] leading-snug"
+                    >
+                      {highlightedContent}
+                    </div>
+                  );
+                }
+                if (item.kind === 'outline_sub') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="font-semibold text-slate-900 pl-5 sm:pl-6 my-0.5 text-[15px] leading-snug"
+                    >
+                      {highlightedContent}
+                    </div>
+                  );
+                }
+                if (item.kind === 'outline_point') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="font-normal text-slate-800 pl-10 sm:pl-12 my-0.5 text-[14.5px] leading-snug"
+                    >
+                      {highlightedContent}
+                    </div>
+                  );
+                }
 
                 return (
                   <p
-                    key={pIdx}
-                    className={
-                      isHeading
-                        ? 'font-bold tracking-tight text-slate-950 font-academic'
-                        : 'font-normal text-slate-900 font-academic'
-                    }
+                    key={item.id}
+                    className="font-normal text-slate-900 font-academic"
                   >
                     {highlightedContent}
                   </p>
@@ -566,7 +850,7 @@ export const DocumentViewer = ({
               })}
             </div>
 
-            {/* GRAMMARLY-STYLE CORRECTION POP-UP CARD */}
+            {/* SIMPLE COMPACT FEEDBACK POP-UP CARD */}
             {activeAnnotation && popoverPos && (
               <div
                 className="grammarly-card animate-in fade-in duration-200 text-left"
@@ -574,7 +858,7 @@ export const DocumentViewer = ({
                 style={{
                   top: `${popoverPos.top}px`,
                   left: `${popoverPos.left}px`,
-                  width: `${popoverPos.width}px`
+                  width: `${Math.min(320, popoverPos.width)}px`
                 }}
               >
                 {/* Pointer Notch */}
@@ -587,11 +871,11 @@ export const DocumentViewer = ({
                   style={{ left: `${popoverPos.notchLeft || 28}px` }}
                 />
 
-                {/* Header: Dot + Category + Close */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 font-sans">
-                  <div className="flex items-center space-x-1.5">
+                {/* Header: Dot + Simple Heading + Close */}
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 font-sans gap-2">
+                  <div className="flex items-center space-x-1.5 min-w-0">
                     <span
-                      className={`w-2 h-2 rounded-full inline-block flex-shrink-0 animate-pulse ${
+                      className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${
                         activeAnnotation.type === 'red'
                           ? 'bg-rose-500'
                           : activeAnnotation.type === 'green'
@@ -599,112 +883,58 @@ export const DocumentViewer = ({
                           : 'bg-amber-500'
                       }`}
                     />
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      {activeAnnotation.category || getSimpleHeadline(activeAnnotation)}
+                    <span className="text-[11px] font-bold text-slate-700 tracking-wide truncate">
+                      {simplifyCategoryTitle(activeAnnotation.category, activeAnnotation)}
                     </span>
                   </div>
-                  <button
-                    aria-label="Close correction card"
-                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md transition-colors cursor-pointer"
-                    onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                    type="button"
-                  >
-                    <X size={15} />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {activeAnnotation.locationId && (
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {formatLocationLabel(activeAnnotation.locationId)}
+                      </span>
+                    )}
+                    <button
+                      aria-label="Close feedback card"
+                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md transition-colors cursor-pointer"
+                      onClick={() => onSelectAnnId && onSelectAnnId(null)}
+                      type="button"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Main Suggestion: Grammarly Replacement */}
-                {activeAnnotation.suggestion ? (
-                  activeAnnotation.suggestion.length > 25 ? (
-                    /* Multi-line / Sentence Rewrite: Stacked layout with clean accent card */
-                    <div className="my-2.5 space-y-1.5 font-sans">
-                      {activeAnnotation.targetPhrase && (
-                        <div className="text-xs text-slate-400 font-normal">
-                          <span className="line-through decoration-rose-400 decoration-1 text-slate-500">
-                            {activeAnnotation.targetPhrase}
-                          </span>
-                        </div>
-                      )}
-                      <div
-                        onClick={handleCopyFix}
-                        className="bg-emerald-50/80 hover:bg-emerald-100/70 border border-emerald-300/80 rounded-lg p-2.5 cursor-pointer transition-all flex items-start justify-between gap-2.5 group"
-                        title="Click to copy / apply suggestion"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-0.5">
-                            Suggested Improvement
-                          </div>
-                          <p className="text-[13px] font-medium text-emerald-950 leading-snug font-academic">
-                            {activeAnnotation.suggestion}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="flex-shrink-0 bg-[#008560] group-hover:bg-[#006e50] text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow-2xs inline-flex items-center gap-1 transition-all"
-                        >
-                          {copied ? (
-                            <>
-                              <Check size={12} />
-                              <span>Applied</span>
-                            </>
-                          ) : (
-                            <span>Apply</span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Short Word / Phrase Replacement: Sleek Grammarly emerald pill */
-                    <div className="flex items-center space-x-2 my-2.5 font-sans flex-wrap gap-y-1.5">
-                      {activeAnnotation.targetPhrase && (
-                        <span className="line-through text-slate-400 text-xs sm:text-[13px] font-normal decoration-rose-400 decoration-1">
-                          {activeAnnotation.targetPhrase}
-                        </span>
-                      )}
-                      <span className="text-slate-300 font-semibold text-xs">→</span>
-                      <button
-                        className="bg-[#008560] hover:bg-[#006e50] text-white px-2.5 py-1 rounded-md text-[13px] font-semibold tracking-tight shadow-2xs transition-all inline-flex items-center gap-1.5 active:scale-95 cursor-pointer"
-                        type="button"
-                        onClick={handleCopyFix}
-                        title="Click to copy / apply suggestion"
-                      >
-                        <span>{activeAnnotation.suggestion}</span>
-                        {copied && <Check size={13} className="text-white" />}
-                      </button>
-                    </div>
-                  )
-                ) : (
-                  <div className="my-2">
-                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 inline-block font-sans">
-                      ✓ Strong Academic Phrasing
-                    </span>
-                  </div>
-                )}
-
-                {/* Contextual Pedagogical Explanation + Micro-Lesson */}
-                {activeAnnotation.comment && (
-                  <p className="text-xs sm:text-[12.5px] text-slate-700 leading-relaxed my-2 font-normal font-sans">
-                    {cleanSimpleText(activeAnnotation.comment)}
-                  </p>
-                )}
-                {activeAnnotation.microLesson &&
-                  cleanSimpleText(activeAnnotation.microLesson) !==
-                    cleanSimpleText(activeAnnotation.comment || '') && (
-                    <div className="my-2 px-2.5 py-2 rounded-md bg-slate-50 border border-slate-200 text-[11.5px] text-slate-600 leading-relaxed font-sans">
-                      <span className="font-bold text-slate-800">Examiner Rule: </span>
-                      {cleanSimpleText(activeAnnotation.microLesson)}
+                {/* Simple Highlighted Word/Phrase + Plain Explanation */}
+                <div className="my-2 space-y-1.5 font-sans">
+                  {activeAnnotation.targetPhrase && (
+                    <div
+                      className={`text-xs font-medium px-2 py-1 rounded border inline-block max-w-full ${
+                        activeAnnotation.type === 'green'
+                          ? 'bg-emerald-50/70 text-emerald-800 border-emerald-200'
+                          : isDiscrepantEvidenceAnnotation(activeAnnotation)
+                          ? 'bg-rose-50 text-red-700 border-rose-200'
+                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      "{getConcisePhrase(activeAnnotation.targetPhrase, fullText)}"
                     </div>
                   )}
+                  {activeAnnotation.comment && (
+                    <p className="text-[12.5px] text-slate-700 leading-relaxed font-normal">
+                      {cleanSimpleText(activeAnnotation.comment)}
+                    </p>
+                  )}
+                </div>
 
-                {/* Action Buttons Row */}
-                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2 font-sans">
+                {/* Single Clean Action Button */}
+                <div className="pt-2 border-t border-slate-100 mt-1.5 font-sans">
                   <button
                     onClick={() =>
                       handleToggleBookmark(
                         activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
                       )
                     }
-                    className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-colors border active:scale-95 cursor-pointer ${
+                    className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-colors border active:scale-95 cursor-pointer ${
                       bookmarkedAnnIds[
                         activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
                       ]
@@ -718,18 +948,9 @@ export const DocumentViewer = ({
                       {bookmarkedAnnIds[
                         activeAnnotation.id || `ann-${activeAnnotation.targetPhrase}`
                       ]
-                        ? 'Saved in Mistake Book'
+                        ? 'Saved in Correction Book'
                         : 'Add to Correction Book'}
                     </span>
-                  </button>
-
-                  <button
-                    onClick={() => onSelectAnnId && onSelectAnnId(null)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                    type="button"
-                  >
-                    <EyeOff size={13} />
-                    <span>Ignore</span>
                   </button>
                 </div>
               </div>
