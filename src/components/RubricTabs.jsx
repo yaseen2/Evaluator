@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Compass,
-  FileText,
-  ShieldAlert,
-  BookOpen,
-  Sparkles,
-  Lightbulb,
+  Activity,
   Award,
-  Layers,
-  Activity
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 import { resolveSubjectProfile } from '../services/fpscRubrics';
 import { ParagraphRewriter } from './ParagraphRewriter';
@@ -27,15 +25,124 @@ const GENRE_LABELS = {
   ABSTRACT_PHILOSOPHICAL: 'Abstract / Philosophical'
 };
 
+const PILLAR_DEV_FALLBACK = 'Outline blueprint depth audited in Macro Architecture.';
+
+const sanitizePillarFeedback = (feedback = '') => {
+  const raw = String(feedback || '').trim();
+  if (!raw || raw === PILLAR_DEV_FALLBACK) {
+    return 'Checks whether your outline covers political, economic, social, and global dimensions with concrete examples.';
+  }
+  return cleanSimpleText(raw);
+};
+
+const isEmptyThesisPlaceholder = (text = '') => {
+  const cleaned = String(text || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  if (!cleaned) return true;
+  return /^(?:not clearly stated|not stated|missing|none|n\/a|absent|not provided|no thesis statement found)\.?$/i.test(
+    cleaned
+  );
+};
+
+const formatSourceDomain = (src = '') => {
+  try {
+    const url = new URL(src);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return String(src || '');
+  }
+};
+
+const getStatusToneClass = (status = '') => {
+  const s = String(status || '').toLowerCase();
+  if (
+    s.includes('strong') ||
+    s.includes('satisfactory') ||
+    s.includes('excellent') ||
+    s.includes('aligned') ||
+    s.includes('ready')
+  ) {
+    return 'studio-pill studio-pill-strong';
+  }
+  if (
+    s.includes('missing') ||
+    s.includes('absent') ||
+    s.includes('critical') ||
+    s.includes('fragmented') ||
+    s.includes('deficient') ||
+    s.includes('fatal') ||
+    s.includes('weak draft') ||
+    s.includes('serious mistakes') ||
+    s.includes('low') ||
+    s.includes('incomplete')
+  ) {
+    return 'studio-pill studio-pill-critical';
+  }
+  if (
+    s.includes('partial') ||
+    s.includes('informal') ||
+    s.includes('developing') ||
+    s.includes('moderate') ||
+    s.includes('polish') ||
+    s.includes('balanced') ||
+    s.includes('fair draft') ||
+    s.includes('major mistakes')
+  ) {
+    return 'studio-pill studio-pill-warning';
+  }
+  return 'studio-pill';
+};
+
+const getStatusDotColor = (status = '') => {
+  const s = String(status || '').toLowerCase();
+  if (
+    s.includes('strong') ||
+    s.includes('satisfactory') ||
+    s.includes('excellent') ||
+    s.includes('aligned') ||
+    s.includes('ready')
+  ) {
+    return '#10b981';
+  }
+  if (
+    s.includes('missing') ||
+    s.includes('absent') ||
+    s.includes('critical') ||
+    s.includes('fragmented') ||
+    s.includes('deficient') ||
+    s.includes('fatal') ||
+    s.includes('weak draft') ||
+    s.includes('serious mistakes') ||
+    s.includes('low') ||
+    s.includes('incomplete')
+  ) {
+    return '#e11d48';
+  }
+  if (
+    s.includes('partial') ||
+    s.includes('informal') ||
+    s.includes('developing') ||
+    s.includes('moderate') ||
+    s.includes('polish') ||
+    s.includes('balanced') ||
+    s.includes('fair draft') ||
+    s.includes('major mistakes')
+  ) {
+    return '#d97706';
+  }
+  return '#64748b';
+};
+
 export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('report'); // 'report' | 'rewrites' | 'accuracy' | 'directive' | 'callouts' | 'agent_log'
-  const [selectedParamId, setSelectedParamId] = useState(null);
+  const [expandedParamIds, setExpandedParamIds] = useState({});
   const [calloutFilter, setCalloutFilter] = useState('all'); // 'all' | 'tier1' | 'tier2' | 'polish' | 'green'
   const cardRefs = useRef({});
   const agentTrace = evaluation?.agentTrace || null;
   const tokenStages = evaluation?.tokenUsage?.stages || agentTrace?.tokenStages || [];
   const showAgentLog = Boolean(isAdmin);
-  const hasAgentLog = Boolean(showAgentLog);
 
   if (!evaluation) return null;
 
@@ -49,6 +156,11 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
     profile.scored === false ||
     (evaluation.subject || '').toLowerCase().includes('essay');
 
+  const isOutlineOnlySubmission =
+    evaluation.essayMode === 'outline_only' ||
+    evaluation.isOutlineOnly === true ||
+    evaluation.archetypeId === 'essay_outline';
+
   const dealBreakers = profile.dealBreakers || [];
   const factChecks = evaluation.factCheck || [];
   const breakdown = evaluation.scoreBreakdown || {};
@@ -60,7 +172,6 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
   const examinerSummary = evaluation.examinerSummary || null;
 
   const redCount = allAnnotations.filter((a) => a.type === 'red').length;
-  const amberCount = allAnnotations.filter((a) => a.type === 'amber').length;
   const greenCount = allAnnotations.filter((a) => a.type === 'green').length;
 
   const isTier1 = (a) => a.tier === 'TIER_1_FATAL' || a.tier === 'TIER_1_DEAL_BREAKER';
@@ -68,17 +179,19 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
     a.tier === 'TIER_2_MAJOR' ||
     a.tier === 'TIER_2_MAJOR_FLAW' ||
     (a.type === 'red' && !isTier1(a));
-  const isPolish = (a) => a.tier === 'TIER_3_POLISH' || (a.type === 'amber' && !isTier1(a) && !isTier2(a));
-  const isGreen = (a) => a.type === 'green' || a.tier === 'EARNED_SIGNIFIER' || a.tier === 'EARNED_STRENGTH';
+  const isPolish = (a) =>
+    a.tier === 'TIER_3_POLISH' || (a.type === 'amber' && !isTier1(a) && !isTier2(a));
+  const isGreen = (a) =>
+    a.type === 'green' || a.tier === 'EARNED_SIGNIFIER' || a.tier === 'EARNED_STRENGTH';
 
   const tier1AnnCount = allAnnotations.filter(isTier1).length;
   const tier2AnnCount = allAnnotations.filter(isTier2).length;
   const tier3AnnCount = allAnnotations.filter(isPolish).length;
 
-  // 4-Tier Diagnostic Counts (v3 Non-Scored Essay Rubric)
   const tier1Count = evaluation.diagnosticTiers?.tier1Fatal?.length ?? tier1AnnCount;
   const tier2Count = evaluation.diagnosticTiers?.tier2Major?.length ?? tier2AnnCount;
   const tier3Count = evaluation.diagnosticTiers?.tier3Polish?.length ?? tier3AnnCount;
+
   const earnedSignifiersList =
     evaluation.diagnosticTiers?.earnedSignifiers ||
     allAnnotations
@@ -106,6 +219,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
   };
 
   useEffect(() => {
+    if (activeTab === 'accuracy' && factChecks.length === 0) {
+      setActiveTab('report');
+    }
+  }, [activeTab, factChecks.length]);
+
+  useEffect(() => {
     if (selectedAnnId && activeTab === 'callouts') {
       setTimeout(() => {
         const targetCard = cardRefs.current[selectedAnnId];
@@ -116,7 +235,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
     }
   }, [selectedAnnId, activeTab]);
 
-  // Compute Rubric Breakdown Parameters (Non-Scored Qualitative for Essay vs. Scored for 20-Mark Subjective)
+  // Compute Rubric Breakdown Parameters (Qualitative for Essay vs. Scored for 20-Mark Subjective)
   const displayParameters = useMemo(() => {
     return profile.breakdown.map((comp) => {
       const saved = breakdown[comp.id] || {};
@@ -157,44 +276,25 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
         status,
         score,
         maxMarks: comp.maxMarks,
-        feedback: saved.feedback || comp.defaultFeedback
+        feedback: sanitizePillarFeedback(saved.feedback || comp.defaultFeedback)
       };
     });
   }, [profile.breakdown, breakdown, evaluation, redCount, isNonScoredEssay]);
 
-  const getBadgeStyle = (status = '') => {
-    const s = status.toLowerCase();
-    if (s.includes('strong') || s.includes('satisfactory') || s.includes('excellent') || s.includes('aligned') || s.includes('ready')) {
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-    }
-    if (
-      s.includes('missing') ||
-      s.includes('absent') ||
-      s.includes('critical') ||
-      s.includes('fragmented') ||
-      s.includes('deficient') ||
-      s.includes('fatal') ||
-      s.includes('weak draft') ||
-      s.includes('serious mistakes')
-    ) {
-      return 'bg-rose-50 text-rose-700 border-rose-200/60';
-    }
-    if (s.includes('low') || s.includes('incomplete')) {
-      return 'bg-rose-50 text-rose-700 border-rose-200/60';
-    }
-    if (
-      s.includes('partial') ||
-      s.includes('informal') ||
-      s.includes('developing') ||
-      s.includes('moderate') ||
-      s.includes('polish') ||
-      s.includes('balanced') ||
-      s.includes('fair draft') ||
-      s.includes('major mistakes')
-    ) {
-      return 'bg-amber-50 text-amber-700 border-amber-200/60';
-    }
-    return 'bg-slate-100 text-slate-600 border-slate-200';
+  // Auto-expand urgent critical/missing parameters when viewing a new evaluation
+  useEffect(() => {
+    const initial = {};
+    displayParameters.forEach((p) => {
+      const s = String(p.status || '').toLowerCase();
+      if (s.includes('critical') || s.includes('missing') || s.includes('absent') || s.includes('fatal')) {
+        initial[p.id] = true;
+      }
+    });
+    setExpandedParamIds(initial);
+  }, [evaluation?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleParamRow = (paramId) => {
+    setExpandedParamIds((prev) => ({ ...prev, [paramId]: !prev[paramId] }));
   };
 
   const remedialSteps = useMemo(() => {
@@ -219,7 +319,9 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
     if (steps.length < 3 && evaluation.outlineAlignment?.missingFromBody?.length) {
       steps.push({
         title: 'Write Every Outline Point in the Essay',
-        description: `Include full paragraphs for every point listed in your outline (for example: ${cleanSimpleText(evaluation.outlineAlignment.missingFromBody[0])}).`
+        description: `Include full paragraphs for every point listed in your outline (for example: ${cleanSimpleText(
+          evaluation.outlineAlignment.missingFromBody[0]
+        )}).`
       });
     }
     if (steps.length < 3 && evaluation.thesisAudit?.status === 'Needs Polish') {
@@ -242,8 +344,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
         },
         {
           title: 'Make Outline Points Specific',
-          description:
-            'Write clear, complete outline points so your essay plan is easy to follow.'
+          description: 'Write clear, complete outline points so your essay plan is easy to follow.'
         }
       );
     }
@@ -256,445 +357,456 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
     ? GENRE_LABELS[evaluation.essayGenre] || evaluation.essayGenre
     : null;
 
+  const showPacingMetric =
+    !isOutlineOnlySubmission &&
+    evaluation.pacingMetrics &&
+    typeof evaluation.pacingMetrics.decayPercent === 'number' &&
+    (evaluation.pacingMetrics.evaluatedParagraphCount || 0) >= 4;
+
+  const headerMetaParts = [
+    genreDisplay,
+    typeof evaluation.requiresCounterArgument === 'boolean'
+      ? evaluation.requiresCounterArgument
+        ? 'Counter-Argument Required'
+        : 'Issue Analysis'
+      : null,
+    showPacingMetric
+      ? `2nd-Half Pacing: ${evaluation.pacingMetrics.decayPercent >= 0 ? '+' : ''}${
+          evaluation.pacingMetrics.decayPercent
+        }%`
+      : null
+  ].filter(Boolean);
+
+  const extractedThesisRaw =
+    evaluation.thesisAudit?.extractedThesis || evaluation.thesisAudit?.candidateThesis || '';
+  const hasRealThesisQuote = !isEmptyThesisPlaceholder(extractedThesisRaw);
+
   return (
-    <div className="w-full">
-      {/* Clean Pill Tabs Ribbon */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-slate-200/80 mb-5">
-        <button
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'report'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-          onClick={() => setActiveTab('report')}
-        >
-          <Layers size={13} />
-          <span>Evaluation Report</span>
-        </button>
-
-        <button
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'rewrites'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-          onClick={() => setActiveTab('rewrites')}
-        >
-          <Sparkles size={13} className="text-amber-500" />
-          <span>Improved Rewrites ({totalUpgradesCount})</span>
-        </button>
-
-        {factChecks.length > 0 && (
+    <div className="w-full font-sans">
+      {/* Sleek Minimal Underline Tab Bar (Zero Horizontal Scrollbar) */}
+      <nav className="studio-tabs-bar" aria-label="Evaluation views">
+        <div className="studio-tabs-list">
           <button
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'accuracy'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-            onClick={() => setActiveTab('accuracy')}
+            type="button"
+            className={`studio-tab-btn ${activeTab === 'report' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('report')}
           >
-            <BookOpen size={13} />
-            <span>Fact Check ({factChecks.length})</span>
+            <span>Overview</span>
           </button>
-        )}
 
-        <button
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'directive'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-          onClick={() => setActiveTab('directive')}
-        >
-          <Compass size={13} />
-          <span>Topic &amp; Rules</span>
-        </button>
+          <button
+            type="button"
+            className={`studio-tab-btn ${activeTab === 'rewrites' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('rewrites')}
+          >
+            <span>Rewrites</span>
+            <span className="studio-tab-count">{totalUpgradesCount}</span>
+          </button>
 
-        <button
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'callouts'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-          onClick={() => setActiveTab('callouts')}
-        >
-          <Lightbulb size={13} />
-          <span>All Corrections ({allAnnotations.length})</span>
-        </button>
+          {factChecks.length > 0 && (
+            <button
+              type="button"
+              className={`studio-tab-btn ${activeTab === 'accuracy' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('accuracy')}
+            >
+              <span>Facts</span>
+              <span className="studio-tab-count">{factChecks.length}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={`studio-tab-btn ${activeTab === 'directive' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('directive')}
+          >
+            <span>Topic Rules</span>
+          </button>
+
+          <button
+            type="button"
+            className={`studio-tab-btn ${activeTab === 'callouts' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('callouts')}
+          >
+            <span>Notes</span>
+            <span className="studio-tab-count">{allAnnotations.length}</span>
+          </button>
+        </div>
 
         {showAgentLog && (
           <button
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'agent_log'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            type="button"
+            className={`studio-tab-btn ${activeTab === 'agent_log' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('agent_log')}
+            title="Admin Only: Pipeline Agent Trace"
           >
             <Activity size={13} />
-            <span>🔍 Agent Log</span>
+            <span>Log</span>
           </button>
         )}
-      </div>
+      </nav>
 
-      {/* TAB 1: GOOGLE STITCH MINIMAL DIAGNOSTIC REPORT (NON-SCORED FOR ESSAY) */}
+      {/* TAB 1: EDITORIAL MINIMAL OVERVIEW REPORT */}
       {activeTab === 'report' && (
         <div className="space-y-6">
-          {/* Header Info */}
-          <div>
-            <div className="flex items-center justify-between mb-1 flex-wrap gap-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold tracking-wider text-brand-600 uppercase font-sans">
-                  {isNonScoredEssay ? 'Essay Feedback Report' : 'Report'}
+          {/* Calm Header & Single Interpunct Metadata Line */}
+          <header className="space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="studio-section-eyebrow" style={{ color: 'var(--accent-blue)' }}>
+                  {isOutlineOnlySubmission
+                    ? 'Outline Review'
+                    : isNonScoredEssay
+                    ? 'Essay Report'
+                    : 'Paper Report'}
                 </span>
                 {evaluation.overallReadiness && (
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getBadgeStyle(
-                      evaluation.overallReadiness
-                    )}`}
-                  >
+                  <span className={getStatusToneClass(evaluation.overallReadiness)}>
                     {evaluation.overallReadiness}
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs studio-text-muted font-mono tabular-nums">
                 {evaluation.wordCount || 0} words
               </span>
             </div>
-            <h2 className="text-xl xl:text-2xl font-academic font-medium text-slate-900 leading-snug">
+
+            <h2 className="text-xl xl:text-[22px] font-academic font-medium studio-text-primary leading-snug">
               {topicTitle}
             </h2>
 
-            {/* Genre & Counter-Argument Mode Pill Bar */}
-            {genreDisplay && (
-              <div className="flex items-center flex-wrap gap-1.5 mt-2">
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                  Genre: {genreDisplay}
-                </span>
-                {typeof evaluation.requiresCounterArgument === 'boolean' && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
-                    Counter-Argument:{' '}
-                    {evaluation.requiresCounterArgument ? 'Required (Two-Sided Debate)' : 'Optional (Consensus / Issue)'}
-                  </span>
-                )}
-                {evaluation.pacingMetrics && typeof evaluation.pacingMetrics.decayPercent === 'number' && (
-                  <span
-                    className={`text-[10px] font-medium px-2 py-0.5 rounded border ${
-                      evaluation.pacingMetrics.pacingDecayFlag
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}
-                  >
-                    2nd-Half Pacing: {evaluation.pacingMetrics.decayPercent >= 0 ? '+' : ''}
-                    {evaluation.pacingMetrics.decayPercent}%
-                  </span>
-                )}
-              </div>
+            {headerMetaParts.length > 0 && (
+              <p className="text-xs studio-text-muted leading-relaxed">
+                {headerMetaParts.join(' · ')}
+              </p>
             )}
-          </div>
+          </header>
 
-          {/* 4-Tier Diagnostic Readiness Summary Ribbon (Interactive Filter Cards) */}
+          {/* Hairline 4-Column Diagnostic KPI Strip */}
           {isNonScoredEssay && (
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="studio-surface studio-kpi-grid" role="group" aria-label="Issue counts">
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('tier1')}
-                className="p-2 rounded-md bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200/80 transition-colors cursor-pointer"
-                title="Filter Feedback: Serious Mistakes"
+                className={`studio-kpi-cell ${tier1Count === 0 ? 'opacity-45' : ''}`}
+                title="View Serious Mistakes"
               >
-                <div className="text-sm font-bold text-rose-700 font-mono">{tier1Count}</div>
-                <div className="text-[10px] font-semibold text-rose-800 leading-tight">
-                  🔴 Serious Mistakes
-                </div>
+                <span className="studio-kpi-value">{tier1Count}</span>
+                <span className="studio-kpi-label">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 inline-block" />
+                  <span>Serious</span>
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('tier2')}
-                className="p-2 rounded-md bg-orange-50/70 hover:bg-orange-100/70 border border-orange-200/80 transition-colors cursor-pointer"
-                title="Filter Feedback: Major Mistakes"
+                className={`studio-kpi-cell ${tier2Count === 0 ? 'opacity-45' : ''}`}
+                title="View Major Mistakes"
               >
-                <div className="text-sm font-bold text-orange-700 font-mono">{tier2Count}</div>
-                <div className="text-[10px] font-semibold text-orange-800 leading-tight">
-                  🟠 Major Mistakes
-                </div>
+                <span className="studio-kpi-value">{tier2Count}</span>
+                <span className="studio-kpi-label">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                  <span>Major</span>
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('polish')}
-                className="p-2 rounded-md bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 transition-colors cursor-pointer"
-                title="Filter Feedback: Improvements & Tips"
+                className={`studio-kpi-cell ${tier3Count === 0 ? 'opacity-45' : ''}`}
+                title="View Writing Tips"
               >
-                <div className="text-sm font-bold text-blue-700 font-mono">{tier3Count}</div>
-                <div className="text-[10px] font-semibold text-blue-800 leading-tight">
-                  🔵 Improvements & Tips
-                </div>
+                <span className="studio-kpi-value">{tier3Count}</span>
+                <span className="studio-kpi-label">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                  <span>Tips</span>
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleTierFilterJump('green')}
-                className="p-2 rounded-md bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200/80 transition-colors cursor-pointer"
-                title="Filter Feedback: Strong Points"
+                className={`studio-kpi-cell ${earnedSignifiersList.length === 0 ? 'opacity-45' : ''}`}
+                title="View Strong Points"
               >
-                <div className="text-sm font-bold text-emerald-700 font-mono">
-                  {earnedSignifiersList.length}
-                </div>
-                <div className="text-[10px] font-semibold text-emerald-800 leading-tight">
-                  🟢 Strong Points
-                </div>
+                <span className="studio-kpi-value">{earnedSignifiersList.length}</span>
+                <span className="studio-kpi-label">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  <span>Strong</span>
+                </span>
               </button>
             </div>
           )}
 
-          {/* Rubric Parameter Matrix (Qualitative Readiness for Essay vs. Numeric Marks for 20-Mark Subjective) */}
-          <div className="space-y-2.5" data-purpose="rubric-matrix">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-sans">
-                {isNonScoredEssay ? 'Essay Checklist (Click Any Item for Details)' : 'Breakdown'}
+          {/* Editorial Summary (Action-First Order) */}
+          <section className="space-y-2" data-purpose="examiner-critique">
+            <h4 className="studio-section-eyebrow">Overall Feedback</h4>
+            <div className="studio-summary-quote font-academic text-[15px] leading-relaxed">
+              <p>
+                {examinerSummary
+                  ? cleanSimpleText(examinerSummary)
+                  : 'Your essay covers the main topic, but stronger structure, clearer examples, and cleaner sentences will improve your overall standard.'}
+              </p>
+            </div>
+          </section>
+
+          {/* Actionable Top Steps */}
+          <section className="space-y-2.5" data-purpose="actionable-directives">
+            <h4 className="studio-section-eyebrow">Next Steps to Improve</h4>
+            <ol className="studio-surface studio-list-divided overflow-hidden">
+              {remedialSteps.map((step, idx) => (
+                <li key={idx} className="flex items-start gap-3 px-3.5 py-3 text-xs leading-relaxed">
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full font-semibold text-[11px] flex-shrink-0 mt-0.5 tabular-nums"
+                    style={{
+                      background: 'var(--accent-blue-soft)',
+                      color: 'var(--accent-blue)'
+                    }}
+                  >
+                    {idx + 1}
+                  </span>
+                  <div className="studio-text-secondary">
+                    <strong className="studio-text-primary font-semibold">
+                      {cleanSimpleText(step.title)}:{' '}
+                    </strong>
+                    {cleanSimpleText(step.description)}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* Full-Width Expandable Checklist Accordion (Zero Truncation, Zero Orphan Cells) */}
+          <section className="space-y-2.5" data-purpose="rubric-matrix">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="studio-section-eyebrow">
+                {isNonScoredEssay ? 'Essay Checklist' : 'Score Breakdown'}
               </h4>
-              <span className="text-[10px] font-mono text-slate-400">
+              <span className="text-[11px] font-mono studio-text-muted">
                 {displayParameters.length} Pillars
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="studio-surface studio-list-divided overflow-hidden">
               {displayParameters.map((item) => {
-                const isSelected = selectedParamId === item.id;
-                const badgeClass = getBadgeStyle(item.status);
+                const isExpanded = Boolean(expandedParamIds[item.id]);
                 const scoreFormatted =
                   typeof item.score === 'number'
                     ? String(Math.round(item.score)).padStart(2, '0')
                     : null;
 
                 return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedParamId(isSelected ? null : item.id)}
-                    className={`p-2.5 bg-slate-50 border rounded-md flex flex-col justify-between transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-brand-500 ring-1 ring-brand-500/30 bg-blue-50/40'
-                        : 'border-slate-200 hover:bg-slate-100/70'
-                    }`}
-                    title={item.fullName}
-                  >
-                    <div className="flex items-start justify-between gap-1.5">
-                      <div className="text-[11px] text-slate-700 font-semibold leading-snug font-sans">
-                        {item.cleanName}
-                      </div>
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${badgeClass}`}
-                      >
-                        {item.status}
-                      </span>
-                    </div>
-
-                    {!isNonScoredEssay && scoreFormatted !== null ? (
-                      <div className="flex items-baseline justify-between mt-1">
-                        <span className="text-sm font-semibold text-slate-800 font-mono">
-                          {scoreFormatted}
-                          <span className="text-[10px] font-normal text-slate-400">
-                            /{item.maxMarks}
-                          </span>
+                  <div key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleParamRow(item.id)}
+                      aria-expanded={isExpanded}
+                      className="studio-checklist-row"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: getStatusDotColor(item.status) }}
+                        />
+                        <span className="text-xs font-semibold studio-text-primary truncate">
+                          {item.cleanName}
                         </span>
                       </div>
-                    ) : (
-                      item.feedback && (
-                        <div className="mt-1.5 text-[11px] text-slate-500 line-clamp-2 leading-snug">
-                          {cleanSimpleText(item.feedback)}
-                        </div>
-                      )
-                    )}
 
-                    {isSelected && item.feedback && (
-                      <div className="mt-2 pt-2 border-t border-slate-200/80 text-[11px] text-slate-700 font-normal leading-relaxed animate-in fade-in duration-150">
-                        {cleanSimpleText(item.feedback)}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!isNonScoredEssay && scoreFormatted !== null && (
+                          <span className="text-xs font-mono font-semibold studio-text-primary">
+                            {scoreFormatted}
+                            <span className="studio-text-muted font-normal">/{item.maxMarks}</span>
+                          </span>
+                        )}
+                        <span className={getStatusToneClass(item.status)}>{item.status}</span>
+                        {isExpanded ? (
+                          <ChevronDown size={14} className="studio-text-muted" />
+                        ) : (
+                          <ChevronRight size={14} className="studio-text-muted" />
+                        )}
+                      </div>
+                    </button>
+
+                    {isExpanded && item.feedback && (
+                      <div className="px-4 pb-3.5 pt-0.5 pl-8 text-xs studio-text-secondary leading-relaxed">
+                        {item.feedback}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-          </div>
+          </section>
 
-          {/* Examiner Analytical Critique */}
-          <div className="space-y-2" data-purpose="examiner-critique">
-            <div className="flex items-center space-x-2">
-              <FileText className="w-4 h-4 text-brand-600" />
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-                Overall Feedback
-              </h4>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-md p-4 text-slate-600 text-sm leading-relaxed space-y-2 font-academic text-[15px]">
-              <p>
-                {examinerSummary
-                  ? `"${cleanSimpleText(examinerSummary)}"`
-                  : `"Your essay covers the main topic, but stronger structure, clearer examples, and cleaner sentences will improve your overall standard."`}
-              </p>
-            </div>
-          </div>
-
-          {/* 🟢 Earned Topper Signifiers (Quote-Locked, Strictly When Earned) */}
+          {/* Strong Points (Shown Only When Earned, Without Emoji Noise) */}
           {earnedSignifiersList.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Award className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-800 font-sans">
-                  🟢 Strong Points ({earnedSignifiersList.length})
+            <section className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="studio-section-eyebrow flex items-center gap-1.5">
+                  <Award size={13} style={{ color: 'var(--pass-green)' }} />
+                  <span>Strong Points ({earnedSignifiersList.length})</span>
                 </h4>
               </div>
               <div className="space-y-2">
                 {earnedSignifiersList.slice(0, 4).map((sig, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-md bg-emerald-50/60 border border-emerald-200/80 text-xs space-y-1"
+                    className="studio-surface p-3.5 text-xs space-y-1"
+                    style={{ borderLeft: '3px solid var(--pass-green)' }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className="text-[10.5px] font-bold uppercase tracking-wider"
+                        style={{ color: 'var(--pass-green)' }}
+                      >
                         {simplifyCategoryTitle(sig.category, { type: 'green' })}
                       </span>
                       {sig.location_id && (
-                        <span className="text-[10px] font-sans text-emerald-700">
+                        <span className="text-[11px] studio-text-muted">
                           {formatLocationLabel(sig.location_id)}
                         </span>
                       )}
                     </div>
                     {sig.exact_verbatim_quote && (
-                      <div className="font-academic text-slate-800 italic">
+                      <p className="font-academic studio-text-primary italic text-[13.5px]">
                         "{sig.exact_verbatim_quote}"
-                      </div>
+                      </p>
                     )}
                     {sig.observation && (
-                      <p className="text-slate-600 leading-relaxed">{cleanSimpleText(sig.observation)}</p>
+                      <p className="studio-text-secondary leading-relaxed">
+                        {cleanSimpleText(sig.observation)}
+                      </p>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Actionable Directives / Remedial Steps */}
-          <div className="space-y-3 pt-1" data-purpose="actionable-directives">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-              Top Steps to Improve Your Essay
-            </h4>
-            <ul className="space-y-2.5 text-xs text-slate-600 font-sans">
-              {remedialSteps.map((step, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-50 text-brand-600 font-semibold text-[10px] mr-2.5 flex-shrink-0 mt-0.5">
-                    {idx + 1}
-                  </span>
-                  <span>
-                    <strong>{cleanSimpleText(step.title)}:</strong> {cleanSimpleText(step.description)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Thesis Statement Audit & Model Topper Rewrite */}
+          {/* Thesis Statement Audit (Cleanly Nested Without Empty Quote Box) */}
           {evaluation.thesisAudit && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5 text-xs font-sans">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Thesis Statement Check
-                </h4>
-                {evaluation.thesisAudit.status && (
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.thesisAudit.status)}`}>
-                    {evaluation.thesisAudit.status}
-                  </span>
-                )}
+            <section className="studio-surface p-4 space-y-3 text-xs">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="studio-section-eyebrow">Thesis Statement</h4>
+                <div className="flex items-center gap-1.5">
+                  {!hasRealThesisQuote && (
+                    <span className="studio-pill">Not found in script</span>
+                  )}
+                  {evaluation.thesisAudit.status && (
+                    <span className={getStatusToneClass(evaluation.thesisAudit.status)}>
+                      {evaluation.thesisAudit.status}
+                    </span>
+                  )}
+                </div>
               </div>
-              {(evaluation.thesisAudit.extractedThesis || evaluation.thesisAudit.candidateThesis) && (
-                <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-slate-700 font-academic text-[13px] italic">
-                  "{evaluation.thesisAudit.extractedThesis || evaluation.thesisAudit.candidateThesis}"
+
+              {hasRealThesisQuote && (
+                <div className="studio-surface-subtle px-3 py-2 font-academic text-[13.5px] italic studio-text-primary">
+                  "{extractedThesisRaw}"
                 </div>
               )}
+
               {evaluation.thesisAudit.critique && (
-                <p className="text-slate-600 leading-relaxed">{cleanSimpleText(evaluation.thesisAudit.critique)}</p>
+                <p className="studio-text-secondary leading-relaxed">
+                  {cleanSimpleText(evaluation.thesisAudit.critique)}
+                </p>
               )}
+
               {evaluation.thesisAudit.modelTopperThesis && (
-                <div className="p-2.5 rounded bg-emerald-50/70 border border-emerald-200 text-emerald-950">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+                <div className="studio-sample-block space-y-1">
+                  <div
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--pass-green)' }}
+                  >
                     Sample Thesis Statement
                   </div>
-                  <div className="font-academic text-[13px] leading-relaxed">
+                  <p className="font-academic text-[13.5px] leading-relaxed studio-text-primary">
                     "{evaluation.thesisAudit.modelTopperThesis}"
-                  </div>
+                  </p>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* 1:1 Outline-to-Body Synchronization Card */}
+          {/* Outline-to-Body Synchronization */}
           {evaluation.outlineAlignment && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 text-xs font-sans">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Does Your Essay Follow Your Outline?
-                </h4>
+            <section className="studio-surface p-4 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="studio-section-eyebrow">Outline &amp; Essay Alignment</h4>
                 {evaluation.outlineAlignment.status && (
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getBadgeStyle(evaluation.outlineAlignment.status)}`}>
+                  <span className={getStatusToneClass(evaluation.outlineAlignment.status)}>
                     {evaluation.outlineAlignment.status}
                   </span>
                 )}
               </div>
+
               {evaluation.outlineAlignment.summary && (
-                <p className="text-slate-600 leading-relaxed">
+                <p className="studio-text-secondary leading-relaxed">
                   {cleanSimpleText(evaluation.outlineAlignment.summary)}
                 </p>
               )}
+
               {evaluation.outlineAlignment.bodyHeadingWarning && (
-                <div className="p-2 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">
-                  <strong>Important Note:</strong> {cleanSimpleText(evaluation.outlineAlignment.bodyHeadingWarning)}
+                <div className="studio-diff-before text-[11.5px] studio-text-secondary">
+                  <strong className="studio-text-primary">Important: </strong>
+                  {cleanSimpleText(evaluation.outlineAlignment.bodyHeadingWarning)}
                 </div>
               )}
+
               {evaluation.outlineAlignment.missingFromBody?.length > 0 && (
                 <div className="space-y-1 pt-1">
-                  <div className="text-[10px] font-bold uppercase text-rose-700">
-                    Outline Points Skipped in the Essay:
+                  <div
+                    className="text-[10.5px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--fail-red)' }}
+                  >
+                    Outline Points Skipped in Essay
                   </div>
-                  <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
+                  <ul className="list-disc pl-4 studio-text-secondary space-y-0.5">
                     {evaluation.outlineAlignment.missingFromBody.map((m, i) => (
                       <li key={i}>{cleanSimpleText(m)}</li>
                     ))}
                   </ul>
                 </div>
               )}
+
               {evaluation.outlineAlignment.orphanBodyParagraphs?.length > 0 && (
                 <div className="space-y-1 pt-1">
-                  <div className="text-[10px] font-bold uppercase text-amber-700">
-                    Essay Paragraphs Not Mentioned in Your Outline:
+                  <div
+                    className="text-[10.5px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--warning-amber)' }}
+                  >
+                    Essay Paragraphs Not in Your Outline
                   </div>
-                  <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
+                  <ul className="list-disc pl-4 studio-text-secondary space-y-0.5">
                     {evaluation.outlineAlignment.orphanBodyParagraphs.map((m, i) => (
                       <li key={i}>{cleanSimpleText(m)}</li>
                     ))}
                   </ul>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Paragraph Role Map & Strategic Examiner Highlighting Picks */}
+          {/* Paragraph Role Map & Key Phrases */}
           {((evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0) ||
-            (evaluation.strategicHighlightingPicks && evaluation.strategicHighlightingPicks.length > 0)) && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs font-sans">
+            (evaluation.strategicHighlightingPicks &&
+              evaluation.strategicHighlightingPicks.length > 0)) && (
+            <section className="studio-surface p-4 space-y-3 text-xs">
               {evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0 && (
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Paragraph-by-Paragraph Map
-                  </h4>
+                <div className="space-y-2">
+                  <h4 className="studio-section-eyebrow">Paragraph-by-Paragraph Map</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(evaluation.paragraphRoleMap).map(([pId, role]) => (
-                      <span
-                        key={pId}
-                        className="text-[10px] px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-sans"
-                      >
-                        <strong>{formatLocationLabel(pId)}:</strong> {formatRoleLabel(role)}
+                      <span key={pId} className="studio-pill">
+                        <strong className="studio-text-primary">{formatLocationLabel(pId)}:</strong>{' '}
+                        {formatRoleLabel(role)}
                       </span>
                     ))}
                   </div>
-                  {evaluation.pacingMetrics?.summary && (
-                    <p className="text-[11px] text-slate-500 pt-1">
+                  {!isOutlineOnlySubmission && evaluation.pacingMetrics?.summary && (
+                    <p className="text-[11.5px] studio-text-muted pt-0.5">
                       {cleanSimpleText(evaluation.pacingMetrics.summary)}
                     </p>
                   )}
@@ -702,144 +814,121 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               )}
 
               {evaluation.strategicHighlightingPicks?.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Key Phrases to Underline in the Exam
+                <div
+                  className={`space-y-2 ${
+                    evaluation.paragraphRoleMap && Object.keys(evaluation.paragraphRoleMap).length > 0
+                      ? 'pt-3 border-t border-[var(--border)]'
+                      : ''
+                  }`}
+                >
+                  <h4 className="studio-section-eyebrow">
+                    {isOutlineOnlySubmission
+                      ? 'Key Phrases to Emphasize'
+                      : 'Key Phrases to Underline in the Exam'}
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {evaluation.strategicHighlightingPicks.map((phrase, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[11px] px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 font-medium"
-                      >
+                      <span key={idx} className="studio-pill font-medium studio-text-primary">
                         "{phrase}"
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Paper Layout Check (Students) & Internal QA Audit (Admin Only) */}
-          {(evaluation.handwritingAudit ||
-            (showAgentLog && (evaluation.qaAuditLog || evaluation.stageDegradations?.length > 0))) && (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 text-[11px] text-slate-600 font-sans">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
-                  {evaluation.handwritingAudit ? 'Paper Layout Check' : 'Admin Pipeline Notice'}
-                </span>
-                {showAgentLog && typeof evaluation.qaAuditLog?.falsePositivesDeleted === 'number' && (
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                    Quality Check: Reviewed {evaluation.qaAuditLog.totalFlagsReviewed || 0} • Removed{' '}
-                    {evaluation.qaAuditLog.falsePositivesDeleted} False Alarms
-                  </span>
-                )}
-              </div>
-
-              {showAgentLog && evaluation.qaAuditLog?.deletionNotes?.length > 0 && (
-                <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
-                  {evaluation.qaAuditLog.deletionNotes.slice(0, 3).map((note, idx) => (
-                    <li key={idx}>{note}</li>
-                  ))}
-                </ul>
-              )}
-
-              {evaluation.handwritingAudit && (
-                <div className="space-y-1">
-                  <div className="font-semibold text-slate-700">
-                    Margins: {evaluation.handwritingAudit.marginsRespected ? 'Clean' : 'Leave Neater Side Margins'} •{' '}
-                    Paragraph Indents: {evaluation.handwritingAudit.indentationConsistent ? 'Consistent' : 'Start Each Paragraph Slightly Indented'}
-                    {evaluation.handwritingAudit.samePageOutlineBodyStart
-                      ? ' • Tip: Start the Essay Introduction on a fresh page after your Outline.'
-                      : ''}
-                  </div>
-                </div>
-              )}
-
-              {showAgentLog && evaluation.stageDegradations?.length > 0 && (
-                <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
-                  Partial Stage Notice: {evaluation.stageDegradations.join(' | ')}
-                </div>
-              )}
-            </div>
+          {/* Paper Layout Check (Strict Student View Only — Admin QA Telemetry Lives Exclusively in Log Tab) */}
+          {evaluation.handwritingAudit && (
+            <section className="studio-surface-subtle p-3.5 space-y-1.5 text-xs">
+              <h4 className="studio-section-eyebrow">Paper Layout Check</h4>
+              <p className="studio-text-secondary leading-relaxed">
+                Margins:{' '}
+                <strong className="studio-text-primary">
+                  {evaluation.handwritingAudit.marginsRespected
+                    ? 'Clean'
+                    : 'Leave Neater Side Margins'}
+                </strong>{' '}
+                · Paragraph Indents:{' '}
+                <strong className="studio-text-primary">
+                  {evaluation.handwritingAudit.indentationConsistent
+                    ? 'Consistent'
+                    : 'Start Each Paragraph Slightly Indented'}
+                </strong>
+                {evaluation.handwritingAudit.samePageOutlineBodyStart
+                  ? ' · Tip: Start the Essay Introduction on a fresh page after your Outline.'
+                  : ''}
+              </p>
+            </section>
           )}
         </div>
       )}
 
-      {/* TAB 2: SURGICAL REWRITES & HEADER UPGRADES */}
+      {/* TAB 2: REWRITES & HEADING UPGRADES */}
       {activeTab === 'rewrites' && (
-        <div>
-          <ParagraphRewriter rewrites={rewrites} headerUpgrades={headerUpgrades} />
-        </div>
+        <ParagraphRewriter rewrites={rewrites} headerUpgrades={headerUpgrades} />
       )}
 
-      {/* TAB 3: FACT AUDIT */}
+      {/* TAB 3: FACT CHECK */}
       {activeTab === 'accuracy' && (
         <div className="space-y-3">
-          <div className="flex items-center space-x-2 mb-2">
-            <BookOpen className="w-4 h-4 text-brand-600" />
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-sans">
-              Fact & Reference Check ({factChecks.length})
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="studio-section-eyebrow flex items-center gap-1.5">
+              <BookOpen size={13} style={{ color: 'var(--accent-blue)' }} />
+              <span>Fact &amp; Reference Check ({factChecks.length})</span>
             </h4>
           </div>
 
           {factChecks.map((item, idx) => {
             const isUnverifiedQuote = item.status === 'UNVERIFIED_CITATION';
+            const badgeClass = item.verified
+              ? 'studio-pill studio-pill-strong'
+              : isUnverifiedQuote
+              ? 'studio-pill studio-pill-warning'
+              : 'studio-pill studio-pill-critical';
+
             return (
-              <div
-                key={idx}
-                className={`p-3.5 rounded-lg border text-xs space-y-1.5 ${
-                  item.verified
-                    ? 'bg-emerald-50/50 border-emerald-200 text-slate-700'
-                    : isUnverifiedQuote
-                    ? 'bg-blue-50/50 border-blue-200 text-slate-700'
-                    : 'bg-rose-50/50 border-rose-200 text-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      item.verified
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : isUnverifiedQuote
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}
-                  >
+              <div key={idx} className="studio-surface p-3.5 text-xs space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className={badgeClass}>
                     {item.verified
-                      ? '✓ Verified Fact'
+                      ? 'Verified Fact'
                       : isUnverifiedQuote
-                      ? '🔵 Quote Not Found Online'
-                      : '✗ Wrong or Outdated Fact'}
+                      ? 'Unverified Quote'
+                      : 'Needs Correction'}
                   </span>
                   {item.source && (
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[11px] studio-text-muted font-mono">
                       Source: {item.source}
                     </span>
                   )}
                 </div>
-                <div className="font-medium text-slate-800 font-academic text-sm">
+
+                <p className="font-medium studio-text-primary font-academic text-[14px] leading-snug">
                   "{item.claim}"
-                </div>
+                </p>
+
                 {item.correctedFact && (
-                  <div
-                    className={`font-sans pt-1 ${
-                      isUnverifiedQuote ? 'text-blue-800' : 'text-rose-700'
-                    }`}
+                  <p
+                    className="leading-relaxed"
+                    style={{
+                      color: isUnverifiedQuote ? 'var(--warning-amber)' : 'var(--fail-red)'
+                    }}
                   >
                     <strong>{isUnverifiedQuote ? 'Note:' : 'Correction:'}</strong>{' '}
-                    {cleanSimpleText(item.correctedFact)}
-                  </div>
+                    <span className="studio-text-secondary">
+                      {cleanSimpleText(item.correctedFact)}
+                    </span>
+                  </p>
                 )}
               </div>
             );
           })}
 
           {evaluation.searchSources?.length > 0 && (
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1.5 font-sans">
-              <div className="font-bold uppercase tracking-wider text-[10px] text-slate-600">
-                Google Search Verification Sources ({evaluation.searchSources.length})
+            <div className="studio-surface-subtle p-3.5 text-xs space-y-2">
+              <div className="studio-section-eyebrow">
+                Verification Sources ({evaluation.searchSources.length})
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {evaluation.searchSources.map((src, idx) => (
@@ -848,9 +937,11 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                     href={src.startsWith('http') ? src : undefined}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2 py-0.5 rounded bg-white border border-slate-200 text-brand-700 hover:underline truncate max-w-[260px]"
+                    className="studio-pill hover:underline max-w-[220px]"
+                    title={src}
                   >
-                    {src}
+                    <span className="truncate">{formatSourceDomain(src)}</span>
+                    <ExternalLink size={10} />
                   </a>
                 ))}
               </div>
@@ -859,44 +950,51 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
         </div>
       )}
 
-      {/* TAB 4: RULES & SCOPE */}
+      {/* TAB 4: TOPIC RULES */}
       {activeTab === 'directive' && (
-        <div className="space-y-4 text-xs font-sans">
-          <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2">
-            <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-              Topic Type & Key Rules
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px]">Classified Genre</span>
-                <strong className="text-slate-800">
+        <div className="space-y-4 text-xs">
+          <div className="studio-surface p-4 space-y-3">
+            <h4 className="studio-section-eyebrow">Topic Breakdown</h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="studio-surface-subtle p-2.5 space-y-0.5">
+                <span className="studio-text-muted block text-[10.5px]">Essay Type</span>
+                <strong className="studio-text-primary text-xs font-semibold">
                   {genreDisplay || directiveAnalysis.directiveWord || 'Analytical Essay'}
                 </strong>
               </div>
-              <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px]">Timeframe / Context</span>
-                <strong className="text-slate-800">
-                  {directiveAnalysis.targetTimeframe || 'Contemporary 2026 & Historical'}
+              <div className="studio-surface-subtle p-2.5 space-y-0.5">
+                <span className="studio-text-muted block text-[10.5px]">Timeframe / Focus</span>
+                <strong className="studio-text-primary text-xs font-semibold">
+                  {directiveAnalysis.targetTimeframe || 'Contemporary & Historical'}
                 </strong>
               </div>
             </div>
+
             {evaluation.genreRationale && (
-              <p className="text-slate-600 leading-relaxed pt-1">{cleanSimpleText(evaluation.genreRationale)}</p>
+              <p className="studio-text-secondary leading-relaxed">
+                {cleanSimpleText(evaluation.genreRationale)}
+              </p>
             )}
             {directiveAnalysis.feedback && (
-              <p className="text-slate-600 leading-relaxed pt-1">{cleanSimpleText(directiveAnalysis.feedback)}</p>
+              <p className="studio-text-secondary leading-relaxed">
+                {cleanSimpleText(directiveAnalysis.feedback)}
+              </p>
             )}
           </div>
 
-          <div className="bg-rose-50/50 border border-rose-200 rounded-lg p-4 space-y-2">
-            <h4 className="font-bold text-rose-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <ShieldAlert size={14} className="text-rose-600" />
-              <span>Serious Mistakes to Avoid</span>
+          <div className="studio-surface p-4 space-y-2.5">
+            <h4 className="studio-section-eyebrow flex items-center gap-1.5">
+              <ShieldAlert size={13} style={{ color: 'var(--fail-red)' }} />
+              <span>Common Mistakes to Avoid</span>
             </h4>
-            <ul className="space-y-1.5 text-slate-700">
+            <ul className="space-y-2 studio-text-secondary">
               {dealBreakers.map((rule, idx) => (
-                <li key={idx} className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">•</span>
+                <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
+                    style={{ background: 'var(--fail-red)' }}
+                  />
                   <span>{cleanSimpleText(rule)}</span>
                 </li>
               ))}
@@ -905,94 +1003,125 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
         </div>
       )}
 
-      {/* TAB 5: ALL CALLOUTS LIST */}
+      {/* TAB 5: ALL INLINE NOTES LIST */}
       {activeTab === 'callouts' && (
-        <div className="space-y-3 font-sans">
-          <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
-            <span className="text-xs text-slate-400">
-              Showing {filteredAnnotations.length} annotations:
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs studio-text-muted tabular-nums">
+              {filteredAnnotations.length} {filteredAnnotations.length === 1 ? 'note' : 'notes'}
             </span>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {[
-                { id: 'all', label: `All (${allAnnotations.length})` },
-                { id: 'tier1', label: `🔴 Serious (${tier1AnnCount})` },
-                { id: 'tier2', label: `🟠 Major (${tier2AnnCount})` },
-                { id: 'polish', label: `🔵 Tips (${tier3AnnCount})` },
-                { id: 'green', label: `🟢 Strong (${greenCount})` }
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setCalloutFilter(f.id)}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border cursor-pointer ${
-                    calloutFilter === f.id
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+                { id: 'all', label: `All (${allAnnotations.length})`, dot: null },
+                { id: 'tier1', label: `Serious (${tier1AnnCount})`, dot: '#e11d48' },
+                { id: 'tier2', label: `Major (${tier2AnnCount})`, dot: '#f97316' },
+                { id: 'polish', label: `Tips (${tier3AnnCount})`, dot: '#f59e0b' },
+                { id: 'green', label: `Strong (${greenCount})`, dot: '#10b981' }
+              ].map((f) => {
+                const active = calloutFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setCalloutFilter(f.id)}
+                    className={`studio-filter-btn ${active ? 'is-active' : ''}`}
+                  >
+                    {f.dot && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={{ background: f.dot }}
+                      />
+                    )}
+                    <span>{f.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {filteredAnnotations.map((ann, idx) => {
-            const annId = ann.id || `ann-${idx}`;
-            const isSelected = selectedAnnId === annId;
-            const isEvidenceErr = isDiscrepantEvidenceAnnotation(ann);
-            return (
-              <div
-                key={annId}
-                ref={(el) => (cardRefs.current[annId] = el)}
-                onClick={() => onSelectAnnId && onSelectAnnId(annId)}
-                className={`p-3 bg-white rounded-lg border text-xs space-y-1.5 transition-all cursor-pointer ${
-                  isSelected
-                    ? 'border-[#007a64] ring-2 ring-[#007a64]/20 shadow-sm'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      isEvidenceErr || ann.type === 'red'
-                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                        : ann.type === 'green'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}
-                  >
-                    {simplifyCategoryTitle(ann.category, ann)}
-                  </span>
-                  <span className="text-[10px] text-slate-400 text-right">
-                    {ann.locationId ? `${formatLocationLabel(ann.locationId)} • ` : ''}View
-                  </span>
-                </div>
+          {filteredAnnotations.length === 0 ? (
+            <div className="studio-surface p-6 text-center text-xs studio-text-muted">
+              No notes match this filter.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredAnnotations.map((ann) => {
+                const origIdx = allAnnotations.indexOf(ann);
+                const annId = ann.id || `ann-${origIdx >= 0 ? origIdx : 0}`;
+                const isSelected =
+                  selectedAnnId === annId || selectedAnnId === `ann-${ann.targetPhrase}`;
+                const isEvidenceErr = isDiscrepantEvidenceAnnotation(ann);
 
-                <div className="font-academic text-[14px] text-slate-800">
-                  <span
-                    className={
-                      ann.type === 'green'
-                        ? 'text-emerald-800 font-medium'
-                        : isEvidenceErr
-                        ? 'text-red-600 font-semibold underline decoration-red-500/80'
-                        : 'text-red-600 font-medium underline decoration-wavy decoration-red-400'
-                    }
-                  >
-                    {ann.targetPhrase}
-                  </span>
-                </div>
+                const selectedRingClass = isSelected
+                  ? ann.type === 'green'
+                    ? 'is-selected-good'
+                    : isEvidenceErr || ann.type === 'red'
+                    ? 'is-selected-error'
+                    : 'is-selected-polish'
+                  : '';
 
-                {ann.comment && (
-                  <p className="text-slate-600 leading-relaxed">{cleanSimpleText(ann.comment)}</p>
-                )}
-              </div>
-            );
-          })}
+                const badgeClass =
+                  isEvidenceErr || ann.type === 'red'
+                    ? 'studio-pill studio-pill-critical'
+                    : ann.type === 'green'
+                    ? 'studio-pill studio-pill-strong'
+                    : 'studio-pill studio-pill-warning';
+
+                return (
+                  <div
+                    key={annId}
+                    ref={(el) => (cardRefs.current[annId] = el)}
+                    onClick={() => onSelectAnnId && onSelectAnnId(annId)}
+                    className={`studio-callout-card text-xs space-y-1.5 ${selectedRingClass}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={badgeClass}>
+                        {simplifyCategoryTitle(ann.category, ann)}
+                      </span>
+                      <span className="text-[11px] studio-text-muted text-right">
+                        {ann.locationId ? `${formatLocationLabel(ann.locationId)} · ` : ''}View
+                      </span>
+                    </div>
+
+                    <div className="font-academic text-[14px] studio-text-primary">
+                      <span
+                        className={
+                          ann.type === 'green'
+                            ? 'font-medium'
+                            : isEvidenceErr
+                            ? 'font-semibold underline decoration-red-500/80'
+                            : 'font-medium underline decoration-wavy decoration-red-400'
+                        }
+                        style={{
+                          color:
+                            ann.type === 'green'
+                              ? 'var(--pass-green)'
+                              : isEvidenceErr || ann.type === 'red'
+                              ? 'var(--fail-red)'
+                              : 'var(--warning-amber)'
+                        }}
+                      >
+                        {ann.targetPhrase}
+                      </span>
+                    </div>
+
+                    {ann.comment && (
+                      <p className="studio-text-secondary leading-relaxed">
+                        {cleanSimpleText(ann.comment)}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
+      {/* TAB 6: ADMIN ONLY PIPELINE AGENT LOG */}
       {activeTab === 'agent_log' && showAgentLog && (
-        <div className="space-y-3 text-xs font-sans">
-          <div className="p-3 rounded-lg bg-slate-900 text-slate-100 border border-slate-800 space-y-1.5">
+        <div className="space-y-3 text-xs">
+          <div className="p-3.5 rounded-xl bg-slate-900 text-slate-100 border border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5 text-emerald-400">
                 <Activity size={14} />
@@ -1007,24 +1136,24 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                 </span>
               </div>
             </div>
-            <p className="text-[11px] text-slate-300">
-              Complete internal trace: OCR extraction, structural outline/paragraph split, every raw agent output, QA false-positive deletions, Google Search grounding links, final pillar decisions, and token usage.
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Complete internal trace: OCR extraction, structural outline/paragraph split, raw agent diagnostics, QA false-positive deletions, Google Search grounding links, final pillar decisions, and token usage.
             </p>
           </div>
 
           {!agentTrace && (
-            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
-              Note: This essay was evaluated before full per-agent tracing was saved. Showing all saved metadata below (run a fresh evaluation to inspect raw per-agent drafts and QA deletions).
+            <div className="studio-surface p-3 text-[11.5px] studio-text-secondary">
+              Note: This essay was evaluated before full per-agent tracing was saved. Showing all saved metadata below.
             </div>
           )}
 
           {/* Stage 0: Vision OCR & Layout */}
-          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+          <div className="studio-surface p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Stage 0 • Vision OCR & Layout Check
+              <span className="studio-section-eyebrow studio-text-primary">
+                Stage 0 • Vision OCR &amp; Layout Check
               </span>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              <span className="studio-pill font-mono">
                 {agentTrace?.stage0_ocr
                   ? agentTrace.stage0_ocr.skipped
                     ? 'Typed Text'
@@ -1035,25 +1164,25 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               </span>
             </div>
             {agentTrace?.stage0_ocr?.detectedTitle && (
-              <div className="text-[11px] text-slate-700">
-                Detected Title: <strong>{agentTrace.stage0_ocr.detectedTitle}</strong>
+              <div className="text-[11px] studio-text-secondary">
+                Detected Title: <strong className="studio-text-primary">{agentTrace.stage0_ocr.detectedTitle}</strong>
               </div>
             )}
             {(agentTrace?.stage0_ocr?.handwritingAudit || evaluation.handwritingAudit) && (() => {
               const hw = agentTrace?.stage0_ocr?.handwritingAudit || evaluation.handwritingAudit;
               return (
-                <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-200/80">
-                  Margins: <strong>{hw.marginsRespected ? 'Clean' : 'Needs Improvement'}</strong> •{' '}
-                  Indentation: <strong>{hw.indentationConsistent ? 'Consistent' : 'Inconsistent'}</strong> •{' '}
-                  Excessive Scratch-outs: <strong>{hw.excessiveScratchOuts ? 'Yes' : 'No'}</strong> •{' '}
-                  Outline & Body Same Page: <strong>{hw.samePageOutlineBodyStart ? 'Yes' : 'No'}</strong>
-                  {hw.observations ? <div className="pt-1 text-slate-500">{hw.observations}</div> : null}
+                <div className="studio-surface-subtle text-[11px] studio-text-secondary p-2.5">
+                  Margins: <strong className="studio-text-primary">{hw.marginsRespected ? 'Clean' : 'Needs Improvement'}</strong> •{' '}
+                  Indentation: <strong className="studio-text-primary">{hw.indentationConsistent ? 'Consistent' : 'Inconsistent'}</strong> •{' '}
+                  Excessive Scratch-outs: <strong className="studio-text-primary">{hw.excessiveScratchOuts ? 'Yes' : 'No'}</strong> •{' '}
+                  Outline &amp; Body Same Page: <strong className="studio-text-primary">{hw.samePageOutlineBodyStart ? 'Yes' : 'No'}</strong>
+                  {hw.observations ? <div className="pt-1 studio-text-muted">{hw.observations}</div> : null}
                 </div>
               );
             })()}
             {(agentTrace?.rawOcrText || evaluation.rawText) && (
               <details>
-                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                   View Exact OCR / Submitted Text ({(agentTrace?.rawOcrText || evaluation.rawText).length.toLocaleString()} chars)
                 </summary>
                 <pre className="mt-2 p-2.5 rounded bg-slate-900 text-slate-100 text-[10px] font-mono whitespace-pre-wrap max-h-56 overflow-y-auto leading-relaxed">
@@ -1065,63 +1194,63 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
 
           {/* Stage 0B: Structural Indexer & Splitter */}
           {agentTrace?.stage0b_splitter && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
-              <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Stage 0B • Outline & Paragraph Splitter
+            <div className="studio-surface p-3.5 space-y-2">
+              <div className="studio-section-eyebrow studio-text-primary">
+                Stage 0B • Outline &amp; Paragraph Splitter
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
-                  <div className="text-slate-500">Outline Points</div>
-                  <div className="font-bold text-slate-800 font-mono">
+                <div className="studio-surface-subtle p-2">
+                  <div className="studio-text-muted">Outline Points</div>
+                  <div className="font-bold studio-text-primary font-mono">
                     {agentTrace.stage0b_splitter.outlineCount} ({agentTrace.stage0b_splitter.outlineWordCount}w)
                   </div>
                 </div>
-                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
-                  <div className="text-slate-500">Body Paragraphs</div>
-                  <div className="font-bold text-slate-800 font-mono">
+                <div className="studio-surface-subtle p-2">
+                  <div className="studio-text-muted">Body Paragraphs</div>
+                  <div className="font-bold studio-text-primary font-mono">
                     {agentTrace.stage0b_splitter.paragraphCount} ({agentTrace.stage0b_splitter.bodyWordCount}w)
                   </div>
                 </div>
-                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
-                  <div className="text-slate-500">Total Words</div>
-                  <div className="font-bold text-slate-800 font-mono">
+                <div className="studio-surface-subtle p-2">
+                  <div className="studio-text-muted">Total Words</div>
+                  <div className="font-bold studio-text-primary font-mono">
                     {agentTrace.stage0b_splitter.totalWordCount}w
                   </div>
                 </div>
-                <div className="p-2 rounded bg-slate-50 border border-slate-200/80">
-                  <div className="text-slate-500">AI Re-Split?</div>
-                  <div className="font-bold text-slate-800 font-mono">
+                <div className="studio-surface-subtle p-2">
+                  <div className="studio-text-muted">AI Re-Split?</div>
+                  <div className="font-bold studio-text-primary font-mono">
                     {agentTrace.stage0b_splitter.aiBoundaryAdjusted ? 'Yes (Fixed)' : 'Clean Split'}
                   </div>
                 </div>
               </div>
               {agentTrace.stage0b_splitter.inlineHeadingsCaught > 0 && (
-                <div className="text-[11px] text-amber-700">
+                <div className="text-[11px]" style={{ color: 'var(--warning-amber)' }}>
                   Inline Headings Caught Inside Essay Body: {agentTrace.stage0b_splitter.inlineHeadingsCaught}
                 </div>
               )}
               {(agentTrace.outlineNodes?.length > 0 || agentTrace.paragraphs?.length > 0) && (
                 <details>
-                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                     View Parsed Structure ({agentTrace.outlineNodes?.length || 0} Outline lines • {agentTrace.paragraphs?.length || 0} Body paragraphs)
                   </summary>
                   <div className="mt-2 space-y-2 max-h-56 overflow-y-auto pr-1 text-[11px]">
                     {agentTrace.outlineNodes?.length > 0 && (
-                      <div className="p-2 rounded bg-slate-50 border border-slate-200 space-y-0.5 font-mono text-[10px]">
-                        <div className="font-sans font-bold text-slate-700 mb-1">Outline Nodes:</div>
+                      <div className="studio-surface-subtle p-2 space-y-0.5 font-mono text-[10px]">
+                        <div className="font-sans font-bold studio-text-primary mb-1">Outline Nodes:</div>
                         {agentTrace.outlineNodes.map((o, idx) => (
-                          <div key={idx} className="text-slate-700">
-                            <span className="text-brand-700 font-bold">{o.id}:</span> {o.text}
+                          <div key={idx} className="studio-text-secondary">
+                            <span className="font-bold" style={{ color: 'var(--accent-blue)' }}>{o.id}:</span> {o.text}
                           </div>
                         ))}
                       </div>
                     )}
                     {agentTrace.paragraphs?.length > 0 && (
-                      <div className="p-2 rounded bg-slate-50 border border-slate-200 space-y-1 font-mono text-[10px]">
-                        <div className="font-sans font-bold text-slate-700">Paragraph Slices:</div>
+                      <div className="studio-surface-subtle p-2 space-y-1 font-mono text-[10px]">
+                        <div className="font-sans font-bold studio-text-primary">Paragraph Slices:</div>
                         {agentTrace.paragraphs.map((p, idx) => (
-                          <div key={idx} className="text-slate-700">
-                            <span className="text-brand-700 font-bold">{p.id}</span> ({p.wordCount}w, {p.sentenceCount}s): {p.preview}
+                          <div key={idx} className="studio-text-secondary">
+                            <span className="font-bold" style={{ color: 'var(--accent-blue)' }}>{p.id}</span> ({p.wordCount}w, {p.sentenceCount}s): {p.preview}
                           </div>
                         ))}
                       </div>
@@ -1133,59 +1262,59 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
           )}
 
           {/* Stage 1: Agent 1 Macro & Outline Alignment */}
-          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+          <div className="studio-surface p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Agent 1 • Big-Picture, Topic Scope & Outline Alignment
+              <span className="studio-section-eyebrow studio-text-primary">
+                Agent 1 • Big-Picture, Topic Scope &amp; Outline Alignment
               </span>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              <span className="studio-pill font-mono">
                 {agentTrace?.stage1_macro?.rawFlagsCount ?? 0} raw flags
               </span>
             </div>
-            <div className="text-[11px] text-slate-700 space-y-1">
+            <div className="text-[11px] studio-text-secondary space-y-1">
               <div>
-                Genre: <strong>{agentTrace?.stage1_macro?.essayGenre || evaluation.essayGenre || 'General'}</strong> •{' '}
+                Genre: <strong className="studio-text-primary">{agentTrace?.stage1_macro?.essayGenre || evaluation.essayGenre || 'General'}</strong> •{' '}
                 Counter-Argument Needed:{' '}
-                <strong>
+                <strong className="studio-text-primary">
                   {(agentTrace?.stage1_macro?.requiresCounterArgument ?? evaluation.requiresCounterArgument) ? 'Yes' : 'No / Optional'}
                 </strong>
               </div>
               {(agentTrace?.stage1_macro?.directiveAnalysis || evaluation.directiveAnalysis) && (() => {
                 const da = agentTrace?.stage1_macro?.directiveAnalysis || evaluation.directiveAnalysis;
                 return (
-                  <div className="text-slate-600">
-                    Scope: <strong>{da.directiveWord || 'N/A'}</strong> ({da.targetTimeframe || 'N/A'}) — {da.feedback || ''}
+                  <div>
+                    Scope: <strong className="studio-text-primary">{da.directiveWord || 'N/A'}</strong> ({da.targetTimeframe || 'N/A'}) — {da.feedback || ''}
                   </div>
                 );
               })()}
               {(agentTrace?.stage1_macro?.genreRationale || evaluation.genreRationale) && (
-                <div className="text-slate-600">
+                <div>
                   Rationale: {agentTrace?.stage1_macro?.genreRationale || evaluation.genreRationale}
                 </div>
               )}
               {(agentTrace?.stage1_macro?.thesisAudit || evaluation.thesisAudit) && (() => {
                 const ta = agentTrace?.stage1_macro?.thesisAudit || evaluation.thesisAudit;
                 return (
-                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 space-y-0.5">
+                  <div className="studio-surface-subtle p-2 space-y-0.5">
                     <div>
-                      <strong>Thesis Audit ({ta.status}):</strong> {ta.critique}
+                      <strong className="studio-text-primary">Thesis Audit ({ta.status}):</strong> {ta.critique}
                     </div>
-                    {ta.extractedThesis && <div className="italic text-slate-500">Extracted: "{ta.extractedThesis}"</div>}
+                    {ta.extractedThesis && <div className="italic studio-text-muted">Extracted: "{ta.extractedThesis}"</div>}
                   </div>
                 );
               })()}
               {(agentTrace?.stage1_macro?.outlineAlignment || evaluation.outlineAlignment) && (() => {
                 const oa = agentTrace?.stage1_macro?.outlineAlignment || evaluation.outlineAlignment;
                 return (
-                  <div className="p-2 rounded bg-slate-50 border border-slate-200/80 space-y-0.5">
+                  <div className="studio-surface-subtle p-2 space-y-0.5">
                     <div>
-                      <strong>Outline Alignment ({oa.status}):</strong> {oa.summary}
+                      <strong className="studio-text-primary">Outline Alignment ({oa.status}):</strong> {oa.summary}
                     </div>
                     {oa.missingFromBody?.length > 0 && (
-                      <div className="text-rose-700">Skipped in Essay: {oa.missingFromBody.join(' | ')}</div>
+                      <div style={{ color: 'var(--fail-red)' }}>Skipped in Essay: {oa.missingFromBody.join(' | ')}</div>
                     )}
                     {oa.orphanBodyParagraphs?.length > 0 && (
-                      <div className="text-amber-700">Orphan Body Paragraphs: {oa.orphanBodyParagraphs.join(' | ')}</div>
+                      <div style={{ color: 'var(--warning-amber)' }}>Orphan Body Paragraphs: {oa.orphanBodyParagraphs.join(' | ')}</div>
                     )}
                   </div>
                 );
@@ -1193,17 +1322,17 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
             </div>
             {agentTrace?.stage1_macro?.rawFlags?.length > 0 && (
               <details className="pt-1">
-                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                   View Agent 1 Raw Flags ({agentTrace.stage1_macro.rawFlags.length})
                 </summary>
                 <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
                   {agentTrace.stage1_macro.rawFlags.map((flag, i) => (
-                    <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                      <div className="font-semibold text-slate-800">
+                    <div key={i} className="studio-surface-subtle p-2 text-[11px]">
+                      <div className="font-semibold studio-text-primary">
                         [{flag.locationId || 'GLOBAL'}] {flag.severity || flag.type} • {flag.category}
                       </div>
-                      {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
-                      {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                      {flag.targetPhrase && <div className="studio-text-muted italic">"{flag.targetPhrase}"</div>}
+                      {flag.comment && <div className="studio-text-secondary">{flag.comment}</div>}
                     </div>
                   ))}
                 </div>
@@ -1215,11 +1344,11 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
           {(agentTrace?.stage1post_pacing || evaluation.pacingMetrics) && (() => {
             const pm = agentTrace?.stage1post_pacing || evaluation.pacingMetrics;
             return (
-              <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1">
-                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Stage 1-Post • Deterministic Length & Fatigue Check
+              <div className="studio-surface p-3.5 space-y-1">
+                <div className="studio-section-eyebrow studio-text-primary">
+                  Stage 1-Post • Deterministic Length &amp; Fatigue Check
                 </div>
-                <p className="text-[11px] text-slate-700">
+                <p className="text-[11px] studio-text-secondary">
                   {pm.summary ||
                     `Checked ${pm.evaluatedParagraphCount || 0} body paragraphs (1st half avg ${pm.firstHalfAvgWords || 0}w vs 2nd half avg ${pm.secondHalfAvgWords || 0}w, change ${pm.decayPercent || 0}%).`}
                 </p>
@@ -1229,12 +1358,12 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
 
           {/* Agent 2: Paragraphs */}
           {agentTrace?.stage2_paragraphs && (
-            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+            <div className="studio-surface p-3.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Agent 2 • Paragraph Logic, Evidence & Unity
+                <span className="studio-section-eyebrow studio-text-primary">
+                  Agent 2 • Paragraph Logic, Evidence &amp; Unity
                 </span>
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                <span className="studio-pill font-mono">
                   {agentTrace.stage2_paragraphs.skipped
                     ? 'Skipped (Outline-Only)'
                     : `${agentTrace.stage2_paragraphs.rawFlagsCount || 0} raw flags`}
@@ -1242,17 +1371,17 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               </div>
               {!agentTrace.stage2_paragraphs.skipped && agentTrace.stage2_paragraphs.rawFlags?.length > 0 && (
                 <details className="pt-1">
-                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                     View Agent 2 Raw Flags ({agentTrace.stage2_paragraphs.rawFlags.length})
                   </summary>
                   <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
                     {agentTrace.stage2_paragraphs.rawFlags.map((flag, i) => (
-                      <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                        <div className="font-semibold text-slate-800">
+                      <div key={i} className="studio-surface-subtle p-2 text-[11px]">
+                        <div className="font-semibold studio-text-primary">
                           [{flag.locationId || 'BODY'}] {flag.severity || flag.type} • {flag.category}
                         </div>
-                        {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
-                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                        {flag.targetPhrase && <div className="studio-text-muted italic">"{flag.targetPhrase}"</div>}
+                        {flag.comment && <div className="studio-text-secondary">{flag.comment}</div>}
                       </div>
                     ))}
                   </div>
@@ -1262,19 +1391,19 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
           )}
 
           {/* Agent 3: Facts + Language */}
-          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+          <div className="studio-surface p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Agent 3 • Search-Grounded Facts & Grammar/Expression
+              <span className="studio-section-eyebrow studio-text-primary">
+                Agent 3 • Search-Grounded Facts &amp; Grammar/Expression
               </span>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              <span className="studio-pill font-mono">
                 {agentTrace?.stage3_fact_language?.factChecksCount ?? factChecks.length} facts •{' '}
                 {agentTrace?.stage3_fact_language?.rawFlagsCount ?? 0} language flags
               </span>
             </div>
-            <div className="text-[11px] text-slate-600">
+            <div className="text-[11px] studio-text-secondary">
               Google Search Verification:{' '}
-              <strong>
+              <strong className="studio-text-primary">
                 {agentTrace?.stage3_fact_language?.searchGrounded || evaluation.searchSources?.length > 0
                   ? 'Enabled & Grounded'
                   : 'Standard Knowledge'}
@@ -1285,7 +1414,7 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
             </div>
             {(agentTrace?.stage3_fact_language?.searchSources?.length || evaluation.searchSources?.length) > 0 && (
               <details>
-                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                   View Grounding Search Sources ({(agentTrace?.stage3_fact_language?.searchSources || evaluation.searchSources).length})
                 </summary>
                 <div className="mt-1.5 flex flex-col gap-1 max-h-40 overflow-y-auto">
@@ -1295,7 +1424,8 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                       href={src.startsWith('http') ? src : undefined}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[10px] font-mono text-brand-700 hover:underline truncate"
+                      className="text-[10px] font-mono hover:underline truncate"
+                      style={{ color: 'var(--accent-blue)' }}
                     >
                       {src}
                     </a>
@@ -1305,17 +1435,17 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
             )}
             {agentTrace?.stage3_fact_language?.rawFlags?.length > 0 && (
               <details>
-                <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                   View Agent 3 Raw Language Flags ({agentTrace.stage3_fact_language.rawFlags.length})
                 </summary>
                 <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
                   {agentTrace.stage3_fact_language.rawFlags.map((flag, i) => (
-                    <div key={i} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                      <div className="font-semibold text-slate-800">
+                    <div key={i} className="studio-surface-subtle p-2 text-[11px]">
+                      <div className="font-semibold studio-text-primary">
                         [{flag.locationId || 'TEXT'}] {flag.severity || flag.type} • {flag.category}
                       </div>
-                      {flag.targetPhrase && <div className="text-slate-600 italic">"{flag.targetPhrase}"</div>}
-                      {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                      {flag.targetPhrase && <div className="studio-text-muted italic">"{flag.targetPhrase}"</div>}
+                      {flag.comment && <div className="studio-text-secondary">{flag.comment}</div>}
                     </div>
                   ))}
                 </div>
@@ -1324,28 +1454,28 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
           </div>
 
           {/* Agent 4: QA Verifier, Deleted False Alarms & Pillar Calibration */}
-          <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+          <div className="studio-surface p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                Agent 4 • QA Verifier, Pruned False Alarms & Rewrites
+              <span className="studio-section-eyebrow studio-text-primary">
+                Agent 4 • QA Verifier, Pruned False Alarms &amp; Rewrites
               </span>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              <span className="studio-pill font-mono">
                 Kept {agentTrace?.stage4_qa_coach?.verifiedFlagsCount ?? allAnnotations.length} • Deleted{' '}
                 {agentTrace?.stage4_qa_coach?.qaAuditLog?.falsePositivesDeleted ??
                   evaluation.qaAuditLog?.falsePositivesDeleted ??
                   0}
               </span>
             </div>
-            <div className="text-[11px] text-slate-700 space-y-1">
+            <div className="text-[11px] studio-text-secondary space-y-1.5">
               <div>
-                Overall Readiness: <strong>{agentTrace?.stage4_qa_coach?.overallReadiness || evaluation.overallReadiness}</strong> •{' '}
-                Rewrites Generated: <strong>{agentTrace?.stage4_qa_coach?.rewritesCount ?? rewrites.length}</strong> •{' '}
-                Outline Heading Upgrades: <strong>{headerUpgrades.length}</strong>
+                Overall Readiness: <strong className="studio-text-primary">{agentTrace?.stage4_qa_coach?.overallReadiness || evaluation.overallReadiness}</strong> •{' '}
+                Rewrites Generated: <strong className="studio-text-primary">{agentTrace?.stage4_qa_coach?.rewritesCount ?? rewrites.length}</strong> •{' '}
+                Outline Heading Upgrades: <strong className="studio-text-primary">{headerUpgrades.length}</strong>
               </div>
               {(agentTrace?.stage4_qa_coach?.qaAuditLog?.deletionNotes || evaluation.qaAuditLog?.deletionNotes)?.length > 0 && (
-                <div className="p-2 rounded bg-rose-50/70 border border-rose-200 text-[11px] space-y-0.5">
-                  <div className="font-bold text-rose-800">QA Removal Reasons:</div>
-                  <ul className="list-disc pl-4 text-rose-900">
+                <div className="studio-diff-before text-[11px] space-y-0.5">
+                  <div className="font-bold" style={{ color: 'var(--fail-red)' }}>QA Removal Reasons:</div>
+                  <ul className="list-disc pl-4 studio-text-secondary">
                     {(agentTrace?.stage4_qa_coach?.qaAuditLog?.deletionNotes || evaluation.qaAuditLog?.deletionNotes).map((n, i) => (
                       <li key={i}>{n}</li>
                     ))}
@@ -1354,17 +1484,17 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               )}
               {agentTrace?.stage4_qa_coach?.prunedFlags?.length > 0 && (
                 <details>
-                  <summary className="cursor-pointer text-[11px] font-semibold text-rose-700 hover:underline">
+                  <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--fail-red)' }}>
                     View Exact Pruned False Alarms ({agentTrace.stage4_qa_coach.prunedFlags.length})
                   </summary>
                   <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
                     {agentTrace.stage4_qa_coach.prunedFlags.map((flag, i) => (
-                      <div key={i} className="p-2 rounded bg-rose-50/50 border border-rose-200 text-[11px]">
-                        <div className="font-semibold text-rose-900">
+                      <div key={i} className="studio-diff-before text-[11px]">
+                        <div className="font-semibold" style={{ color: 'var(--fail-red)' }}>
                           [DELETED • {flag.locationId || 'GLOBAL'}] {flag.category}
                         </div>
-                        {flag.targetPhrase && <div className="italic text-rose-800">"{flag.targetPhrase}"</div>}
-                        {flag.comment && <div className="text-slate-700">{flag.comment}</div>}
+                        {flag.targetPhrase && <div className="italic studio-text-muted">"{flag.targetPhrase}"</div>}
+                        {flag.comment && <div className="studio-text-secondary">{flag.comment}</div>}
                       </div>
                     ))}
                   </div>
@@ -1372,16 +1502,16 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               )}
               {Object.keys(breakdown).length > 0 && (
                 <details>
-                  <summary className="cursor-pointer text-[11px] font-semibold text-brand-700 hover:underline">
+                  <summary className="cursor-pointer text-[11px] font-semibold hover:underline" style={{ color: 'var(--accent-blue)' }}>
                     View Final Calibrated Pillar Decisions ({Object.keys(breakdown).length})
                   </summary>
                   <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
                     {Object.entries(breakdown).map(([k, v]) => (
-                      <div key={k} className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
-                        <div className="font-semibold text-slate-800">
-                          {k}: <span className="text-brand-700">{v?.status}</span>
+                      <div key={k} className="studio-surface-subtle p-2 text-[11px]">
+                        <div className="font-semibold studio-text-primary">
+                          {k}: <span style={{ color: 'var(--accent-blue)' }}>{v?.status}</span>
                         </div>
-                        {v?.feedback && <div className="text-slate-600">{v.feedback}</div>}
+                        {v?.feedback && <div className="studio-text-secondary">{v.feedback}</div>}
                       </div>
                     ))}
                   </div>
@@ -1391,9 +1521,11 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
           </div>
 
           {evaluation.stageDegradations?.length > 0 && (
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
-              <div className="font-bold uppercase tracking-wider text-[10px] mb-1">Stage Degradations / Warnings</div>
-              <ul className="list-disc pl-4 space-y-0.5">
+            <div className="studio-surface p-3.5 text-[11px]" style={{ borderLeft: '3px solid var(--warning-amber)' }}>
+              <div className="font-bold uppercase tracking-wider text-[10px] mb-1" style={{ color: 'var(--warning-amber)' }}>
+                Stage Degradations / Warnings
+              </div>
+              <ul className="list-disc pl-4 space-y-0.5 studio-text-secondary">
                 {evaluation.stageDegradations.map((d, idx) => (
                   <li key={idx}>{d}</li>
                 ))}
@@ -1411,14 +1543,14 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               { in: 0, out: 0, think: 0 }
             );
             return (
-              <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
-                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Actual Token & Model Usage by Stage
+              <div className="studio-surface p-3.5 space-y-2">
+                <div className="studio-section-eyebrow studio-text-primary">
+                  Actual Token &amp; Model Usage by Stage
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500">
+                      <tr className="border-b border-[var(--border)] studio-text-muted">
                         <th className="py-1 pr-2">Stage</th>
                         <th className="py-1 pr-2">Model</th>
                         <th className="py-1 pr-2 text-right">In</th>
@@ -1428,15 +1560,15 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                     </thead>
                     <tbody>
                       {tokenStages.map((s, idx) => (
-                        <tr key={idx} className="border-b border-slate-100 font-mono text-[10px] text-slate-700">
-                          <td className="py-1 pr-2 font-sans font-medium">{s.stage}</td>
+                        <tr key={idx} className="border-b border-[var(--border)] font-mono text-[10px] studio-text-secondary">
+                          <td className="py-1 pr-2 font-sans font-medium studio-text-primary">{s.stage}</td>
                           <td className="py-1 pr-2">{s.model}</td>
                           <td className="py-1 pr-2 text-right">{(s.inputTokens || 0).toLocaleString()}</td>
                           <td className="py-1 pr-2 text-right">{(s.outputTokens || 0).toLocaleString()}</td>
                           <td className="py-1 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
                         </tr>
                       ))}
-                      <tr className="border-t-2 border-slate-300 font-mono text-[10px] font-bold text-slate-900 bg-slate-50">
+                      <tr className="border-t-2 border-[var(--border-strong)] font-mono text-[10px] font-bold studio-text-primary">
                         <td className="py-1.5 pr-2 font-sans" colSpan={2}>Total Tokens Consumed</td>
                         <td className="py-1.5 pr-2 text-right">{totals.in.toLocaleString()}</td>
                         <td className="py-1.5 pr-2 text-right">{totals.out.toLocaleString()}</td>

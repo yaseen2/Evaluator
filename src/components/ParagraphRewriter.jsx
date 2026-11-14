@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
-import { Copy, Check, Sparkles, BookOpen } from 'lucide-react';
+import { Copy, Check, Sparkles } from 'lucide-react';
 import { cleanSimpleText, formatLocationLabel } from '../utils/textUtils';
+
+const TIER_LABELS = {
+  basic: 'Simple Fix',
+  cssStandard: 'Good Standard',
+  highScorer: 'Top Standard'
+};
 
 export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
   const [selectedTier, setSelectedTier] = useState('highScorer'); // 'basic' | 'cssStandard' | 'highScorer'
@@ -11,346 +17,200 @@ export const ParagraphRewriter = ({ rewrites, headerUpgrades }) => {
 
   if (safeRewrites.length === 0 && safeHeaders.length === 0) {
     return (
-      <div
-        style={{
-          padding: '1rem',
-          textAlign: 'center',
-          color: 'var(--text-muted)',
-          fontSize: '0.8rem'
-        }}
-      >
-        No surgical rewrites or outline header upgrades generated for this script.
+      <div className="studio-surface p-6 text-center text-xs studio-text-muted">
+        No sentence rewrites or heading upgrades generated for this script.
       </div>
     );
   }
 
   const handleCopy = (text, key) => {
-    navigator.clipboard.writeText(text);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
     setCopiedIdx(key);
-    setTimeout(() => setCopiedIdx(null), 2000);
+    setTimeout(() => setCopiedIdx(null), 1800);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-      {/* SECTION 1: OUTLINE HEADER PARALLELISM UPGRADES */}
+    <div className="space-y-6 font-sans">
+      {/* SECTION 1: OUTLINE HEADING UPGRADES */}
       {safeHeaders.length > 0 && (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '0.65rem'
-            }}
-          >
-            <Sparkles size={14} color="var(--accent-blue)" />
-            <span
-              style={{
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)'
-              }}
-            >
-              Outline Heading Improvements ({safeHeaders.length})
-            </span>
+        <section className="space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} className="text-brand-500" />
+              <h4 className="studio-section-eyebrow">
+                Outline Heading Upgrades ({safeHeaders.length})
+              </h4>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="space-y-3">
             {safeHeaders.map((item, idx) => (
-              <div
-                key={`hdr-${idx}`}
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px'
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '5px'
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      color: 'var(--warning-amber)',
-                      textTransform: 'uppercase'
-                    }}
-                  >
-                    Issue: {cleanSimpleText(item.issue || 'Unclear Heading')}
+              <div key={`hdr-${idx}`} className="studio-surface p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold studio-text-secondary">
+                    Heading {idx + 1}
                   </span>
+                  {item.issue && (
+                    <span className="studio-pill studio-pill-warning">
+                      {cleanSimpleText(item.issue)}
+                    </span>
+                  )}
                 </div>
 
-                <div
-                  style={{
-                    fontSize: '0.73rem',
-                    color: 'var(--fail-red)',
-                    padding: '5px 8px',
-                    background: 'rgba(239, 68, 68, 0.07)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(239, 68, 68, 0.16)',
-                    marginBottom: '6px'
-                  }}
-                >
-                  <strong>Before:</strong> "{item.originalHeader}"
-                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="studio-diff-before">
+                    <div
+                      className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
+                      style={{ color: 'var(--fail-red)' }}
+                    >
+                      Original
+                    </div>
+                    <p className="studio-text-secondary leading-relaxed">
+                      "{item.originalHeader}"
+                    </p>
+                  </div>
 
-                <div
-                  style={{
-                    position: 'relative',
-                    fontSize: '0.76rem',
-                    color: 'var(--text-primary)',
-                    fontWeight: 600,
-                    padding: '6px 28px 6px 8px',
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(16, 185, 129, 0.22)'
-                  }}
-                >
-                  <span style={{ color: 'var(--pass-green)' }}>Improved Heading:</span> "
-                  {item.upgradedHeader}"
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(item.upgradedHeader, `hdr-${idx}`)}
-                    style={{
-                      position: 'absolute',
-                      right: '6px',
-                      top: '6px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer'
-                    }}
-                    title="Copy header"
-                  >
-                    {copiedIdx === `hdr-${idx}` ? (
-                      <Check size={13} color="var(--pass-green)" />
-                    ) : (
-                      <Copy size={13} />
-                    )}
-                  </button>
+                  <div className="studio-diff-after">
+                    <div
+                      className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
+                      style={{ color: 'var(--pass-green)' }}
+                    >
+                      Improved Heading
+                    </div>
+                    <p className="studio-text-primary font-medium leading-relaxed">
+                      "{item.upgradedHeader}"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(item.upgradedHeader, `hdr-${idx}`)}
+                      className="editorial-popover-close"
+                      style={{ position: 'absolute', right: '6px', top: '6px' }}
+                      title="Copy improved heading"
+                      aria-label="Copy improved heading"
+                    >
+                      {copiedIdx === `hdr-${idx}` ? (
+                        <Check size={13} className="text-emerald-600" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {item.rule && (
-                  <div
-                    style={{
-                      marginTop: '5px',
-                      fontSize: '0.69rem',
-                      color: 'var(--text-muted)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '5px'
-                    }}
-                  >
-                    <BookOpen
-                      size={12}
-                      color="var(--accent-blue)"
-                      style={{ flexShrink: 0, marginTop: '2px' }}
-                    />
-                    <span>
-                      <strong>Why:</strong> {cleanSimpleText(item.rule)}
-                    </span>
-                  </div>
+                  <p className="pt-2 border-t border-[var(--border)] text-[11.5px] studio-text-muted leading-relaxed">
+                    <strong className="studio-text-secondary font-semibold">Why: </strong>
+                    {cleanSimpleText(item.rule)}
+                  </p>
                 )}
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* SECTION 2: SURGICAL BEFORE -> AFTER REWRITES */}
+      {/* SECTION 2: BEFORE -> AFTER PARAGRAPH & THESIS IMPROVEMENTS */}
       {safeRewrites.length > 0 && (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.75rem'
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)'
-              }}
-            >
-              "Before → After" Paragraph &amp; Thesis Improvements ({safeRewrites.length})
-            </span>
-            <div
-              style={{
-                display: 'flex',
-                gap: '4px',
-                background: 'var(--bg-card)',
-                padding: '2px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)'
-              }}
-            >
-              <button
-                type="button"
-                className={`tab-item ${selectedTier === 'basic' ? 'active' : ''}`}
-                style={{ padding: '4px 8px', fontSize: '0.68rem' }}
-                onClick={() => setSelectedTier('basic')}
-              >
-                Simple Fix
-              </button>
-              <button
-                type="button"
-                className={`tab-item ${selectedTier === 'cssStandard' ? 'active' : ''}`}
-                style={{ padding: '4px 8px', fontSize: '0.68rem' }}
-                onClick={() => setSelectedTier('cssStandard')}
-              >
-                Good Standard
-              </button>
-              <button
-                type="button"
-                className={`tab-item ${selectedTier === 'highScorer' ? 'active' : ''}`}
-                style={{ padding: '4px 8px', fontSize: '0.68rem' }}
-                onClick={() => setSelectedTier('highScorer')}
-              >
-                Top Standard
-              </button>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="studio-section-eyebrow">
+              Paragraph &amp; Thesis Upgrades ({safeRewrites.length})
+            </h4>
+
+            <div className="studio-segmented" role="tablist" aria-label="Rewrite quality level">
+              {Object.entries(TIER_LABELS).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedTier === key}
+                  onClick={() => setSelectedTier(key)}
+                  className={`studio-segmented-btn ${selectedTier === key ? 'is-active' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {safeRewrites.map((rw, idx) => {
-            if (!rw) return null;
-            const currentRewriteText =
-              rw[selectedTier] || rw.highScorer || rw.cssStandard || rw.basic || '';
+          <div className="space-y-3">
+            {safeRewrites.map((rw, idx) => {
+              if (!rw) return null;
+              const currentRewriteText =
+                rw[selectedTier] || rw.highScorer || rw.cssStandard || rw.basic || '';
 
-            return (
-              <div
-                key={idx}
-                style={{
-                  marginBottom: '0.85rem',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px'
-                }}
-              >
-                {(rw.locationId || rw.issueDiagnosed || rw.targetType) && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '6px',
-                      marginBottom: '6px'
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.66rem',
-                        fontWeight: 700,
-                        color: 'var(--accent-blue)',
-                        textTransform: 'uppercase'
-                      }}
-                    >
-                      {rw.locationId
-                        ? formatLocationLabel(rw.locationId)
-                        : rw.targetType || 'Paragraph Improvement'}
-                    </span>
-                    {rw.issueDiagnosed && (
-                      <span
-                        style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 600,
-                          color: 'var(--warning-amber)'
-                        }}
-                      >
-                        {cleanSimpleText(rw.issueDiagnosed)}
+              return (
+                <div key={idx} className="studio-surface p-3.5 space-y-2.5">
+                  {(rw.locationId || rw.issueDiagnosed || rw.targetType) && (
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-[11px] font-semibold studio-text-primary">
+                        {rw.locationId
+                          ? formatLocationLabel(rw.locationId)
+                          : rw.targetType || `Section ${idx + 1}`}
                       </span>
+                      {rw.issueDiagnosed && (
+                        <span className="studio-pill studio-pill-warning">
+                          {cleanSimpleText(rw.issueDiagnosed)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 text-xs">
+                    {rw.original && (
+                      <div className="studio-diff-before">
+                        <div
+                          className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
+                          style={{ color: 'var(--fail-red)' }}
+                        >
+                          Your Draft
+                        </div>
+                        <p className="studio-text-secondary leading-relaxed">
+                          "{rw.original}"
+                        </p>
+                      </div>
                     )}
+
+                    <div className="studio-diff-after">
+                      <div
+                        className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
+                        style={{ color: 'var(--pass-green)' }}
+                      >
+                        Improved ({TIER_LABELS[selectedTier]})
+                      </div>
+                      <p className="studio-text-primary font-academic text-[13.5px] leading-relaxed">
+                        "{currentRewriteText}"
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(currentRewriteText, `rw-${idx}`)}
+                        className="editorial-popover-close"
+                        style={{ position: 'absolute', right: '6px', top: '6px' }}
+                        title="Copy rewrite"
+                        aria-label="Copy rewrite"
+                      >
+                        {copiedIdx === `rw-${idx}` ? (
+                          <Check size={13} className="text-emerald-600" />
+                        ) : (
+                          <Copy size={13} />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                )}
 
-                <div
-                  style={{
-                    fontSize: '0.72rem',
-                    color: 'var(--fail-red)',
-                    marginBottom: '6px',
-                    padding: '6px 8px',
-                    background: 'rgba(239, 68, 68, 0.07)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(239, 68, 68, 0.15)',
-                    lineHeight: 1.45
-                  }}
-                >
-                  <strong>Before (Your Draft):</strong> "{rw.original || ''}"
+                  {rw.whatChanged && (
+                    <p className="pt-2 border-t border-[var(--border)] text-[11.5px] studio-text-muted leading-relaxed">
+                      <strong className="studio-text-secondary font-semibold">What changed: </strong>
+                      {cleanSimpleText(rw.whatChanged)}
+                    </p>
+                  )}
                 </div>
-
-                <div
-                  style={{
-                    position: 'relative',
-                    fontSize: '0.77rem',
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.5,
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    padding: '8px 28px 8px 10px',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(16, 185, 129, 0.22)'
-                  }}
-                >
-                  <strong style={{ color: 'var(--pass-green)' }}>
-                    After (
-                    {selectedTier === 'basic'
-                      ? 'Simple Fix'
-                      : selectedTier === 'cssStandard'
-                      ? 'Good Standard'
-                      : 'Top Standard'}
-                    ):
-                  </strong>{' '}
-                  "{currentRewriteText}"
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(currentRewriteText, `rw-${idx}`)}
-                    style={{
-                      position: 'absolute',
-                      right: '6px',
-                      top: '6px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer'
-                    }}
-                    title="Copy rewrite"
-                  >
-                    {copiedIdx === `rw-${idx}` ? (
-                      <Check size={14} color="var(--pass-green)" />
-                    ) : (
-                      <Copy size={14} />
-                    )}
-                  </button>
-                </div>
-
-                {rw.whatChanged && (
-                  <div
-                    style={{
-                      marginTop: '6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-secondary)',
-                      background: 'var(--bg-panel)',
-                      padding: '5px 8px',
-                      borderRadius: '4px',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    💡 <strong>What Changed &amp; Why:</strong> {cleanSimpleText(rw.whatChanged)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

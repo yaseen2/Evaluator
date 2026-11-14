@@ -98,10 +98,14 @@ export const EvaluationStudio = ({
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               {evaluation?.wordCount || 0}w
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500 hidden lg:inline">
-              {((evaluation?.tokenUsage?.totalTokens || 12000) / 1000).toFixed(1)}k tok
-            </span>
+            {userProfile?.role === 'admin' && (
+              <>
+                <span className="text-slate-300 hidden lg:inline">•</span>
+                <span className="text-slate-500 hidden lg:inline">
+                  {((evaluation?.tokenUsage?.totalTokens || 12000) / 1000).toFixed(1)}k tok
+                </span>
+              </>
+            )}
           </div>
 
           <button

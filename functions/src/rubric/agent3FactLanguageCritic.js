@@ -237,8 +237,10 @@ export const runAgent3FactLanguageCritic = async ({
           feedback: 'Evaluated on outline diction.'
         },
         analytical_depth: {
-          status: 'Balanced',
-          feedback: 'Outline blueprint depth audited in Macro Architecture.'
+          status: result?.pillarStatuses?.analytical_depth?.status || 'Balanced',
+          feedback:
+            result?.pillarStatuses?.analytical_depth?.feedback ||
+            'Checks whether your outline covers political, economic, social, and global dimensions with concrete examples.'
         }
       },
       searchSources: [],
