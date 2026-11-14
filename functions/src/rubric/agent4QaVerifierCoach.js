@@ -112,6 +112,7 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 7. Delete duplicate flags where Agent 2 and Agent 3 flagged the exact same phrase/sentence for the same issue.
 8. PROTECT CRITICAL GRAMMAR FLAGS: NEVER delete genuine English grammar, tense, agreement, preposition, article, punctuation, or syntax errors (keep them as 🟠 'TIER_2_MAJOR' or 🔴 'TIER_1_FATAL' when repeated/meaning-breaking).
 9. DOWNGRADE NON-MANDATORY PREFERENCES: Ensure any flag for omitting an optional Counter-Argument, writing a 2-paragraph Intro, or placing the Thesis early inside P1 instead of the end of P1 is NEVER TIER_1_FATAL or TIER_2_MAJOR (keep strictly at 🔵 'TIER_3_POLISH' or remove if unhelpful).
+10. DELETE INVALID OUTLINE-THESIS & INTRO-SUBPOINT FLAGS: Delete ANY flag claiming the student "must write a Thesis Statement inside the Outline" (writing a thesis inside the outline is optional!), or recommending adding nested sub-points (like hook/context bullets) under the "Introduction" heading in the Outline (both Introduction and Conclusion in an outline must remain free of sub-points).
 
 === RAW DIAGNOSTIC FLAGS FROM AGENTS 1, 2 & 3 (${combinedCandidateFlags.length} items) ===
 ${JSON.stringify(combinedCandidateFlags, null, 2)}
@@ -141,16 +142,15 @@ YOUR 5 CORE TASKS:
    - After deleting false positives above, provide the authoritative calibrated status ("Strong" | "Balanced" | "Needs Polish" | "Critical Gap") ONLY for any pillar whose initial rating was overstated because you deleted its false-positive flags (leave empty object {} if initial pillar ratings remain accurate). Any feedback text must be simple 1-sentence everyday English.
 
 3. GENERATE 3–4 "BEFORE → AFTER" REWRITES ("surgicalRewrites"):
-   - Rewrite #1: The student's Thesis Statement (if weak, vague, or missing) upgraded into a clear, strong thesis statement.
-   - Rewrites #2–#3: Select 2 weak Topic Sentences or Body Paragraphs from the Target Paragraphs above (or Outline Sections if Outline-Only).
-   - Write "locationId" in plain words ("Paragraph 1 Thesis", "Paragraph 3") — NEVER "P1" or "P3".
-   - PLAIN ENGLISH REWRITE RULE: Write all rewrites ("basic", "cssStandard", "highScorer") and "whatChanged" in crisp, natural, easy-to-read English that a Pakistani student can learn from right away—NEVER difficult thesaurus words!
+   - Rewrite #1: In FULL ESSAY mode, upgrade the student's Thesis Statement inside Paragraph 1 if weak or missing. In OUTLINE ONLY mode, if the student wrote a Thesis Statement and it is weak, improve it; if they did not include a thesis in the outline (since it is optional), rewrite weak Outline Headings/Sections instead—NEVER turn "1) Introduction" into "1) Introduction Thesis Statement..."!
+   - Rewrites #2–#4: Select weak Topic Sentences or Body Paragraphs from the Target Paragraphs above (or weak Outline Sections if Outline-Only).
+   - Write "locationId" in plain words ("Paragraph 1 Thesis", "Paragraph 3", "Outline Section 2") — NEVER "P1" or "O3".
+   - PLAIN ENGLISH REWRITE RULE: Write all rewrites ("basic", "cssStandard", "highScorer") and "whatChanged" in crisp, natural, everyday English using the right word for the right place—NEVER difficult thesaurus words!
 
-4. SAMPLE IMPROVED OUTLINE ("suggestedVisual"), TOP STEPS ("thingsToInclude") & EXAM UNDERLINING PICKS ("strategicHighlightingPicks"):
-   - Provide 3–4 practical improvement steps in "thingsToInclude" formatted as 'Simple Title: Short clear step' using "you"/"your".
+4. TOP PRACTICAL STEPS ("thingsToInclude") & EXAM UNDERLINING PICKS ("strategicHighlightingPicks"):
+   - Provide 3–4 practical improvement steps in "thingsToInclude" formatted as 'Simple Title: Short clear step' using "you"/"your". Never tell the student to add sub-points under Introduction or Conclusion, and remember writing a thesis inside the outline is optional.
    - 65% OUTLINE FORMULA FOR WEAK INTRO / CONCLUSION: Whenever the student's Introduction or Conclusion needs improvement, include this practical method in "thingsToInclude": 'Outline-to-Intro & Conclusion Method: You can write ~65% of your Introduction directly from your Outline, and build ~65% of your Conclusion from your Outline (using the remaining 35% of Outline points plus key repeated threads restated clearly).'
    - In "strategicHighlightingPicks", provide 3–5 short key phrases (echoing main Topic keywords—NOT bare numbers) that the student can underline with a marker in the exam.
-   - SAMPLE OUTLINE ("suggestedVisual"): Set title to "Sample Improved Outline: ${examQuestion}" and write a short 1-sentence description. Build a clean Unicode tree using ├──, └──, │ in VERY SIMPLE, CLEAR ENGLISH (max 8–10 words per line; strictly AVOID complex words like "demarcating", "quagmire", "rentierism", "hemorrhage", "extractive architecture", or heavy academic jargon).
 
 5. OVERALL DRAFT VERDICT (ZERO NUMERICAL SCORES, SIMPLE ENGLISH):
    - "overallReadiness": "Strong Draft — Ready for Exam" | "Fair Draft — Major Mistakes to Fix" | "Weak Draft — Serious Mistakes to Fix"
@@ -192,13 +192,7 @@ Return ONLY this JSON object:
   ],
   "thingsToInclude": [
     "string (Format as 'Simple Title: Clear practical tip using you/your')"
-  ],
-  "suggestedVisual": {
-    "title": "string (Sample Improved Outline: ...)",
-    "description": "string (1 short sentence in easy English)",
-    "insertAfterHeading": "Outline",
-    "diagramText": "string (Unicode tree blueprint using ├──, └──, │ in simple everyday English)"
-  }
+  ]
 }
 `;
 };
@@ -259,7 +253,6 @@ export const runAgent4QaVerifierCoach = async ({
       : [],
     thingsToInclude: Array.isArray(result?.thingsToInclude)
       ? result.thingsToInclude
-      : [],
-    suggestedVisual: result?.suggestedVisual || null
+      : []
   };
 };

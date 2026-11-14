@@ -103,7 +103,7 @@ export const PLAIN_ENGLISH_AND_TONE_DIRECTIVE = `SIMPLE & CLEAR ENGLISH RULES FO
 4. Short & Simple Boxes: Keep EVERY feedback "observation" to 1 or 2 short, clear sentences (under 28 words total). Never repeat the heading inside the comment.
 5. Short Category Headings (2–4 words): Use simple everyday labels like "Grammar Mistake", "Missing 'a' / 'the'", "Wrong Word", "Wrong or Outdated Fact", "Unclear Sentence", "Weak Main Point", "Outline Missing Point", "Too Short", "Helpful Tip", or "Strong Point".
 6. Underline Only the Exact Wrong Word(s): Quote ONLY 1 to 4 exact words in "exact_verbatim_quote" (just the wrong word or tiny broken phrase, NEVER a whole sentence or 10-word clause).
-7. Easy English in Rewrites, Sample Outlines & Thesis: Keep Sample Thesis Statements, Sample Improved Outlines, and Paragraph Rewrites in clean, simple, natural English (never showy thesaurus words).
+7. Easy, Exact English in Rewrites, Sample Outlines & Thesis: Keep Sample Thesis Statements, Sample Improved Outlines, and Paragraph Rewrites in clean, plain, natural English—using the exact right word for the right place, never showy thesaurus words.
 8. Terminology & Tone: Call the essay question the "Topic" (never "prompt"). Reserve strict "must" rules ONLY for passing essentials (answering the Topic, correct grammar, covering your Outline points, and no inline headings inside essay paragraphs).`;
 
 export const PROMPT_DECODING_TRAP_RULES = [
@@ -158,7 +158,8 @@ export const SHARED_SAFE_HARBOR_DIRECTIVE = `FPSC RUBRIC SAFE HARBORS (STRICT):
 1. Transitions, Overview & Hooks: Never penalize TRANSITION_BRIDGE length or a single-paragraph CONTEXT_OVERVIEW; never penalize forward transition hooks at paragraph ends.
 2. Evidence & Counter-Argument: Accept 1 or multiple complementary verifiable proofs per paragraph. In ABSTRACT_PHILOSOPHICAL essays, never demand GDP or Economic Survey stats. Counter-Arguments are helpful tips (🔵 TIER_3_POLISH) on debatable topics when omitted, NEVER mandatory or TIER_1/TIER_2.
 3. Valid Standard Words: Calling an issue "important", "key", "big", or "huge" is valid English; upgrade suggestions are strictly 🔵 TIER_3_POLISH (never Tier 1 or Tier 2).
-4. Thesis Spot, 2-Para Intro & Minor Slips: A Thesis Statement is valid ANYWHERE inside the Introduction (P1), though the very end of P1 is recommended as ideal (🔵 TIER_3_POLISH at most if earlier). Splitting an Intro into 2 paragraphs or 1–2 minor contraction/pronoun slips stay strictly 🔵 TIER_3_POLISH.`;
+4. Thesis Spot & Optional Outline Thesis: Writing a Thesis Statement inside the Outline is 100% OPTIONAL—never penalize omitting a thesis inside the Outline! In a Full Essay, a Thesis Statement is valid ANYWHERE inside the Introduction paragraph (P1), though the very end of P1 is recommended as ideal (🔵 TIER_3_POLISH at most if earlier). Splitting an Intro into 2 paragraphs or 1–2 minor contraction/pronoun slips stay strictly 🔵 TIER_3_POLISH.
+5. Standalone Outline Intro & Conclusion: In the Outline, BOTH "Introduction" and "Conclusion" must appear as standalone headings with ZERO sub-points underneath them.`;
 
 export const PINGLISH_DIRECTION_TEXT =
   'Catch Pakistani "Pinglish" (unnatural Urdu-to-English literal translations, redundant prepositions after verbs, wrong verb pairings, broken idioms, and overused local clichés cleanly as 🔵 TIER_3_POLISH tips or 🟠 TIER_2_MAJOR if grammatically broken) using your full language understanding, without flagging valid standard English.';

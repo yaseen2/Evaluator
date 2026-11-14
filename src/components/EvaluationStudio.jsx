@@ -63,28 +63,39 @@ export const EvaluationStudio = ({
   // Active View is REPORT: Render Split Studio / Focus Report
   return (
     <div style={{ position: 'relative', flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Top Report Navigation Ribbon (Stitch Design) */}
-      <header className="h-14 border-b border-slate-200/80 bg-white px-3 sm:px-6 flex items-center justify-between z-20 flex-shrink-0 sticky top-0 font-sans">
+      {/* Top Report Navigation Ribbon (Theme-Reactive Editorial Header) */}
+      <header className="studio-top-header h-14 px-3 sm:px-6 flex items-center justify-between z-20 flex-shrink-0 sticky top-0 font-sans">
         {/* Left: Breadcrumbs / Navigation */}
         <div className="flex items-center space-x-2 sm:space-x-3 overflow-hidden">
           <button
             type="button"
             onClick={() => setActiveView?.('hub')}
-            className="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-brand-600 transition-colors py-1 group flex-shrink-0 cursor-pointer"
+            className="inline-flex items-center text-xs font-semibold transition-colors py-1 group flex-shrink-0 cursor-pointer"
+            style={{ color: 'var(--text-secondary)' }}
             title="Back to Practice Hub"
           >
-            <ArrowLeft className="w-4 h-4 mr-1 text-slate-400 group-hover:text-brand-600 transition-colors" />
+            <ArrowLeft className="w-4 h-4 mr-1 transition-colors" style={{ color: 'var(--text-muted)' }} />
             <span className="hidden sm:inline">Practice Hub</span>
           </button>
-          <span className="text-slate-300 hidden sm:inline">/</span>
-          <span className="text-xs font-medium text-slate-500 hidden md:inline truncate">
+          <span className="hidden sm:inline" style={{ color: 'var(--border-strong)' }}>/</span>
+          <span className="text-xs font-medium hidden md:inline truncate" style={{ color: 'var(--text-muted)' }}>
             {evaluation?.subject || 'English Essay'}
           </span>
-          <span className="text-slate-300 hidden md:inline">/</span>
-          <h1 className="text-xs sm:text-sm font-semibold text-slate-900 tracking-tight font-academic italic truncate max-w-[150px] xs:max-w-[180px] sm:max-w-xs md:max-w-md">
+          <span className="hidden md:inline" style={{ color: 'var(--border-strong)' }}>/</span>
+          <h1
+            className="text-xs sm:text-sm font-semibold tracking-tight font-academic italic truncate max-w-[150px] xs:max-w-[180px] sm:max-w-xs md:max-w-md"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {evaluation?.topic || evaluation?.examQuestion}
           </h1>
-          <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/70 flex-shrink-0">
+          <span
+            className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium flex-shrink-0"
+            style={{
+              backgroundColor: 'var(--bg-ribbon)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)'
+            }}
+          >
             {evaluation?.essayMode === 'outline_only' || evaluation?.archetypeId === 'essay_outline'
               ? 'Outline Only'
               : 'Full Evaluation'}
@@ -93,15 +104,18 @@ export const EvaluationStudio = ({
 
         {/* Right: Metrics & Actions */}
         <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-          <div className="hidden sm:flex items-center space-x-2.5 text-xs text-slate-400 border-r border-slate-200 pr-3 font-mono">
-            <span className="inline-flex items-center gap-1 text-slate-600">
-              <FileText className="w-3.5 h-3.5 text-slate-400" />
+          <div
+            className="hidden sm:flex items-center space-x-2.5 text-xs pr-3 font-mono"
+            style={{ color: 'var(--text-muted)', borderRight: '1px solid var(--border)' }}
+          >
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+              <FileText className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
               {evaluation?.wordCount || 0}w
             </span>
             {userProfile?.role === 'admin' && (
               <>
-                <span className="text-slate-300 hidden lg:inline">•</span>
-                <span className="text-slate-500 hidden lg:inline">
+                <span className="hidden lg:inline" style={{ color: 'var(--border-strong)' }}>•</span>
+                <span className="hidden lg:inline" style={{ color: 'var(--text-muted)' }}>
                   {((evaluation?.tokenUsage?.totalTokens || 12000) / 1000).toFixed(1)}k tok
                 </span>
               </>
@@ -111,11 +125,12 @@ export const EvaluationStudio = ({
           <button
             type="button"
             onClick={() => setIsFocusMode(!isFocusMode)}
-            className={`hidden md:inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md shadow-xs transition-colors cursor-pointer border ${
-              isFocusMode
-                ? 'bg-blue-50 text-brand-600 border-blue-200'
-                : 'text-slate-600 bg-white hover:bg-slate-50 border-slate-200'
-            }`}
+            className="hidden md:inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md shadow-xs transition-colors cursor-pointer"
+            style={{
+              backgroundColor: isFocusMode ? 'var(--accent-blue-soft)' : 'var(--bg-card)',
+              color: isFocusMode ? 'var(--accent-blue)' : 'var(--text-secondary)',
+              border: `1px solid ${isFocusMode ? 'var(--accent-blue-border)' : 'var(--border)'}`
+            }}
             title={isFocusMode ? 'Switch to side-by-side split view' : 'Focus only on evaluation report'}
           >
             {isFocusMode ? <Columns size={13} className="mr-1" /> : <Maximize2 size={13} className="mr-1" />}
@@ -135,15 +150,17 @@ export const EvaluationStudio = ({
 
       {/* Mobile-Only View Switcher (Annotated Script vs Scorecard) */}
       {evaluation && (
-        <div className="lg:hidden flex items-center justify-center bg-slate-100 p-1 mx-3 my-1 rounded-xl border border-slate-200 shrink-0 z-10 font-sans">
+        <div className="studio-mobile-tabs lg:hidden flex items-center justify-center p-1 mx-3 my-1 rounded-xl shrink-0 z-10 font-sans">
           <button
             type="button"
             onClick={() => setMobileTab('paper')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              mobileTab === 'paper'
-                ? 'bg-white text-brand-600 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            style={{
+              backgroundColor: mobileTab === 'paper' ? 'var(--bg-panel)' : 'transparent',
+              color: mobileTab === 'paper' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+              boxShadow: mobileTab === 'paper' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              fontWeight: mobileTab === 'paper' ? 700 : 600
+            }}
           >
             <FileText size={13} />
             <span>Annotated Script ({annotationsCount})</span>
@@ -151,11 +168,13 @@ export const EvaluationStudio = ({
           <button
             type="button"
             onClick={() => setMobileTab('scorecard')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              mobileTab === 'scorecard'
-                ? 'bg-white text-brand-600 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            style={{
+              backgroundColor: mobileTab === 'scorecard' ? 'var(--bg-panel)' : 'transparent',
+              color: mobileTab === 'scorecard' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+              boxShadow: mobileTab === 'scorecard' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              fontWeight: mobileTab === 'scorecard' ? 700 : 600
+            }}
           >
             <BarChart3 size={13} />
             <span>Diagnostic Report</span>

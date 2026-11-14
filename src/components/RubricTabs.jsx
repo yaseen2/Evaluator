@@ -41,7 +41,7 @@ const isEmptyThesisPlaceholder = (text = '') => {
     .replace(/^["']|["']$/g, '')
     .trim();
   if (!cleaned) return true;
-  return /^(?:not clearly stated|not stated|missing|none|n\/a|absent|not provided|no thesis statement found)\.?$/i.test(
+  return /^(?:not clearly stated|not stated|missing|none|n\/a|absent|not provided|no thesis statement found|not included \(optional in outline\)|optional in outline)\.?$/i.test(
     cleaned
   );
 };
@@ -692,7 +692,9 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                 <h4 className="studio-section-eyebrow">Thesis Statement</h4>
                 <div className="flex items-center gap-1.5">
                   {!hasRealThesisQuote && (
-                    <span className="studio-pill">Not found in script</span>
+                    <span className="studio-pill">
+                      {isOutlineOnlySubmission ? 'Optional in outline' : 'Not found in script'}
+                    </span>
                   )}
                   {evaluation.thesisAudit.status && (
                     <span className={getStatusToneClass(evaluation.thesisAudit.status)}>
@@ -1520,6 +1522,42 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
             </div>
           </div>
 
+          {/* Agent 5: Dedicated Model Outline Architect (Gemini 4 Argon) */}
+          {(agentTrace?.stage4b_model_outline || evaluation.suggestedVisual) && (
+            <div className="studio-surface p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="studio-section-eyebrow studio-text-primary">
+                  Agent 5 • Dedicated Model Outline Architect
+                </span>
+                <span className="studio-pill font-mono">
+                  {agentTrace?.stage4b_model_outline?.modelLabel ||
+                    agentTrace?.stage4b_model_outline?.modelId ||
+                    evaluation.suggestedVisual?.modelLabel ||
+                    'Gemini 4 Argon'}
+                </span>
+              </div>
+              <div className="text-[11px] studio-text-secondary">
+                Sections:{' '}
+                <strong className="studio-text-primary">
+                  {evaluation.suggestedVisual?.sections?.length ?? 0}
+                </strong>{' '}
+                • Body Points:{' '}
+                <strong className="studio-text-primary">
+                  {agentTrace?.stage4b_model_outline?.totalBodyPoints ??
+                    evaluation.suggestedVisual?.totalBodyPoints ??
+                    0}
+                </strong>{' '}
+                • Thesis Statement:{' '}
+                <strong className="studio-text-primary">
+                  {agentTrace?.stage4b_model_outline?.hasThesisStatement ||
+                  evaluation.suggestedVisual?.thesisStatement
+                    ? 'Included'
+                    : 'Omitted'}
+                </strong>
+              </div>
+            </div>
+          )}
+
           {evaluation.stageDegradations?.length > 0 && (
             <div className="studio-surface p-3.5 text-[11px]" style={{ borderLeft: '3px solid var(--warning-amber)' }}>
               <div className="font-bold uppercase tracking-wider text-[10px] mb-1" style={{ color: 'var(--warning-amber)' }}>
@@ -1538,9 +1576,10 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
               (acc, s) => ({
                 in: acc.in + (s.inputTokens || 0),
                 out: acc.out + (s.outputTokens || 0),
-                think: acc.think + (s.thinkingTokens || 0)
+                think: acc.think + (s.thinkingTokens || 0),
+                weighted: acc.weighted + (s.weightedTokens || 0)
               }),
-              { in: 0, out: 0, think: 0 }
+              { in: 0, out: 0, think: 0, weighted: 0 }
             );
             return (
               <div className="studio-surface p-3.5 space-y-2">
@@ -1555,24 +1594,42 @@ export const RubricTabs = ({ evaluation, selectedAnnId, onSelectAnnId, isAdmin =
                         <th className="py-1 pr-2">Model</th>
                         <th className="py-1 pr-2 text-right">In</th>
                         <th className="py-1 pr-2 text-right">Out</th>
-                        <th className="py-1 text-right">Think</th>
+                        <th className="py-1 pr-2 text-right">Think</th>
+                        <th className="py-1 text-right">Weighted</th>
                       </tr>
                     </thead>
                     <tbody>
                       {tokenStages.map((s, idx) => (
                         <tr key={idx} className="border-b border-[var(--border)] font-mono text-[10px] studio-text-secondary">
                           <td className="py-1 pr-2 font-sans font-medium studio-text-primary">{s.stage}</td>
-                          <td className="py-1 pr-2">{s.model}</td>
+                          <td className="py-1 pr-2">
+                            <span>{s.model}</span>
+                            {Number(s.modelMultiplier) > 1 && (
+                              <span
+                                className="ml-1.5 inline-block px-1 py-0.5 rounded text-[9px] font-bold"
+                                style={{
+                                  backgroundColor: 'var(--accent-blue-soft)',
+                                  color: 'var(--accent-blue)',
+                                  border: '1px solid var(--accent-blue-border)'
+                                }}
+                                title={`${s.modelMultiplier}x credit weight applied`}
+                              >
+                                ×{s.modelMultiplier}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-1 pr-2 text-right">{(s.inputTokens || 0).toLocaleString()}</td>
                           <td className="py-1 pr-2 text-right">{(s.outputTokens || 0).toLocaleString()}</td>
-                          <td className="py-1 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
+                          <td className="py-1 pr-2 text-right">{(s.thinkingTokens || 0).toLocaleString()}</td>
+                          <td className="py-1 text-right">{(s.weightedTokens || 0).toLocaleString()}</td>
                         </tr>
                       ))}
                       <tr className="border-t-2 border-[var(--border-strong)] font-mono text-[10px] font-bold studio-text-primary">
                         <td className="py-1.5 pr-2 font-sans" colSpan={2}>Total Tokens Consumed</td>
                         <td className="py-1.5 pr-2 text-right">{totals.in.toLocaleString()}</td>
                         <td className="py-1.5 pr-2 text-right">{totals.out.toLocaleString()}</td>
-                        <td className="py-1.5 text-right">{totals.think.toLocaleString()}</td>
+                        <td className="py-1.5 pr-2 text-right">{totals.think.toLocaleString()}</td>
+                        <td className="py-1.5 text-right">{totals.weighted.toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </table>

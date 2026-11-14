@@ -9,14 +9,14 @@ export const estimateCreditsPreFlight = ({
   wordCount = 0
 }) => {
   if (isEssay && (essayMode === 'outline_only' || essayMode === 'outline')) {
-    return 6 + Math.ceil((Number(imageCount) || 0) * 0.6);
+    return 9 + Math.ceil((Number(imageCount) || 0) * 0.6);
   }
   if (isEssay) {
     if (imageCount > 0) {
-      return Math.min(45, Math.max(18, 16 + imageCount));
+      return Math.min(48, Math.max(21, 19 + imageCount));
     }
     const words = wordCount || 500;
-    return Math.min(28, Math.max(18, Math.ceil((44000 + Math.max(0, words - 1200) * 14) / WEIGHTED_TOKENS_PER_CREDIT)));
+    return Math.min(32, Math.max(21, Math.ceil((51500 + Math.max(0, words - 1200) * 14) / WEIGHTED_TOKENS_PER_CREDIT)));
   }
   if (imageCount > 0) {
     return Math.min(18, Math.max(9, 8 + imageCount));
@@ -27,6 +27,9 @@ export const estimateCreditsPreFlight = ({
 
 export const calculateActualCredits = (tokenUsage, fallbackEstimate = 12) => {
   if (!tokenUsage) return fallbackEstimate;
+  if (Number(tokenUsage.weightedTokens) > 0) {
+    return Math.max(2, Math.min(60, Math.ceil(Number(tokenUsage.weightedTokens) / WEIGHTED_TOKENS_PER_CREDIT)));
+  }
   const input = Number(tokenUsage.inputTokens) || 0;
   const output = Number(tokenUsage.outputTokens) || 0;
   const thinking = Number(tokenUsage.thinkingTokens) || 0;

@@ -224,3 +224,124 @@ export const tokenizeQuotedSegments = (text = '') => {
   return segments.length > 0 ? segments : [{ text: input, isQuoted: false }];
 };
 
+const ROMAN_NUMERALS = [
+  'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X',
+  'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'
+];
+
+export const stripOutlineTreeArtifacts = (line = '') => {
+  return String(line || '')
+    .replace(/^[\s│|├└─┌┐┘┤┬┴┼•*>-]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+/**
+ * Parses legacy plain-text or ASCII-tree `diagramText` model outlines into the
+ * structured `{ thesisStatement, sections }` shape used by the clean CSS outline viewer.
+ */
+export const parseLegacyModelOutlineText = (diagramText = '') => {
+  const rawLines = String(diagramText || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\r/g, ''))
+    .filter((line) => line.trim().length > 0);
+
+  if (!rawLines.length) {
+    return { thesisStatement: '', sections: [] };
+  }
+
+  let thesisStatement = '';
+  const sections = [];
+  let currentSection = null;
+  let currentItem = null;
+
+  const ensureSection = () => {
+    if (!currentSection) {
+      currentSection = {
+        marker: `${ROMAN_NUMERALS[sections.length] || sections.length + 1}.`,
+        heading: 'Core Arguments',
+        kind: 'body',
+        items: []
+      };
+      sections.push(currentSection);
+    }
+    return currentSection;
+  };
+
+  for (let idx = 0; idx < rawLines.length; idx += 1) {
+    const rawLine = rawLines[idx];
+    const clean = stripOutlineTreeArtifacts(rawLine);
+    if (!clean) continue;
+
+    // Skip bracketed topic wrapper headers already shown in the report title
+    if (idx === 0 && /^\[(?:essay\s+title|topic)\]/i.test(clean)) {
+      continue;
+    }
+
+    const thesisMatch = clean.match(/^\[?thesis(?:\s+statement)?\]?\s*:?\s*(.+)$/i);
+    if (thesisMatch) {
+      thesisStatement = thesisMatch[1].trim();
+      continue;
+    }
+
+    const romanMatch = clean.match(/^([IVXLC]+)[.)]\s+(.+)$/);
+    const topNumericMatch = !currentSection && clean.match(/^(\d+)[.)]\s+(.+)$/);
+    const introConcMatch =
+      !romanMatch && /^(introduction|conclusion)(?:\s*[:\-–].*)?$/i.test(clean);
+
+    if (romanMatch || topNumericMatch || introConcMatch) {
+      let marker = `${ROMAN_NUMERALS[sections.length] || sections.length + 1}.`;
+      let heading = clean;
+
+      if (romanMatch) {
+        marker = `${romanMatch[1].toUpperCase()}.`;
+        heading = romanMatch[2].trim();
+      } else if (topNumericMatch) {
+        heading = topNumericMatch[2].trim();
+      }
+
+      const lower = heading.toLowerCase();
+      const kind = lower.startsWith('introduction')
+        ? 'intro'
+        : lower.startsWith('conclusion')
+          ? 'conclusion'
+          : 'body';
+
+      currentSection = { marker, heading, kind, items: [] };
+      sections.push(currentSection);
+      currentItem = null;
+      continue;
+    }
+
+    // Never nest sub-points under standalone Introduction or Conclusion
+    if (currentSection && (currentSection.kind === 'intro' || currentSection.kind === 'conclusion')) {
+      continue;
+    }
+
+    const detailMatch =
+      clean.match(/^\(([a-z0-9]+)\)\s+(.+)$/i) ||
+      clean.match(/^([a-z])[.)]\s+(.+)$/) ||
+      (/^\s{4,}/.test(rawLine) ? [null, '', clean] : null);
+
+    if (detailMatch && currentItem) {
+      const marker = detailMatch[1] ? `(${detailMatch[1].toLowerCase()})` : `${String.fromCharCode(97 + currentItem.subItems.length)}.`;
+      currentItem.subItems.push({
+        marker,
+        text: (detailMatch[2] || clean).trim()
+      });
+      continue;
+    }
+
+    const alphaMatch = clean.match(/^([A-Z])[.)]\s+(.+)$/) || clean.match(/^(\d+)[.)]\s+(.+)$/);
+    const target = ensureSection();
+    const fallbackAlpha = String.fromCharCode(65 + target.items.length);
+    const marker = alphaMatch ? `${alphaMatch[1].toUpperCase()}.` : `${fallbackAlpha}.`;
+    const text = (alphaMatch ? alphaMatch[2] : clean).trim();
+
+    currentItem = { marker, text, subItems: [] };
+    target.items.push(currentItem);
+  }
+
+  return { thesisStatement, sections };
+};
+

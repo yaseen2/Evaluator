@@ -129,7 +129,7 @@ Different CSS mentors teach students to put their Thesis Statement in different 
 * **Spot 2 — At the Start of the Conclusion (Mandatory):**  
   * Must appear in the **first 1–2 sentences of the Conclusion** (right after a closing phrase like *"To conclude,"* or *"In a nutshell,"*).  
 * **Spot 3 — Above or Inside the Outline (100% Optional — Zero Penalty):**  
-  * Whether a student writes their thesis above the Outline, under `1. Introduction` in the Outline, writes just the label `"c) Thesis Statement"`, or leaves it out of the Outline completely—**all 4 are 100% acceptable** with zero marks deducted.
+  * Writing a thesis statement in the Outline is **not mandatory**. Whether a student writes their thesis above the Outline, as a standalone label, or leaves it out of the Outline completely (saving it for the Introduction paragraph in a Full Essay)—all of these are **100% acceptable** with zero marks deducted.
 
 ---
 
@@ -237,9 +237,10 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 
    
 
-3. **Sub-Points Under `Introduction`:**  
+3. **No Sub-Points Under `Introduction` or `Conclusion`:**  
      
-   * Whether the student writes `1. Introduction` as a single line OR writes 2–3 sub-points under it (`a. Background/Hook`, `b. Concept`, `c. Thesis Statement`), accept both\!
+   * Neither `Introduction` nor `Conclusion` in an Outline may contain nested sub-points (`a, b, c`, `1.1, 1.2`, or `A, B`) underneath it. Both `Introduction` at the top and `Conclusion` at the bottom should appear cleanly as standalone outline headings.
+   * Writing a **Thesis Statement** inside the Outline is optional (in a Full Essay, your thesis is evaluated inside Paragraph 1; if included in an outline, keep it as a standalone statement outside sub-points under `Introduction`).
 
    
 
@@ -251,10 +252,10 @@ Here are the **20 specific things** our AI must check in the Outline, grouped in
 
 ### B. Checking the Main Headings (The Big Sections)
 
-5. **`Introduction` First, `Conclusion` Last (And Nothing Under `Conclusion`\!):**  
+5. **`Introduction` First, `Conclusion` Last (No Sub-Points Under Either\!):**  
      
    * The Outline must start with `Introduction` and end with `Conclusion`.  
-   * **Strict Rule:** Unlike `Introduction`, the `Conclusion` heading in the Outline must **never** have sub-points (`a, b, c`) listed underneath it\!
+   * **Strict Rule:** Both `Introduction` and `Conclusion` in the Outline must **never** have nested sub-points (`a, b, c`, `1.1, 1.2`) listed underneath them\!
 
    
 

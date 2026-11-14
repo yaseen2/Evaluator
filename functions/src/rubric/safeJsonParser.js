@@ -260,15 +260,22 @@ export const callGenAiAgentWithFailover = async ({
   temperature = 0.2,
   maxOutputTokens = 16384,
   preferredModel = 'auto',
+  modelCandidates = null,
+  thinkingLevel = null,
   stageName = 'Essay Agent',
   ledger = null
 }) => {
   const ai = new GoogleGenAI({ apiKey });
 
-  const candidateList =
-    preferredModel && preferredModel !== 'auto'
-      ? [preferredModel, ...ESSAY_MODEL_CANDIDATES.filter((m) => m !== preferredModel)]
+  const baseCandidates =
+    Array.isArray(modelCandidates) && modelCandidates.length > 0
+      ? modelCandidates
       : ESSAY_MODEL_CANDIDATES;
+
+  const candidateList =
+    preferredModel && preferredModel !== 'auto' && !Array.isArray(modelCandidates)
+      ? [preferredModel, ...baseCandidates.filter((m) => m !== preferredModel)]
+      : baseCandidates;
 
   const contentsParts = [];
   if (imageArray && imageArray.length > 0) {
@@ -302,6 +309,10 @@ export const callGenAiAgentWithFailover = async ({
 
         if (systemInstruction) {
           config.systemInstruction = systemInstruction;
+        }
+
+        if (thinkingLevel && String(modelName).startsWith('gemini-4')) {
+          config.thinkingConfig = { thinkingLevel };
         }
 
         if (useSearchOnThisAttempt) {

@@ -21,10 +21,12 @@ import { runAgent1MacroArchitect } from './agent1MacroArchitect.js';
 import { runAgent2ParagraphInspector } from './agent2ParagraphInspector.js';
 import { runAgent3FactLanguageCritic } from './agent3FactLanguageCritic.js';
 import { runAgent4QaVerifierCoach } from './agent4QaVerifierCoach.js';
+import { runAgent5ModelOutline } from './agent5ModelOutline.js';
 
 export const WEIGHTED_TOKENS_PER_CREDIT = 2500;
 export const OUTPUT_TOKEN_MULTIPLIER = 3;
 export const THINKING_TOKEN_MULTIPLIER = 2;
+export const ARGON_STAGE_CREDIT_MULTIPLIER = 3;
 
 const createEssayTokenLedger = () => {
   const stages = [];
@@ -32,6 +34,7 @@ const createEssayTokenLedger = () => {
   let totalOutputTokens = 0;
   let totalThinkingTokens = 0;
   let totalRawTokens = 0;
+  let totalWeightedTokens = 0;
 
   return {
     recordStage(stageName, modelName, usage = {}) {
@@ -42,20 +45,25 @@ const createEssayTokenLedger = () => {
         0,
         Number(usage.totalTokens || inputTokens + outputTokens + thinkingTokens)
       );
-      const stageWeighted = Math.round(
+      const modelMultiplier = String(modelName || '').toLowerCase().includes('gemini-4')
+        ? ARGON_STAGE_CREDIT_MULTIPLIER
+        : 1;
+      const baseWeighted =
         inputTokens +
-          OUTPUT_TOKEN_MULTIPLIER * outputTokens +
-          THINKING_TOKEN_MULTIPLIER * thinkingTokens
-      );
+        OUTPUT_TOKEN_MULTIPLIER * outputTokens +
+        THINKING_TOKEN_MULTIPLIER * thinkingTokens;
+      const stageWeighted = Math.round(baseWeighted * modelMultiplier);
 
       totalInputTokens += inputTokens;
       totalOutputTokens += outputTokens;
       totalThinkingTokens += thinkingTokens;
       totalRawTokens += rawTokens;
+      totalWeightedTokens += stageWeighted;
 
       stages.push({
         stage: stageName,
         model: modelName,
+        modelMultiplier,
         inputTokens,
         outputTokens,
         thinkingTokens,
@@ -65,11 +73,7 @@ const createEssayTokenLedger = () => {
     },
 
     finalize() {
-      const weightedTokens = Math.round(
-        totalInputTokens +
-          OUTPUT_TOKEN_MULTIPLIER * totalOutputTokens +
-          THINKING_TOKEN_MULTIPLIER * totalThinkingTokens
-      );
+      const weightedTokens = totalWeightedTokens;
       const creditsConsumed = Math.max(
         2,
         Math.min(60, Math.ceil(weightedTokens / WEIGHTED_TOKENS_PER_CREDIT))
@@ -85,6 +89,7 @@ const createEssayTokenLedger = () => {
         weightedTokensPerCredit: WEIGHTED_TOKENS_PER_CREDIT,
         outputMultiplier: OUTPUT_TOKEN_MULTIPLIER,
         thinkingMultiplier: THINKING_TOKEN_MULTIPLIER,
+        argonMultiplier: ARGON_STAGE_CREDIT_MULTIPLIER,
         stages
       };
     }
@@ -280,8 +285,8 @@ export const executeCssEssayPipelineV2 = async ({
     }
   }
 
-  // ── STAGE 2: Agent 4 Chief Examiner QA Verifier & Surgical Coach ──
-  reportProgress(9, 86, 'Stage 2 • Chief Examiner QA & Coach', 'Pruning false positives, recalibrating pillars, and drafting Topper rewrites...');
+  // ── STAGE 2: Agent 4 Chief Examiner QA Coach + Agent 5 Argon Model Outline (Concurrent) ──
+  reportProgress(9, 86, 'Stage 2 • QA Coach & Model Outline', 'Pruning false positives, drafting rewrites, and crafting rubric-aligned Model Outline...');
   let agent4Failed = false;
   let agent4Output = {
     overallReadiness: 'Fair Draft — Major Mistakes to Fix',
@@ -291,12 +296,12 @@ export const executeCssEssayPipelineV2 = async ({
     verifiedDiagnostics: null,
     surgicalRewrites: [],
     strategicHighlightingPicks: [],
-    thingsToInclude: [],
-    suggestedVisual: null
+    thingsToInclude: []
   };
+  let agent5Output = null;
 
-  try {
-    agent4Output = await runAgent4QaVerifierCoach({
+  const [settled4, settled5] = await Promise.allSettled([
+    runAgent4QaVerifierCoach({
       examQuestion: effectiveTopic,
       preprocessed,
       agent1Output,
@@ -308,10 +313,26 @@ export const executeCssEssayPipelineV2 = async ({
       apiKey,
       preferredModel: selectedModel,
       ledger
-    });
-  } catch (err) {
+    }),
+    runAgent5ModelOutline({
+      examQuestion: effectiveTopic,
+      agent1Output,
+      apiKey,
+      ledger
+    })
+  ]);
+
+  if (settled4.status === 'fulfilled') {
+    agent4Output = settled4.value;
+  } else {
     agent4Failed = true;
-    stageDegradations.push(`QA Gate degraded: ${err.message}`);
+    stageDegradations.push(`QA Gate degraded: ${settled4.reason?.message || 'Error'}`);
+  }
+
+  if (settled5.status === 'fulfilled') {
+    agent5Output = settled5.value;
+  } else {
+    stageDegradations.push(`Model Outline generation skipped: ${settled5.reason?.message || 'Error'}`);
   }
 
   // Strictly trust Agent 4 verifiedDiagnostics (never re-inject pruned false positives when verifiedDiagnostics is [])
@@ -579,6 +600,12 @@ export const executeCssEssayPipelineV2 = async ({
       rewritesCount: (agent4Output.surgicalRewrites || []).length,
       recalibratedPillars: agent4Output.recalibratedPillarStatuses || {}
     },
+    stage4b_model_outline: {
+      modelId: agent5Output?.modelId || null,
+      modelLabel: agent5Output?.modelLabel || null,
+      totalBodyPoints: agent5Output?.totalBodyPoints || 0,
+      hasThesisStatement: Boolean(agent5Output?.thesisStatement)
+    },
     tokenStages: tokenUsage.stages || []
   };
 
@@ -642,7 +669,7 @@ export const executeCssEssayPipelineV2 = async ({
     stageDegradations,
     annotations: finalAnnotations,
     thingsToInclude: agent4Output.thingsToInclude,
-    suggestedVisual: agent4Output.suggestedVisual,
+    suggestedVisual: agent5Output,
     scoreBreakdown,
     fullTranscribedText: effectiveText,
     transcribedText: effectiveText,

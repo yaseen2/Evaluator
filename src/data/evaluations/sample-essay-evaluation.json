@@ -310,10 +310,92 @@
     "Mention Pakistan's Draft Personal Data Protection Bill and the National AI Policy framework to ground your Way Forward in domestic policy."
   ],
   "suggestedVisual": {
-    "title": "Model FPSC Parallel Essay Outline Blueprint",
-    "description": "Compare your outline with this balanced, grammatically parallel FPSC blueprint where every Roman-numeral section and sub-point follows consistent analytical phrasing.",
-    "insertAfterHeading": "OUTLINE",
-    "diagramText": "MODEL FPSC ESSAY OUTLINE: AI & GOVERNANCE IN DEVELOPING NATIONS\n├── I. Introduction\n│   ├── A. Hook: From manual red-tapism to algorithmic statecraft in the Global South\n│   ├── B. Contextual Bridge: The dual reality of leapfrog efficiency vs. institutional fragility\n│   └── C. Thesis Statement: While AI offers developing states a transformative tool for fiscal\n│          and administrative efficiency, its success depends on digital inclusion and legal safeguards.\n├── II. Algorithmic Dividends: Transforming Public Sector Delivery\n│   ├── A. Widening the Tax Net through Predictive Fiscal Analytics (FBR / Tajir Dost Context)\n│   ├── B. Precision Welfare Targeting via Biometric Registries (NADRA & BISP Case Study)\n│   └── C. Decongesting Lower Courts through Automated Case-Flow Management\n├── III. Institutional Vulnerabilities and Structural Bottlenecks\n│   ├── A. The Rural-Urban Digital Divide: How Incomplete Data Excludes the Marginalized\n│   ├── B. Algorithmic Bias and Opaque Automated Decision-Making\n│   └── C. Surveillance Risks in the Absence of Statutory Data Protection Laws\n├── IV. Sequencing the Transition: A Pragmatic Policy Roadmap\n│   ├── A. Building Universal Digital Public Infrastructure Before High-Stakes Automation\n│   ├── B. Enacting Independent Data Protection Authorities and Algorithmic Audits\n│   └── C. Upskilling Civil Servants (PAS / Secretariat Cadres) in Digital Governance\n└── V. Conclusion\n    ├── A. Restated Thesis: Technology amplifies—rather than replaces—institutional integrity\n    └── B. Closing Synthesis: Balancing innovation with constitutional accountability"
+    "title": "Model Improved Outline: AI & Governance in Developing Nations",
+    "description": "Notice how Introduction and Conclusion stay standalone without sub-points, and every main heading uses plain, accurate English focused directly on the topic.",
+    "modelId": "gemini-4-argon",
+    "modelLabel": "Gemini 4 Argon",
+    "thesisStatement": "While artificial intelligence offers developing countries practical tools for faster public services and fairer tax collection, its success depends on wider digital access and strong legal safeguards.",
+    "sections": [
+      {
+        "marker": "I.",
+        "heading": "Introduction",
+        "kind": "intro",
+        "items": []
+      },
+      {
+        "marker": "II.",
+        "heading": "How Artificial Intelligence Can Improve Public Services",
+        "kind": "body",
+        "items": [
+          {
+            "marker": "A.",
+            "text": "Expanding the tax net through data-based tax tracking",
+            "subItems": []
+          },
+          {
+            "marker": "B.",
+            "text": "Targeting welfare support accurately through digital citizen records (NADRA and BISP)",
+            "subItems": []
+          },
+          {
+            "marker": "C.",
+            "text": "Reducing delays in lower courts with digital case scheduling",
+            "subItems": []
+          }
+        ]
+      },
+      {
+        "marker": "III.",
+        "heading": "Core Risks and Institutional Barriers in Developing States",
+        "kind": "body",
+        "items": [
+          {
+            "marker": "A.",
+            "text": "The rural-urban digital divide excluding low-income citizens",
+            "subItems": []
+          },
+          {
+            "marker": "B.",
+            "text": "Unfair automated decisions caused by incomplete or biased local data",
+            "subItems": []
+          },
+          {
+            "marker": "C.",
+            "text": "Privacy and misuse risks in the absence of data protection laws",
+            "subItems": []
+          }
+        ]
+      },
+      {
+        "marker": "IV.",
+        "heading": "Practical Steps to Build Safe Digital Governance",
+        "kind": "body",
+        "items": [
+          {
+            "marker": "A.",
+            "text": "Expanding reliable internet and basic digital ID access before automating core services",
+            "subItems": []
+          },
+          {
+            "marker": "B.",
+            "text": "Passing data protection legislation with independent oversight",
+            "subItems": []
+          },
+          {
+            "marker": "C.",
+            "text": "Training civil servants to review and audit automated public systems",
+            "subItems": []
+          }
+        ]
+      },
+      {
+        "marker": "V.",
+        "heading": "Conclusion",
+        "kind": "conclusion",
+        "items": []
+      }
+    ],
+    "diagramText": "I. Introduction\nII. How Artificial Intelligence Can Improve Public Services\n  A. Expanding the tax net through data-based tax tracking\n  B. Targeting welfare support accurately through digital citizen records (NADRA and BISP)\n  C. Reducing delays in lower courts with digital case scheduling\nIII. Core Risks and Institutional Barriers in Developing States\n  A. The rural-urban digital divide excluding low-income citizens\n  B. Unfair automated decisions caused by incomplete or biased local data\n  C. Privacy and misuse risks in the absence of data protection laws\nIV. Practical Steps to Build Safe Digital Governance\n  A. Expanding reliable internet and basic digital ID access before automating core services\n  B. Passing data protection legislation with independent oversight\n  C. Training civil servants to review and audit automated public systems\nV. Conclusion"
   },
   "scoreBreakdown": {
     "topic_relevance": {

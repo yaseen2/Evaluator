@@ -163,7 +163,7 @@ ${PLAIN_ENGLISH_AND_TONE_DIRECTIVE}
 ${preprocessed.outlineNodes.map((o) => o.taggedText).join('\n') || '(Empty outline)'}
 ====================
 
-Audit EVERY Outline line thoroughly for British English grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if repeated), Pinglish phrasing, spelling, unexpanded acronyms, fake question marks, and clarity in simple student-friendly English (using "you"/"your", ZERO O1/O2 codes, ZERO jargon). Quote ONLY 1 to 4 exact words in "exact_verbatim_quote". Do NOT invent body-paragraph complaints.
+Audit EVERY Outline line thoroughly for British English grammar (mark clear grammar errors as 🟠 TIER_2_MAJOR or 🔴 TIER_1_FATAL if repeated), Pinglish phrasing, spelling, imprecise word choices, unexpanded acronyms, fake question marks, and clarity in simple student-friendly English (using "you"/"your", ZERO O1/O2 codes, ZERO jargon). Quote ONLY 1 to 4 exact words in "exact_verbatim_quote". Do NOT invent body-paragraph complaints, do NOT penalize omitting a thesis statement inside an outline (writing it inside the outline is optional), and keep Introduction & Conclusion sub-point rules for Agent 1.
 
 Return ONLY this JSON object:
 {

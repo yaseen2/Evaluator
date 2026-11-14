@@ -30,7 +30,7 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'outline',
         name: '3. Outline Structure & Following It',
         maxMarks: 10,
-        defaultFeedback: 'Checks uniform outline phrasing, single clear ideas per line (no sub-points under Conclusion), and covering every outline point in the essay.'
+        defaultFeedback: 'Checks uniform outline phrasing, single clear ideas per line (no sub-points under Introduction or Conclusion), and covering every outline point in the essay.'
       },
       {
         id: 'introduction',
@@ -110,13 +110,13 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'thesis',
         name: '2. Thesis Statement Strength',
         maxMarks: 20,
-        defaultFeedback: 'Checks whether your thesis statement takes a clear, arguable stand and previews your essay roadmap.'
+        defaultFeedback: 'If included, checks whether your thesis takes a clear stand and previews your essay direction (writing a thesis inside the outline is optional).'
       },
       {
         id: 'outline_structure',
         name: '3. Logical Flow & Outline Rules',
         maxMarks: 20,
-        defaultFeedback: 'Checks logical order (12–20 total points sweet spot), non-overlapping headings, and ensuring Conclusion has NO sub-points.'
+        defaultFeedback: 'Checks logical order (12–20 total points sweet spot), non-overlapping headings, and ensuring BOTH Introduction and Conclusion have NO sub-points.'
       },
       {
         id: 'parallelism',
@@ -128,14 +128,14 @@ export const FPSC_EXAMINER_CRITERIA = {
         id: 'coverage_originality',
         name: '5. Range of Angles & Examples',
         maxMarks: 20,
-        defaultFeedback: 'Checks breadth across political, economic, institutional, social, and global angles with clear example cues.'
+        defaultFeedback: 'Checks breadth across political, economic, social, and global dimensions using plain, accurate phrasing and concrete examples.'
       }
     ],
     dealBreakers: [
       'Single-word headings (e.g., "Economy", "Politics") instead of clear, full-meaning outline points',
       'Mixing uneven formats randomly inside the same list (fragments, fake "?" questions, and full sentences)',
       'Writing long prose paragraphs inside the Outline instead of concise outline points',
-      'Omitting a clear Thesis Statement, adding sub-points under Conclusion, or cramming unrelated ideas into one bullet'
+      'Adding sub-points under Introduction or Conclusion, or cramming unrelated ideas into one bullet'
     ]
   },
 

@@ -5,18 +5,20 @@ import {
   ChevronUp,
   Cpu,
   Image as ImageIcon,
-  Printer,
   X,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Copy,
+  Check
 } from 'lucide-react';
 import {
   cleanSimpleText,
   formatPopoverLocationLabel,
   simplifyCategoryTitle,
   isDiscrepantEvidenceAnnotation,
-  tokenizeQuotedSegments
+  tokenizeQuotedSegments,
+  parseLegacyModelOutlineText
 } from '../utils/textUtils';
 
 const ABBREVIATIONS_GUARD =
@@ -470,11 +472,28 @@ export const parseDocumentSections = (fullText = '', isOutlineOnly = false) => {
 
   const outlineScheme = detectOutlineScheme(allExpandedOutlineLines);
 
-  const renderItems = allExpandedOutlineLines.map((line, idx) => ({
-    id: `outline-${idx}`,
-    kind: classifyOutlineLine(line, outlineScheme),
-    text: line
-  }));
+  const hasFollowingOutlineLine = allExpandedOutlineLines
+    .slice(1)
+    .some((l) => startsWithOutlineMarker(l));
+
+  const renderItems = allExpandedOutlineLines.map((line, idx) => {
+    let kind = classifyOutlineLine(line, outlineScheme);
+    if (
+      idx === 0 &&
+      hasFollowingOutlineLine &&
+      !startsWithOutlineMarker(line) &&
+      kind !== 'outline_title' &&
+      kind !== 'outline_thesis' &&
+      line.trim().length <= 240
+    ) {
+      kind = 'outline_topic';
+    }
+    return {
+      id: `outline-${idx}`,
+      kind,
+      text: line
+    };
+  });
 
   if (outlineBlocks.length > 0 && bodyBlocks.length > 0) {
     renderItems.push({ id: 'essay-divider', kind: 'essay_divider', text: 'Essay' });
@@ -507,6 +526,328 @@ const getConcisePhrase = (phrase = '', blockText = '') => {
   return clean;
 };
 
+const formatModelOutlinePlainText = (visual, sections, thesisText) => {
+  const lines = [];
+  if (visual?.title) {
+    lines.push(cleanSimpleText(visual.title));
+  }
+  if (thesisText) {
+    lines.push(`Thesis Statement: ${thesisText}`);
+  }
+  if (Array.isArray(sections) && sections.length > 0) {
+    sections.forEach((sec) => {
+      lines.push(`${sec.marker || ''} ${sec.heading || ''}`.trim());
+      if (sec.kind !== 'intro' && sec.kind !== 'conclusion' && Array.isArray(sec.items)) {
+        sec.items.forEach((it) => {
+          lines.push(`  ${it.marker || ''} ${it.text || ''}`.trimEnd());
+          if (Array.isArray(it.subItems)) {
+            it.subItems.forEach((sub) => {
+              lines.push(`    ${sub.marker || ''} ${sub.text || ''}`.trimEnd());
+            });
+          }
+        });
+      }
+    });
+    return lines.join('\n').trim();
+  }
+  return String(visual?.diagramText || '').trim();
+};
+
+const ModelOutlineCard = ({ suggestedVisual }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const parsedLegacy = useMemo(() => {
+    if (!suggestedVisual || (Array.isArray(suggestedVisual.sections) && suggestedVisual.sections.length > 0)) {
+      return { thesisStatement: '', sections: [] };
+    }
+    return parseLegacyModelOutlineText(suggestedVisual.diagramText || '');
+  }, [suggestedVisual]);
+
+  const sections = useMemo(() => {
+    if (!suggestedVisual) return [];
+    if (Array.isArray(suggestedVisual.sections) && suggestedVisual.sections.length > 0) {
+      return suggestedVisual.sections;
+    }
+    return parsedLegacy.sections;
+  }, [suggestedVisual, parsedLegacy]);
+
+  const thesisStatement = useMemo(() => {
+    if (!suggestedVisual) return '';
+    return String(suggestedVisual.thesisStatement || parsedLegacy.thesisStatement || '').trim();
+  }, [suggestedVisual, parsedLegacy]);
+
+  if (!suggestedVisual || (sections.length === 0 && !suggestedVisual.diagramText)) {
+    return null;
+  }
+
+  const cleanedTitle = suggestedVisual.title
+    ? cleanSimpleText(
+        suggestedVisual.title
+          .replace(/\bModel\s+FPSC\s+Topper\s+Outline\s+Blueprint\b/gi, 'Model Improved Outline')
+          .replace(/\bModel\s+Topper\s+Outline\s+Blueprint\b/gi, 'Model Improved Outline')
+          .replace(/\bSample\s+Improved\s+Outline\b/gi, 'Model Improved Outline')
+          .replace(/\bFPSC\b/gi, '')
+      )
+    : 'Model Improved Outline';
+
+  const modelBadge =
+    suggestedVisual.modelLabel ||
+    (String(suggestedVisual.modelId || '').toLowerCase().includes('argon') ? 'Gemini 4 Argon' : '');
+
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    const copyPayload = formatModelOutlinePlainText(suggestedVisual, sections, thesisStatement);
+    if (!copyPayload) return;
+    try {
+      await navigator.clipboard.writeText(copyPayload);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (_) {
+      // Clipboard API unavailable in restricted contexts
+    }
+  };
+
+  return (
+    <section
+      className="model-outline-card no-print"
+      aria-label="Model Improved Outline"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded((prev) => !prev);
+        }}
+        aria-expanded={isExpanded}
+        className="model-outline-toggle"
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', minWidth: 0, flex: '1 1 220px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--accent-blue-border)',
+              color: 'var(--accent-blue)',
+              flexShrink: 0,
+              marginTop: '1px'
+            }}
+          >
+            <Sparkles size={14} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.45rem' }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Model Improved Outline
+              </span>
+              {modelBadge && (
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 600,
+                    padding: '1px 7px',
+                    borderRadius: '9999px',
+                    background: 'var(--bg-panel)',
+                    color: 'var(--accent-blue)',
+                    border: '1px solid var(--accent-blue-border)',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                >
+                  {modelBadge}
+                </span>
+              )}
+            </div>
+            <p
+              style={{
+                fontSize: '0.74rem',
+                color: 'var(--text-secondary)',
+                margin: '2px 0 0 0',
+                lineHeight: 1.4
+              }}
+            >
+              {cleanedTitle && !/^model\s+improved\s+outline$/i.test(cleanedTitle)
+                ? cleanedTitle
+                : 'Compare your plan against a plain, rubric-aligned essay outline'}
+            </p>
+          </div>
+        </div>
+
+        <span className="model-outline-cta">
+          <span>{isExpanded ? 'Hide Model Outline' : 'View Model Outline'}</span>
+          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div className="model-outline-body">
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.6rem',
+              marginBottom: '0.9rem'
+            }}
+          >
+            <p
+              style={{
+                fontSize: '0.78rem',
+                lineHeight: 1.55,
+                color: 'var(--text-secondary)',
+                margin: 0,
+                flex: '1 1 240px'
+              }}
+            >
+              {suggestedVisual.description
+                ? cleanSimpleText(suggestedVisual.description)
+                : 'Clean topic-focused structure in plain English. Introduction and Conclusion stay standalone without sub-points.'}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleCopy}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 10px',
+                borderRadius: '7px',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg-card)',
+                color: copied ? 'var(--pass-green)' : 'var(--text-primary)',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              <span>{copied ? 'Copied' : 'Copy Outline'}</span>
+            </button>
+          </div>
+
+          {thesisStatement && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '0.7rem 0.9rem',
+                borderRadius: '8px',
+                borderLeft: '3px solid var(--accent-blue)',
+                background: 'var(--accent-blue-soft)',
+                fontSize: '0.82rem',
+                lineHeight: 1.55,
+                color: 'var(--text-primary)'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'var(--accent-blue)',
+                  marginBottom: '3px'
+                }}
+              >
+                Thesis Statement (Optional in Outline)
+              </div>
+              <div style={{ fontFamily: 'var(--font-serif)' }}>{thesisStatement}</div>
+            </div>
+          )}
+
+          {sections.length > 0 ? (
+            <ol className="model-outline-section-list">
+              {sections.map((section, sIdx) => {
+                const isStandalone = section.kind === 'intro' || section.kind === 'conclusion';
+                const subList = !isStandalone && Array.isArray(section.items) ? section.items : [];
+                return (
+                  <li key={`${section.marker || sIdx}-${sIdx}`}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: '0.45rem',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        lineHeight: 1.5,
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <span style={{ color: 'var(--accent-blue)', flexShrink: 0 }}>{section.marker}</span>
+                      <span>{section.heading}</span>
+                    </div>
+
+                    {subList.length > 0 && (
+                      <ul className="model-outline-items">
+                        {subList.map((item, iIdx) => (
+                          <li key={`${item.marker || iIdx}-${iIdx}`} style={{ fontSize: '0.83rem', lineHeight: 1.58 }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                {item.marker}
+                              </span>
+                              <span style={{ color: 'var(--text-primary)' }}>{item.text}</span>
+                            </div>
+
+                            {Array.isArray(item.subItems) && item.subItems.length > 0 && (
+                              <ul className="model-outline-subitems">
+                                {item.subItems.map((sub, subIdx) => (
+                                  <li
+                                    key={`${sub.marker || subIdx}-${subIdx}`}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'baseline',
+                                      gap: '0.35rem',
+                                      fontSize: '0.79rem',
+                                      lineHeight: 1.52,
+                                      color: 'var(--text-secondary)'
+                                    }}
+                                  >
+                                    <span style={{ fontWeight: 600, flexShrink: 0 }}>{sub.marker}</span>
+                                    <span>{sub.text}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <pre
+              style={{
+                fontSize: '0.78rem',
+                lineHeight: 1.6,
+                fontFamily: 'var(--font-sans)',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '0.85rem',
+                color: 'var(--text-primary)',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0
+              }}
+            >
+              {suggestedVisual.diagramText}
+            </pre>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 export const DocumentViewer = ({
   evaluation,
   selectedAnnId,
@@ -514,7 +855,6 @@ export const DocumentViewer = ({
   submissionImages = []
 }) => {
   const [viewMode, setViewMode] = useState('transcribed'); // 'transcribed' | 'original'
-  const [isVisualExpanded, setIsVisualExpanded] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all'); // 'all' | 'red' | 'amber' | 'green'
   const [popoverPos, setPopoverPos] = useState(null);
 
@@ -603,6 +943,15 @@ export const DocumentViewer = ({
     [fullText, isOutlineOnly]
   );
 
+  const lastOutlineIdx = useMemo(() => {
+    for (let i = renderItems.length - 1; i >= 0; i -= 1) {
+      if (renderItems[i]?.kind?.startsWith('outline_')) {
+        return i;
+      }
+    }
+    return -1;
+  }, [renderItems]);
+
   // Map logical essay coordinates ([O...], [P1..PN]) to renderItems indexes so
   // repeated phrases only highlight inside their intended target line or paragraph.
   const annotationTargetIndexMap = useMemo(() => {
@@ -614,7 +963,7 @@ export const DocumentViewer = ({
     renderItems.forEach((item, idx) => {
       if (item.kind.startsWith('outline_')) {
         allOutlineIndices.push(idx);
-        if (item.kind !== 'outline_title') {
+        if (item.kind !== 'outline_title' && item.kind !== 'outline_topic') {
           ordinalOutlineIndices.push(idx);
         }
       }
@@ -995,92 +1344,81 @@ export const DocumentViewer = ({
         height: '100%',
         minHeight: 0,
         overflowY: 'auto',
-        padding: '1.25rem 1rem 6rem 1rem',
+        padding: '1.25rem 1rem 1.5rem 1rem',
         background: 'var(--bg-app)'
       }}
     >
-      {/* Top Booklet Toolbar */}
-      <div
-        className="no-print"
-        style={{
-          maxWidth: '760px',
-          margin: '0 auto 0.85rem auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '8px'
-        }}
-      >
-        {/* View Mode Switcher (Transcribed vs Original Scanned Pages) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {imagePages && imagePages.length > 0 ? (
-            <div
+      {/* Top Booklet Toolbar (shown when uploaded page scans exist) */}
+      {imagePages && imagePages.length > 0 && (
+        <div
+          className="no-print"
+          style={{
+            maxWidth: '48rem',
+            margin: '0 auto 0.85rem auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              background: 'var(--bg-card)',
+              padding: '2px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)'
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewMode('transcribed');
+              }}
               style={{
+                background: viewMode === 'transcribed' ? 'var(--bg-card-hover)' : 'transparent',
+                color: viewMode === 'transcribed' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '3px',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                cursor: 'pointer',
                 display: 'flex',
-                background: 'var(--bg-card)',
-                padding: '2px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)'
+                alignItems: 'center',
+                gap: '5px'
               }}
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewMode('transcribed');
-                }}
-                style={{
-                  background: viewMode === 'transcribed' ? 'var(--bg-card-hover)' : 'transparent',
-                  color: viewMode === 'transcribed' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                  border: 'none',
-                  padding: '4px 10px',
-                  borderRadius: '3px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                <FileText size={13} />
-                <span>Text Script</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewMode('original');
-                }}
-                style={{
-                  background: viewMode === 'original' ? 'var(--bg-card-hover)' : 'transparent',
-                  color: viewMode === 'original' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                  border: 'none',
-                  padding: '4px 10px',
-                  borderRadius: '3px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                <ImageIcon size={13} />
-                <span>Original Script ({imagePages.length} {imagePages.length === 1 ? 'Page' : 'Pages'})</span>
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={16} color="var(--accent-blue)" />
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Evaluated Script
-              </span>
-            </div>
-          )}
-        </div>
+              <FileText size={13} />
+              <span>Text Script</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewMode('original');
+              }}
+              style={{
+                background: viewMode === 'original' ? 'var(--bg-card-hover)' : 'transparent',
+                color: viewMode === 'original' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '3px',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <ImageIcon size={13} />
+              <span>Original Script ({imagePages.length} {imagePages.length === 1 ? 'Page' : 'Pages'})</span>
+            </button>
+          </div>
 
-        {/* Right Actions: AI Model Badge + Print Export */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div
             style={{
               display: 'flex',
@@ -1098,27 +1436,14 @@ export const DocumentViewer = ({
             <Cpu size={12} color="var(--accent-blue)" />
             <span>{evaluatedModelName}</span>
           </div>
-
-          <button
-            className="btn-minimal"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.print();
-            }}
-            style={{ padding: '4px 10px', fontSize: '0.72rem' }}
-            title="Export evaluation as PDF"
-          >
-            <Printer size={13} color="var(--accent-blue)" />
-            <span>Export</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {/* VIEW 1: ORIGINAL UPLOADED HANDWRITTEN PAGES */}
       {viewMode === 'original' && imagePages && imagePages.length > 0 ? (
         <div
           style={{
-            maxWidth: '760px',
+            maxWidth: '48rem',
             margin: '0 auto',
             display: 'flex',
             flexDirection: 'column',
@@ -1159,153 +1484,112 @@ export const DocumentViewer = ({
           ))}
         </div>
       ) : (
-        /* VIEW 2: AUTHENTIC ANSWER SHEET WITH GRAMMARLY-STYLE POPOVER & RULED PAPER */
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 lg:p-8 flex justify-center">
+        /* VIEW 2: CLEAN EDITORIAL PAPER SHEET */
+        <div className="flex-1 p-1 sm:p-3 md:p-5 lg:p-6 flex justify-center">
           <article
             ref={paperRef}
-            className="w-full max-w-2xl bg-white shadow-xs border border-slate-200/90 rounded-lg p-4 sm:p-7 md:p-8 relative ruled-notebook-paper flex flex-col min-h-[580px] font-academic"
+            className="w-full max-w-3xl p-5 sm:p-8 md:p-11 relative editorial-paper-sheet flex flex-col min-h-[580px] font-academic"
             style={{ position: 'relative' }}
           >
-            {/* Classic FPSC Margin Indicator Line */}
-            <div
-              aria-hidden="true"
-              className="absolute left-6 sm:left-10 top-0 bottom-0 w-[1.5px] bg-red-400/50 pointer-events-none"
-            />
-
             {/* Document Meta Header */}
-            <div className="pb-3 border-b border-slate-200/60 mb-4 pl-6 sm:pl-10 font-sans text-xs text-slate-500 flex justify-between items-center">
+            <div
+              className="pb-3 mb-5 font-sans text-xs flex flex-wrap justify-between items-center gap-2"
+              style={{
+                borderBottom: '1px solid var(--border)',
+                color: 'var(--text-muted)'
+              }}
+            >
               <span>{evaluation.subject || 'CSS English Essay'}</span>
-              <span className="font-mono text-slate-400">
-                {evaluation.date || new Date().toISOString().split('T')[0]}
-              </span>
+              <div className="flex items-center gap-2 font-mono text-[11px]">
+                {(!imagePages || imagePages.length === 0) && (
+                  <span style={{ color: 'var(--accent-blue)' }}>{evaluatedModelName}</span>
+                )}
+                {(!imagePages || imagePages.length === 0) && <span>·</span>}
+                <span>{evaluation.date || new Date().toISOString().split('T')[0]}</span>
+              </div>
             </div>
 
-            {/* Recommended Sample Outline (if provided) */}
-            {suggestedVisual && suggestedVisual.diagramText && (
-              <div className="mb-4 ml-6 sm:ml-10 rounded-lg border border-slate-200 bg-slate-50/90 font-sans overflow-hidden">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsVisualExpanded((prev) => !prev);
-                  }}
-                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-100/70 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles size={14} className="text-brand-600 shrink-0" />
-                    <span className="text-xs font-bold text-slate-800 truncate">
-                      {suggestedVisual.title
-                        ? cleanSimpleText(
-                            suggestedVisual.title
-                              .replace(/\bModel\s+FPSC\s+Topper\s+Outline\s+Blueprint\b/gi, 'Sample Improved Outline')
-                              .replace(/\bModel\s+Topper\s+Outline\s+Blueprint\b/gi, 'Sample Improved Outline')
-                              .replace(/\bFPSC\b/gi, '')
-                          )
-                        : 'Sample Improved Outline'}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-brand-600 inline-flex items-center gap-1 shrink-0">
-                    <span>{isVisualExpanded ? 'Hide Sample Outline' : 'View Sample Outline'}</span>
-                    {isVisualExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                  </span>
-                </button>
-                {isVisualExpanded && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-3.5 pb-3 pt-1 border-t border-slate-200/80 space-y-2"
-                  >
-                    {suggestedVisual.description && (
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
-                        {cleanSimpleText(suggestedVisual.description)}
-                      </p>
-                    )}
-                    <pre className="text-[11px] leading-relaxed font-mono bg-white border border-slate-200 rounded-md p-3 text-slate-800 overflow-x-auto whitespace-pre">
-                      {suggestedVisual.diagramText}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Formatted Outline Hierarchy & Transcribed Essay Paragraphs on Ruled Canvas */}
-            <div className="notebook-ruled-body text-slate-900 pl-6 sm:pl-10 font-academic">
+            {/* Clean Editorial Canvas: Student Script + Inline Relocated Model Outline */}
+            <div className="editorial-document-body font-academic">
               {renderItems.map((item, idx) => {
                 if (item.kind === 'essay_divider') {
                   return (
-                    <div
-                      key={item.id}
-                      className="my-5 pt-2 border-t border-slate-300/70 text-center font-sans text-[11px] font-bold uppercase tracking-widest text-slate-400"
-                    >
+                    <div key={item.id} className="editorial-essay-divider">
                       Essay
                     </div>
                   );
                 }
 
                 const highlightedContent = renderHighlightedParagraph(item.text, idx);
+                let node = null;
 
-                if (item.kind === 'outline_title') {
-                  return (
+                if (item.kind === 'outline_topic') {
+                  node = (
+                    <h2 className="editorial-topic-title">
+                      {highlightedContent}
+                    </h2>
+                  );
+                } else if (item.kind === 'outline_title') {
+                  node = (
+                    <div className="editorial-outline-heading uppercase tracking-wide">
+                      {highlightedContent}
+                    </div>
+                  );
+                } else if (item.kind === 'outline_main') {
+                  node = (
+                    <div className="editorial-outline-heading">
+                      {highlightedContent}
+                    </div>
+                  );
+                } else if (item.kind === 'outline_thesis') {
+                  node = (
                     <div
-                      key={item.id}
-                      className="font-bold text-slate-950 uppercase tracking-wide text-[16px] mt-1 mb-1.5 leading-snug"
+                      className="font-semibold pl-3.5 my-2.5 py-1.5 rounded-r leading-snug"
+                      style={{
+                        borderLeft: '3px solid var(--warning-amber)',
+                        background: 'var(--warning-amber-soft)',
+                        color: 'var(--text-primary)'
+                      }}
                     >
                       {highlightedContent}
                     </div>
                   );
-                }
-                if (item.kind === 'outline_main') {
-                  return (
-                    <div
-                      key={item.id}
-                      className="font-bold text-slate-950 text-[15.5px] mt-2.5 mb-0.5 leading-snug"
-                    >
-                      {highlightedContent}
-                    </div>
-                  );
-                }
-                if (item.kind === 'outline_thesis') {
-                  return (
-                    <div
-                      key={item.id}
-                      className="font-semibold text-slate-900 pl-4 my-1.5 py-0.5 bg-amber-50/70 border-l-2 border-amber-400 rounded-r text-[15px] leading-snug"
-                    >
-                      {highlightedContent}
-                    </div>
-                  );
-                }
-                if (item.kind === 'outline_sub') {
+                } else if (item.kind === 'outline_sub') {
                   const subWordCount = item.text.trim().split(/\s+/).filter(Boolean).length;
-                  return (
+                  node = (
                     <div
-                      key={item.id}
-                      className={`${
-                        subWordCount <= 10 ? 'font-semibold text-slate-900' : 'font-normal text-slate-800'
-                      } pl-5 sm:pl-7 my-0.5 text-[15px] leading-snug`}
+                      className="editorial-outline-sub"
+                      style={{
+                        fontWeight: subWordCount <= 10 ? 600 : 400,
+                        color: subWordCount <= 10 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                      }}
                     >
                       {highlightedContent}
                     </div>
                   );
-                }
-                if (item.kind === 'outline_point') {
-                  return (
-                    <div
-                      key={item.id}
-                      className="font-normal text-slate-800 pl-9 sm:pl-12 my-0.5 text-[14.5px] leading-snug"
-                    >
+                } else if (item.kind === 'outline_point') {
+                  node = (
+                    <div className="editorial-outline-detail">
                       {highlightedContent}
                     </div>
+                  );
+                } else {
+                  node = (
+                    <p style={{ color: 'var(--text-primary)' }}>
+                      {highlightedContent}
+                    </p>
                   );
                 }
 
                 return (
-                  <p
-                    key={item.id}
-                    className="font-normal text-slate-900 font-academic"
-                  >
-                    {highlightedContent}
-                  </p>
+                  <React.Fragment key={item.id}>
+                    {node}
+                    {idx === lastOutlineIdx && <ModelOutlineCard suggestedVisual={suggestedVisual} />}
+                  </React.Fragment>
                 );
               })}
+
+              {lastOutlineIdx === -1 && <ModelOutlineCard suggestedVisual={suggestedVisual} />}
             </div>
 
             {/* REDESIGNED EDITORIAL ANNOTATION POPOVER */}
@@ -1428,19 +1712,20 @@ export const DocumentViewer = ({
         </div>
       )}
 
-      {/* SINGLE PERSISTENT FLOATING ANNOTATION & STEPPER DOCK (STITCH / GRAMMARLY PILL) */}
+      {/* SCOPED STICKY ANNOTATION & STEPPER DOCK */}
       {viewMode === 'transcribed' && allAnnotations.length > 0 && (
         <div className="floating-annotation-dock no-print font-sans">
           {/* Category Filter Pills */}
-          <div className="flex items-center space-x-1">
+          <div className="flex flex-wrap items-center gap-1">
             <button
               type="button"
               onClick={() => setActiveCategoryFilter('all')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors cursor-pointer ${
+              className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors cursor-pointer"
+              style={
                 activeCategoryFilter === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                  ? { background: 'var(--text-primary)', color: 'var(--bg-panel)' }
+                  : { color: 'var(--text-secondary)' }
+              }
             >
               All ({allAnnotations.length})
             </button>
@@ -1448,11 +1733,12 @@ export const DocumentViewer = ({
               <button
                 type="button"
                 onClick={() => setActiveCategoryFilter('red')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+                style={
                   activeCategoryFilter === 'red'
-                    ? 'bg-rose-600 text-white'
-                    : 'text-rose-700 hover:bg-rose-50'
-                }`}
+                    ? { background: '#e11d48', color: '#ffffff' }
+                    : { color: 'var(--fail-red)' }
+                }
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
                 <span>Errors ({redCount})</span>
@@ -1462,11 +1748,12 @@ export const DocumentViewer = ({
               <button
                 type="button"
                 onClick={() => setActiveCategoryFilter('amber')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+                style={
                   activeCategoryFilter === 'amber'
-                    ? 'bg-amber-600 text-white'
-                    : 'text-amber-700 hover:bg-amber-50'
-                }`}
+                    ? { background: '#d97706', color: '#ffffff' }
+                    : { color: 'var(--warning-amber)' }
+                }
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
                 <span>Polish ({amberCount})</span>
@@ -1476,11 +1763,12 @@ export const DocumentViewer = ({
               <button
                 type="button"
                 onClick={() => setActiveCategoryFilter('green')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer ${
+                className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+                style={
                   activeCategoryFilter === 'green'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-emerald-700 hover:bg-emerald-50'
-                }`}
+                    ? { background: '#059669', color: '#ffffff' }
+                    : { color: 'var(--pass-green)' }
+                }
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                 <span>Good ({greenCount})</span>
@@ -1489,26 +1777,31 @@ export const DocumentViewer = ({
           </div>
 
           {/* Divider */}
-          <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+          <div className="w-[1px] h-4 mx-1" style={{ background: 'var(--border)' }} />
 
           {/* Stepper Controls */}
           <div className="flex items-center space-x-1">
             <button
               aria-label="Previous issue"
               onClick={handlePrevAnnotation}
-              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-1 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              style={{ color: 'var(--text-secondary)' }}
               title="Previous issue"
               type="button"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-xs font-mono font-medium text-slate-600 px-1 whitespace-nowrap">
+            <span
+              className="text-xs font-mono font-medium px-1 whitespace-nowrap"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               {activeIndexInFiltered >= 0 ? activeIndexInFiltered + 1 : 0} / {filteredAnnotations.length}
             </span>
             <button
               aria-label="Next issue"
               onClick={handleNextAnnotation}
-              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-1 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              style={{ color: 'var(--text-secondary)' }}
               title="Next issue"
               type="button"
             >

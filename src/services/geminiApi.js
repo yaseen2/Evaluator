@@ -69,11 +69,11 @@ export const estimateCreditsPreFlight = ({
   let minRequiredCredits = 4;
 
   if (isEssay && (essayMode === 'outline_only' || essayMode === 'outline')) {
-    estimatedWeightedTokens = 14000 + pages * 1500 + Math.max(0, words - 200) * 10;
-    minRequiredCredits = pages > 0 ? 6 + Math.ceil(pages * 0.6) : 6;
+    estimatedWeightedTokens = 21500 + pages * 1500 + Math.max(0, words - 200) * 10;
+    minRequiredCredits = pages > 0 ? 9 + Math.ceil(pages * 0.6) : 9;
   } else if (isEssay) {
-    estimatedWeightedTokens = 44000 + pages * 2500 + Math.max(0, words - 1200) * 14;
-    minRequiredCredits = pages > 0 ? Math.min(45, 16 + pages) : 18;
+    estimatedWeightedTokens = 51500 + pages * 2500 + Math.max(0, words - 1200) * 14;
+    minRequiredCredits = pages > 0 ? Math.min(48, 19 + pages) : 21;
   } else {
     estimatedWeightedTokens = 21000 + pages * 2500 + Math.max(0, words - 450) * 12;
     minRequiredCredits = pages > 0 ? Math.min(18, 8 + pages) : 9;

@@ -25,11 +25,16 @@ import {
   CSS_LANGUAGE_AND_FORMAT_RULES,
   SHARED_SAFE_HARBOR_DIRECTIVE
 } from '../functions/src/rubric/essayRubricConfig.js';
-import { estimateCreditsPreFlight } from '../functions/src/services/creditsManager.js';
+import {
+  estimateCreditsPreFlight,
+  calculateActualCredits
+} from '../functions/src/services/creditsManager.js';
 import { executeCssEssayPipelineV2 } from '../functions/src/rubric/orchestrateEssayPipeline.js';
+import { normalizeModelOutlinePayload } from '../functions/src/rubric/agent5ModelOutline.js';
 import {
   tokenizeQuotedSegments,
-  formatPopoverLocationLabel
+  formatPopoverLocationLabel,
+  parseLegacyModelOutlineText
 } from '../src/utils/textUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -238,8 +243,8 @@ Sources: [1] imf.org`;
 
   const outlineCredits = estimateCreditsPreFlight({ isEssay: true, essayMode: 'outline_only' });
   assertCondition(
-    outlineCredits === 6,
-    `Expected outline_only digital preflight credits === 6, got ${outlineCredits}`
+    outlineCredits === 9,
+    `Expected outline_only digital preflight credits === 9, got ${outlineCredits}`
   );
   console.log('  ✓ v3 Pre-Processor, Abbreviations, Bounded Split, Spotlight Zones & Outline Credits Verified.\n');
   passed++;
@@ -390,6 +395,91 @@ Sources: [1] imf.org`;
     'formatPopoverLocationLabel failed compact label mapping.'
   );
   console.log('  ✓ Quoted phrase tokenization & compact popover locations verified.\n');
+  passed++;
+
+  // 7. Regression Test: Agent 5 Model Outline Rules, Legacy ASCII Tree Parser & Argon 3x Credits
+  console.log('▶ Test 7: Model Outline Guardrails (Standalone Intro/Conclusion), ASCII Cleanup & Argon Weighted Credits...');
+  const normalizedOutline = normalizeModelOutlinePayload(
+    {
+      title: '├── Model Improved Outline: Climate Justice',
+      thesisStatement: '',
+      sections: [
+        {
+          marker: 'I.',
+          heading: 'Introduction',
+          kind: 'intro',
+          items: [{ marker: 'A.', text: 'Forbidden hook subpoint inside intro' }]
+        },
+        {
+          marker: 'II.',
+          heading: '├── Core Climate Vulnerabilities in Developing States',
+          kind: 'body',
+          items: [
+            { marker: 'A.', text: 'Glacial melt threatening river basins' },
+            { marker: 'B.', text: 'Agricultural yield losses affecting rural incomes' }
+          ]
+        },
+        {
+          marker: 'III.',
+          heading: 'Conclusion',
+          kind: 'conclusion',
+          items: [{ marker: 'A.', text: 'Forbidden restated thesis subpoint inside conclusion' }]
+        }
+      ]
+    },
+    'Climate Justice',
+    'gemini-4-argon'
+  );
+
+  assertCondition(
+    normalizedOutline.modelLabel === 'Gemini 4 Argon',
+    `Expected modelLabel === 'Gemini 4 Argon', got ${normalizedOutline.modelLabel}`
+  );
+  assertCondition(
+    normalizedOutline.sections[0].kind === 'intro' && normalizedOutline.sections[0].items.length === 0,
+    'Introduction in model outline MUST have zero sub-points (items.length === 0).'
+  );
+  assertCondition(
+    normalizedOutline.sections[2].kind === 'conclusion' && normalizedOutline.sections[2].items.length === 0,
+    'Conclusion in model outline MUST have zero sub-points (items.length === 0).'
+  );
+  assertCondition(
+    normalizedOutline.sections[1].items.length === 2 && normalizedOutline.totalBodyPoints === 2,
+    `Expected 2 body sub-points preserved, got ${normalizedOutline.totalBodyPoints}`
+  );
+  assertCondition(
+    !/[├└│─]/.test(normalizedOutline.diagramText) && normalizedOutline.thesisStatement === '',
+    'Model outline must strip ASCII tree glyphs and keep omitted optional thesis empty.'
+  );
+
+  const legacyParsed = parseLegacyModelOutlineText([
+    '├── I. Introduction',
+    '│   └── A. Legacy hook that must not nest under Intro',
+    '├── II. Institutional Reform',
+    '│   ├── A. Tax digitization',
+    '│   └── B. Local government autonomy',
+    '└── III. Conclusion',
+    '    └── A. Legacy closing subpoint'
+  ].join('\n'));
+  assertCondition(
+    legacyParsed.sections.length === 3 &&
+      legacyParsed.sections[0].items.length === 0 &&
+      legacyParsed.sections[1].items.length === 2 &&
+      legacyParsed.sections[2].items.length === 0,
+    'parseLegacyModelOutlineText must strip ASCII glyphs and forbid Intro/Conclusion sub-points.'
+  );
+
+  const weightedCredits = calculateActualCredits({
+    inputTokens: 1000,
+    outputTokens: 1000,
+    thinkingTokens: 500,
+    weightedTokens: 22500
+  });
+  assertCondition(
+    weightedCredits === 9,
+    `Expected calculateActualCredits to honor weightedTokens (22500 -> 9 credits), got ${weightedCredits}`
+  );
+  console.log('  ✓ Model outline guardrails, legacy ASCII tree parser & Argon weighted credits verified.\n');
   passed++;
 
   console.log(`✅ All ${passed} Deterministic & Pre-Processor Golden Suites Passed (0 Tokens)!\n`);
