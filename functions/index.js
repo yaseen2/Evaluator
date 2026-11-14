@@ -131,8 +131,8 @@ export const evaluateSubmission = onCall(
             userId: uid,
             subject,
             essayMode,
-            ...progressPayload,
             status: 'running',
+            ...progressPayload,
             updatedAt: new Date().toISOString()
           },
           { merge: true }

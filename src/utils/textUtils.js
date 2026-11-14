@@ -229,9 +229,61 @@ const ROMAN_NUMERALS = [
   'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'
 ];
 
+const OUTLINE_ROMAN_SECTION_MAP = {
+  I: 1,
+  II: 2,
+  III: 3,
+  IV: 4,
+  V: 5,
+  VI: 6,
+  VII: 7,
+  VIII: 8,
+  IX: 9,
+  X: 10,
+  XI: 11,
+  XII: 12,
+  XIII: 13,
+  XIV: 14,
+  XV: 15,
+  XVI: 16,
+  XVII: 17,
+  XVIII: 18,
+  XIX: 19,
+  XX: 20
+};
+
+const getLineTreeDepthWidth = (rawLine = '') => {
+  const prefixMatch = String(rawLine || '').match(/^[\s│|├└─┌┐┘┤┬┴┼•*>-]*/);
+  return prefixMatch ? prefixMatch[0].length : 0;
+};
+
+const extractInlineIntroThesis = (heading = '') => {
+  const parenMatch = String(heading || '').match(
+    /^introduction\b[\s:–—-]*\((?:optional\s+)?thesis(?:\s+statement)?\s*:\s*(.+)\)\s*$/i
+  );
+  if (parenMatch) {
+    return {
+      heading: 'Introduction',
+      extractedThesis: parenMatch[1].trim()
+    };
+  }
+  const colonMatch = String(heading || '').match(
+    /^introduction\b\s*[:–—-]\s*(?:optional\s+)?thesis(?:\s+statement)?\s*:\s*(.+)$/i
+  );
+  if (colonMatch) {
+    return {
+      heading: 'Introduction',
+      extractedThesis: colonMatch[1].trim()
+    };
+  }
+  return { heading, extractedThesis: '' };
+};
+
 export const stripOutlineTreeArtifacts = (line = '') => {
   return String(line || '')
+    .replace(/\*\*([^*]*?)\*\*/g, '$1')
     .replace(/^[\s│|├└─┌┐┘┤┬┴┼•*>-]+/g, '')
+    .replace(/^\*+|\*+$/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -250,10 +302,43 @@ export const parseLegacyModelOutlineText = (diagramText = '') => {
     return { thesisStatement: '', sections: [] };
   }
 
+  const parsedEntries = rawLines
+    .map((rawLine) => ({
+      rawLine,
+      depth: getLineTreeDepthWidth(rawLine),
+      clean: stripOutlineTreeArtifacts(rawLine)
+    }))
+    .filter((entry) => entry.clean.length > 0);
+
+  if (!parsedEntries.length) {
+    return { thesisStatement: '', sections: [] };
+  }
+
+  // Detect whether top-level sections use numeric markers (1., 2., 3.) or Roman numerals (I., II., III.)
+  const hasMultiRoman = parsedEntries.some((e) =>
+    /^(?:II|III|IV|VI{1,3}|IX|XI{0,3})[.):]\s+/.test(e.clean)
+  );
+  const hasRomanIntro = parsedEntries.some((e) =>
+    /^I[.):]\s+(?:introduction|outline|overview|thesis)\b/i.test(e.clean)
+  );
+  const hasNumericIntroOrConc = parsedEntries.some((e) =>
+    /^\d{1,2}[.):]\s+(?:introduction|conclusion)\b/i.test(e.clean)
+  );
+  const numericLineCount = parsedEntries.filter((e) => /^\d{1,2}[.):]\s+/.test(e.clean)).length;
+  const isNumericTopScheme =
+    hasNumericIntroOrConc || (!hasMultiRoman && !hasRomanIntro && numericLineCount >= 2);
+
   let thesisStatement = '';
   const sections = [];
   let currentSection = null;
+  let currentSectionDepth = null;
+  let lastRomanVal = 0;
+  let lastNumericSectionVal = 0;
   let currentItem = null;
+  let currentItemDepth = null;
+  let currentSectionItemStyle = null;
+  let lastItemCharCode = null;
+  let parenItemMode = false;
 
   const ensureSection = () => {
     if (!currentSection) {
@@ -264,40 +349,71 @@ export const parseLegacyModelOutlineText = (diagramText = '') => {
         items: []
       };
       sections.push(currentSection);
+      currentSectionDepth = 0;
+      currentSectionItemStyle = null;
+      lastItemCharCode = null;
+      parenItemMode = false;
     }
     return currentSection;
   };
 
-  for (let idx = 0; idx < rawLines.length; idx += 1) {
-    const rawLine = rawLines[idx];
-    const clean = stripOutlineTreeArtifacts(rawLine);
-    if (!clean) continue;
+  for (let idx = 0; idx < parsedEntries.length; idx += 1) {
+    const { depth, clean } = parsedEntries[idx];
 
-    // Skip bracketed topic wrapper headers already shown in the report title
-    if (idx === 0 && /^\[(?:essay\s+title|topic)\]/i.test(clean)) {
-      continue;
-    }
-
-    const thesisMatch = clean.match(/^\[?thesis(?:\s+statement)?\]?\s*:?\s*(.+)$/i);
+    const thesisMatch = clean.match(
+      /^\[?(?:optional\s+)?thesis(?:\s+statement)?\]?\s*:?\s*(.+)$/i
+    );
     if (thesisMatch) {
-      thesisStatement = thesisMatch[1].trim();
+      if (!thesisStatement) {
+        thesisStatement = thesisMatch[1].trim();
+      }
       continue;
     }
 
-    const romanMatch = clean.match(/^([IVXLC]+)[.)]\s+(.+)$/);
-    const topNumericMatch = !currentSection && clean.match(/^(\d+)[.)]\s+(.+)$/);
-    const introConcMatch =
-      !romanMatch && /^(introduction|conclusion)(?:\s*[:\-–].*)?$/i.test(clean);
+    const candRomanMatch = !isNumericTopScheme ? clean.match(/^([IVX]+)[.):]\s+(.+)$/) : null;
+    const candRomanVal = candRomanMatch ? OUTLINE_ROMAN_SECTION_MAP[candRomanMatch[1]] || 0 : 0;
+    const continuesAlphaSequence =
+      Boolean(candRomanMatch) &&
+      lastItemCharCode !== null &&
+      candRomanMatch[1].length === 1 &&
+      candRomanMatch[1].charCodeAt(0) === lastItemCharCode + 1;
+    const isRomanHeading =
+      Boolean(candRomanVal) &&
+      !continuesAlphaSequence &&
+      (candRomanMatch[1] === 'I'
+        ? sections.length === 0
+        : candRomanMatch[1] === 'V' || candRomanMatch[1] === 'X'
+          ? candRomanVal > lastRomanVal &&
+            candRomanVal <= lastRomanVal + 2 &&
+            (currentSectionDepth === null || depth <= currentSectionDepth + 1)
+          : candRomanVal > lastRomanVal || sections.length === 0);
 
-    if (romanMatch || topNumericMatch || introConcMatch) {
-      let marker = `${ROMAN_NUMERALS[sections.length] || sections.length + 1}.`;
+    const candNumericMatch = isNumericTopScheme ? clean.match(/^(\d{1,2})[.):]\s+(.+)$/) : null;
+    const candNumericVal = candNumericMatch ? Number(candNumericMatch[1]) : 0;
+    const isTopNumericHeading =
+      Boolean(candNumericMatch) &&
+      (currentSectionDepth === null ||
+        depth <= currentSectionDepth + 1 ||
+        candNumericVal > lastNumericSectionVal);
+
+    const introConcMatch =
+      !isRomanHeading &&
+      !isTopNumericHeading &&
+      /^(introduction|conclusion)\b(?:\s*[:\-–—(].*)?$/i.test(clean) &&
+      (!currentSection ||
+        depth <= (currentSectionDepth ?? depth) + 1 ||
+        /^(introduction|conclusion)\s*(?:\(|$|:)/i.test(clean));
+
+    if (isRomanHeading || isTopNumericHeading || introConcMatch) {
+      const marker = `${ROMAN_NUMERALS[sections.length] || sections.length + 1}.`;
       let heading = clean;
 
-      if (romanMatch) {
-        marker = `${romanMatch[1].toUpperCase()}.`;
-        heading = romanMatch[2].trim();
-      } else if (topNumericMatch) {
-        heading = topNumericMatch[2].trim();
+      if (isRomanHeading) {
+        lastRomanVal = candRomanVal;
+        heading = candRomanMatch[2].trim();
+      } else if (isTopNumericHeading) {
+        lastNumericSectionVal = candNumericVal;
+        heading = candNumericMatch[2].trim();
       }
 
       const lower = heading.toLowerCase();
@@ -307,38 +423,134 @@ export const parseLegacyModelOutlineText = (diagramText = '') => {
           ? 'conclusion'
           : 'body';
 
+      if (kind === 'intro') {
+        const extracted = extractInlineIntroThesis(heading);
+        heading = extracted.heading;
+        if (!thesisStatement && extracted.extractedThesis) {
+          thesisStatement = extracted.extractedThesis;
+        }
+      } else if (kind === 'conclusion') {
+        heading = 'Conclusion';
+      }
+
       currentSection = { marker, heading, kind, items: [] };
       sections.push(currentSection);
+      currentSectionDepth = depth;
       currentItem = null;
+      currentItemDepth = null;
+      currentSectionItemStyle = null;
+      lastItemCharCode = null;
+      parenItemMode = false;
+      continue;
+    }
+
+    // Ignore document wrapper/title header lines before the first section starts
+    if (!currentSection) {
       continue;
     }
 
     // Never nest sub-points under standalone Introduction or Conclusion
-    if (currentSection && (currentSection.kind === 'intro' || currentSection.kind === 'conclusion')) {
+    if (currentSection.kind === 'intro' || currentSection.kind === 'conclusion') {
       continue;
     }
 
-    const detailMatch =
-      clean.match(/^\(([a-z0-9]+)\)\s+(.+)$/i) ||
-      clean.match(/^([a-z])[.)]\s+(.+)$/) ||
-      (/^\s{4,}/.test(rawLine) ? [null, '', clean] : null);
+    const parenSubMatch = clean.match(/^\(([a-z0-9]+)\)\s+(.+)$/i);
+    const letterMarkerMatch = clean.match(/^([A-Za-z])[.):]\s+(.+)$/);
+    const numMarkerMatch = clean.match(/^(\d{1,2})[.):]\s+(.+)$/);
 
-    if (detailMatch && currentItem) {
-      const marker = detailMatch[1] ? `(${detailMatch[1].toLowerCase()})` : `${String.fromCharCode(97 + currentItem.subItems.length)}.`;
-      currentItem.subItems.push({
-        marker,
-        text: (detailMatch[2] || clean).trim()
-      });
+    let isSubItem = false;
+    if (currentItem) {
+      if (parenSubMatch && !parenItemMode) {
+        isSubItem = true;
+      } else if (letterMarkerMatch) {
+        const ch = letterMarkerMatch[1];
+        const isLower = ch >= 'a' && ch <= 'z';
+        const code = ch.toUpperCase().charCodeAt(0);
+        const matchesSectionItemSeq =
+          lastItemCharCode !== null &&
+          code === lastItemCharCode + 1 &&
+          ((currentSectionItemStyle === 'lower' && isLower) ||
+            (currentSectionItemStyle === 'upper' && !isLower));
+
+        if (currentSectionItemStyle === 'upper' && isLower && !matchesSectionItemSeq) {
+          isSubItem = true;
+        } else if (
+          currentItemDepth !== null &&
+          depth >= currentItemDepth + 2 &&
+          !matchesSectionItemSeq
+        ) {
+          isSubItem = true;
+        }
+      } else if (numMarkerMatch && !isNumericTopScheme) {
+        if (
+          currentSectionItemStyle === 'upper' ||
+          currentSectionItemStyle === 'lower' ||
+          (currentItemDepth !== null && depth >= currentItemDepth + 2)
+        ) {
+          isSubItem = true;
+        }
+      } else if (currentItemDepth !== null && depth >= currentItemDepth + 2) {
+        isSubItem = true;
+      }
+    }
+
+    if (isSubItem && currentItem) {
+      const explicitSub =
+        (parenSubMatch && parenSubMatch[1]) ||
+        (letterMarkerMatch && letterMarkerMatch[1]) ||
+        (numMarkerMatch && numMarkerMatch[1]);
+      const marker = explicitSub
+        ? `(${explicitSub.toLowerCase()})`
+        : `(${String.fromCharCode(97 + (currentItem.subItems.length % 26))})`;
+      const subText = (
+        (parenSubMatch && parenSubMatch[2]) ||
+        (letterMarkerMatch && letterMarkerMatch[2]) ||
+        (numMarkerMatch && numMarkerMatch[2]) ||
+        clean
+      ).trim();
+
+      currentItem.subItems.push({ marker, text: subText });
       continue;
     }
 
-    const alphaMatch = clean.match(/^([A-Z])[.)]\s+(.+)$/) || clean.match(/^(\d+)[.)]\s+(.+)$/);
     const target = ensureSection();
-    const fallbackAlpha = String.fromCharCode(65 + target.items.length);
-    const marker = alphaMatch ? `${alphaMatch[1].toUpperCase()}.` : `${fallbackAlpha}.`;
-    const text = (alphaMatch ? alphaMatch[2] : clean).trim();
+    if (!currentSectionItemStyle) {
+      if (letterMarkerMatch) {
+        currentSectionItemStyle =
+          letterMarkerMatch[1] >= 'a' && letterMarkerMatch[1] <= 'z' ? 'lower' : 'upper';
+      } else if (numMarkerMatch) {
+        currentSectionItemStyle = 'numeric';
+      } else if (parenSubMatch) {
+        currentSectionItemStyle = 'paren';
+        parenItemMode = true;
+      } else {
+        currentSectionItemStyle = 'plain';
+      }
+    }
+
+    const fallbackAlpha = String.fromCharCode(65 + (target.items.length % 26));
+    let marker = `${fallbackAlpha}.`;
+    let text = clean;
+
+    if (letterMarkerMatch) {
+      const upper = letterMarkerMatch[1].toUpperCase();
+      marker = `${upper}.`;
+      text = letterMarkerMatch[2].trim();
+      lastItemCharCode = upper.charCodeAt(0);
+    } else if (numMarkerMatch) {
+      marker = `${fallbackAlpha}.`;
+      text = numMarkerMatch[2].trim();
+      lastItemCharCode = fallbackAlpha.charCodeAt(0);
+    } else if (parenSubMatch) {
+      marker = `${fallbackAlpha}.`;
+      text = parenSubMatch[2].trim();
+      lastItemCharCode = fallbackAlpha.charCodeAt(0);
+    } else {
+      lastItemCharCode = fallbackAlpha.charCodeAt(0);
+    }
 
     currentItem = { marker, text, subItems: [] };
+    currentItemDepth = depth;
     target.items.push(currentItem);
   }
 

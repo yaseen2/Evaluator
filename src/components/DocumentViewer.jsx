@@ -71,6 +71,16 @@ const startsWithOutlineMarker = (line = '') => {
     return true;
   }
 
+  // Dash markers at start with space after dash: 1- Introduction, A- Factor, ii- Stakeholder
+  const dashMatch = t.match(
+    new RegExp(
+      `^(${ROMAN_UPPER_SRC}|[A-Z]|${ROMAN_LOWER_SRC}|[a-z]|\\d{1,2})-[ \\t]+([A-Za-z"'“‘][^\\n]*)`
+    )
+  );
+  if (dashMatch && !ABBREVIATIONS_GUARD.test(dashMatch[1])) {
+    return true;
+  }
+
   return false;
 };
 
@@ -765,7 +775,14 @@ const ModelOutlineCard = ({ suggestedVisual }) => {
           {sections.length > 0 ? (
             <ol className="model-outline-section-list">
               {sections.map((section, sIdx) => {
-                const isStandalone = section.kind === 'intro' || section.kind === 'conclusion';
+                const cleanedHeading = String(section.heading || '')
+                  .replace(/\*\*([^*]*?)\*\*/g, '$1')
+                  .replace(/^(?:[IVXLC]+|\d{1,2})[.):]\s*/i, '')
+                  .trim();
+                const isStandalone =
+                  section.kind === 'intro' ||
+                  section.kind === 'conclusion' ||
+                  /^(?:introduction|conclusion)\b/i.test(cleanedHeading);
                 const subList = !isStandalone && Array.isArray(section.items) ? section.items : [];
                 return (
                   <li key={`${section.marker || sIdx}-${sIdx}`}>
@@ -1584,12 +1601,22 @@ export const DocumentViewer = ({
                 return (
                   <React.Fragment key={item.id}>
                     {node}
-                    {idx === lastOutlineIdx && <ModelOutlineCard suggestedVisual={suggestedVisual} />}
+                    {idx === lastOutlineIdx && (
+                      <ModelOutlineCard
+                        key={evaluation?.id || evaluation?.createdAt || 'model-outline'}
+                        suggestedVisual={suggestedVisual}
+                      />
+                    )}
                   </React.Fragment>
                 );
               })}
 
-              {lastOutlineIdx === -1 && <ModelOutlineCard suggestedVisual={suggestedVisual} />}
+              {lastOutlineIdx === -1 && (
+                <ModelOutlineCard
+                  key={evaluation?.id || evaluation?.createdAt || 'model-outline'}
+                  suggestedVisual={suggestedVisual}
+                />
+              )}
             </div>
 
             {/* REDESIGNED EDITORIAL ANNOTATION POPOVER */}

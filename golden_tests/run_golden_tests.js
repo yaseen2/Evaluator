@@ -457,16 +457,72 @@ Sources: [1] imf.org`;
     '│   └── A. Legacy hook that must not nest under Intro',
     '├── II. Institutional Reform',
     '│   ├── A. Tax digitization',
-    '│   └── B. Local government autonomy',
+    '    ├── B. Local government autonomy',
+    '│   ├── C. Civil service meritocracy',
+    '│   ├── I. Independent procurement audits',
+    '│   └── L. Long-term public finance discipline',
     '└── III. Conclusion',
     '    └── A. Legacy closing subpoint'
   ].join('\n'));
   assertCondition(
     legacyParsed.sections.length === 3 &&
       legacyParsed.sections[0].items.length === 0 &&
-      legacyParsed.sections[1].items.length === 2 &&
+      legacyParsed.sections[1].items.length === 5 &&
+      legacyParsed.sections[1].items.every((it) => it.subItems.length === 0) &&
       legacyParsed.sections[2].items.length === 0,
-    'parseLegacyModelOutlineText must strip ASCII glyphs and forbid Intro/Conclusion sub-points.'
+    `parseLegacyModelOutlineText must preserve C./I./L. body items and 4-space sibling items under II. (got sections=${legacyParsed.sections.length}, items=${legacyParsed.sections[1]?.items?.length})`
+  );
+
+  // 7B. Real Firestore Legacy Shape (Numeric top sections + unbracketed title + inline Thesis + nested tree bullets)
+  const numericMatrixParsed = parseLegacyModelOutlineText([
+    "Pathways to Pakistan's Prosperity: Strategic Matrix",
+    '├── 1. Introduction (Thesis: Pakistan can transition from polycrisis to sustainable prosperity through structural reform.)',
+    '├── 2. Diagnosing the Polycrisis (Current Baseline)',
+    '│   ├── a. Macroeconomic Fragility & Debt Burden',
+    '│   │   ├── Chronic fiscal & current account deficits',
+    '│   │   └── Inflation & import-dependent consumption',
+    '│   └── b. Governance & Institutional Deficit',
+    '├── 3. **Strategic Economic Reforms**',
+    '│   └── a. Export-led industrial diversification',
+    '└── 6. Conclusion (Synthesis: Strategic discipline over ad-hocism)'
+  ].join('\n'));
+  assertCondition(
+    numericMatrixParsed.sections.length === 4 &&
+      numericMatrixParsed.sections[0].kind === 'intro' &&
+      numericMatrixParsed.sections[0].heading === 'Introduction' &&
+      numericMatrixParsed.sections[0].items.length === 0 &&
+      numericMatrixParsed.thesisStatement.includes('Pakistan can transition from polycrisis') &&
+      numericMatrixParsed.sections[1].heading === 'Diagnosing the Polycrisis (Current Baseline)' &&
+      numericMatrixParsed.sections[1].items.length === 2 &&
+      numericMatrixParsed.sections[1].items[0].text === 'Macroeconomic Fragility & Debt Burden' &&
+      numericMatrixParsed.sections[1].items[0].subItems.length === 2 &&
+      numericMatrixParsed.sections[2].heading === 'Strategic Economic Reforms' &&
+      numericMatrixParsed.sections[3].kind === 'conclusion' &&
+      numericMatrixParsed.sections[3].heading === 'Conclusion',
+    `parseLegacyModelOutlineText must handle numeric top sections, unbracketed titles, inline intro thesis, and nested tree sub-items.`
+  );
+
+  // 7C. Backend Normalizer Fallback & Markdown/")" Normalization
+  const fallbackNormalized = normalizeModelOutlinePayload(
+    {
+      sections: [],
+      diagramText: [
+        '1) **Introduction (Thesis: Institutional accountability underpins economic stability.)**',
+        '2) **Core Structural Bottlenecks**',
+        '   A) Elite capture of tax policy',
+        '3) Conclusion'
+      ].join('\n')
+    },
+    'Governance Reforms',
+    'gemini-4-argon'
+  );
+  assertCondition(
+    fallbackNormalized.sections.length === 3 &&
+      fallbackNormalized.sections[0].kind === 'intro' &&
+      fallbackNormalized.sections[1].items.length === 1 &&
+      !/\*\*/.test(fallbackNormalized.diagramText) &&
+      fallbackNormalized.thesisStatement === 'Institutional accountability underpins economic stability.',
+    `normalizeModelOutlinePayload must parse diagramText fallback, strip markdown, and extract inline intro thesis.`
   );
 
   const weightedCredits = calculateActualCredits({
